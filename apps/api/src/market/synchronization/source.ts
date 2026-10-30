@@ -1,3 +1,4 @@
+import { MAINTENANCE_SOURCE_REQUESTS } from '../providers/tushare/request-contract.js';
 import { MarketSyncBudgetError } from '../errors.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import type { MarketRow, PreparedMarketPartition, SourceRecord } from './partition.js';
@@ -27,13 +28,21 @@ export async function fetchSourcePages(
   pageSize = 1000,
   maximumPages = 20,
 ): Promise<SourcePages> {
+  const contract = MAINTENANCE_SOURCE_REQUESTS[api];
+  if (
+    !contract ||
+    Object.keys(params).some((parameter) => !contract.parameters.includes(parameter))
+  ) {
+    throw new Error(`${api}: undeclared maintenance request parameter`);
+  }
+  const snapshotLimit = contract.snapshotLimit;
   const result: SourcePages = { rows: [], complete: false, pages: 0, errors: [] };
   const signatures = new Set<string>();
   for (let pageNumber = 0; pageNumber < maximumPages; pageNumber++) {
     try {
       const page = await source.call(
         api,
-        { ...params, limit: pageSize, offset: pageNumber * pageSize },
+        snapshotLimit ? params : { ...params, limit: pageSize, offset: pageNumber * pageSize },
         fields,
       );
       result.pages++;
@@ -43,7 +52,10 @@ export async function fetchSourcePages(
       }
       signatures.add(signature);
       result.rows.push(...page);
-      if (page.length < pageSize) {
+      if (snapshotLimit && page.length >= snapshotLimit) {
+        throw new Error(`${api}: response reached its safety limit; narrow the request`);
+      }
+      if (snapshotLimit || page.length < pageSize) {
         result.complete = true;
         break;
       }
@@ -191,4 +203,22 @@ export function validateSourceNumbers(
       }
     }
   }
+}
+
+/**
+ * 股票和 ETF 的完整价格约束。
+ *
+ * Complete price invariants shared by stock and ETF bars.
+ */
+export function validateSourceBar(values: MarketRow): void {
+  const prices = ['open', 'high', 'low', 'close'].map((field) => values[field]);
+  if (prices.some((value) => typeof value !== 'number' || !Number.isFinite(value) || value <= 0)) {
+    throw new Error('Missing or invalid OHLC price');
+  }
+  const [open, high, low, close] = prices as number[];
+  if (low > Math.min(open, close) || high < Math.max(open, close) || low > high) {
+    throw new Error('Inconsistent OHLC price range');
+  }
+
+  validateSourceNumbers(values, [], ['vol', 'amount']);
 }

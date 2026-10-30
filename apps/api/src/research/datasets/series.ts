@@ -1,3 +1,4 @@
+import { assertPriceSeriesReadiness } from '#market/synchronization/readiness.js';
 import { ResearchError } from '../errors.js';
 import type {
   ResearchDiagnosticV1,
@@ -197,6 +198,8 @@ async function loadInstrumentSeries(
     throw new ResearchError('dataset_retired');
   }
 
+  await assertPriceSeriesReadiness(assetType, id, start, end);
+
   if (assetType === 'index') {
     const rows = await getDatabase().indexDaily.findMany({
       where: { tsCode: id, tradeDate: { gte: start, lte: end } },
@@ -262,7 +265,12 @@ function calendarMonthEnd(date: string): string {
   const year = Number(date.slice(0, 4));
   const month = Number(date.slice(4, 6));
   const day = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${String(year).padStart(4, '0')}${String(month).padStart(2, '0')}${String(day).padStart(2, '0')}`;
+
+  return [
+    String(year).padStart(4, '0'),
+    String(month).padStart(2, '0'),
+    String(day).padStart(2, '0'),
+  ].join('');
 }
 
 /**
@@ -287,5 +295,10 @@ function shiftCalendarDays(date: string, offset: number): string {
     Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8))),
   );
   value.setUTCDate(value.getUTCDate() + offset);
-  return `${value.getUTCFullYear()}${String(value.getUTCMonth() + 1).padStart(2, '0')}${String(value.getUTCDate()).padStart(2, '0')}`;
+
+  return [
+    String(value.getUTCFullYear()),
+    String(value.getUTCMonth() + 1).padStart(2, '0'),
+    String(value.getUTCDate()).padStart(2, '0'),
+  ].join('');
 }

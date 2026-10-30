@@ -1,3 +1,4 @@
+import { assertPriceSeriesReadiness } from '#market/synchronization/readiness.js';
 import type { TimeSeriesEvaluationObservation } from './contract.js';
 import type { TimeSeriesFactorSandbox } from '../sandbox/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
@@ -51,6 +52,16 @@ export async function loadEtfTimeSeriesObservations(
       select: { tsCode: true, tradeDate: true, adjFactor: true },
     }),
   ]);
+
+  for (const code of researchSpec.assets) {
+    const last = bars.filter((row) => row.tsCode === code).at(-1)?.tradeDate ?? researchSpec.end;
+    await assertPriceSeriesReadiness(
+      'etf',
+      code,
+      historyStart,
+      [last, researchSpec.end].sort().at(-1)!,
+    );
+  }
 
   const adjustmentByAssetDate = new Map(
     adjustments.map((row) => [`${row.tsCode}:${row.tradeDate}`, row.adjFactor]),

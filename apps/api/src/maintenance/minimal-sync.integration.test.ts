@@ -104,7 +104,7 @@ describe('minimal retained-data synchronization', () => {
             scope: codes[0],
             startDate: '20200101',
             endDate: '20201231',
-            policyVersion: 'sync-v1',
+            policyVersion: 'sync-v2',
             status: 'complete',
           },
           {
@@ -113,7 +113,7 @@ describe('minimal retained-data synchronization', () => {
             scope: codes[0],
             startDate: '20220101',
             endDate: '20251231',
-            policyVersion: 'sync-v1',
+            policyVersion: 'sync-v2',
             status: 'complete',
           },
           {
@@ -122,7 +122,7 @@ describe('minimal retained-data synchronization', () => {
             scope: codes[0],
             startDate: '20210101',
             endDate: '20211231',
-            policyVersion: 'sync-v1',
+            policyVersion: 'sync-v2',
             status: 'error',
           },
         ],
@@ -151,7 +151,7 @@ describe('minimal retained-data synchronization', () => {
           startDate: '19900101',
           endDate: '20251231',
           status: 'complete',
-          policyVersion: 'sync-v1',
+          policyVersion: 'sync-v2',
           checkedAt: new Date(0),
         },
       });
@@ -191,8 +191,8 @@ describe('minimal retained-data synchronization', () => {
         annDate: '20260301',
         exDate: '20260601',
         divProc: '实施',
-        cashDiv: 1,
-        cashDivTax: null,
+        cashDiv: 0.9,
+        cashDivTax: 1,
         observedAt: new Date('2026-06-02T02:00:00Z'),
         availabilityQuality: 'latest_only',
       };
@@ -219,7 +219,8 @@ describe('minimal retained-data synchronization', () => {
                   annDate: data.annDate,
                   exDate: data.exDate,
                   divProc: '实施',
-                  cashDiv: 1,
+                  cashDiv: 0.9,
+                  cashDivTax: 1,
                 },
               },
             ],
@@ -249,7 +250,7 @@ describe('minimal retained-data synchronization', () => {
           end: '20261028',
         }),
       ).toMatchObject([{ date: '20260603', cash_dividend_pre_tax: 1 }]);
-      prepared.tables[0].records[0].values.cashDiv = 2;
+      prepared.tables[0].records[0].values.cashDivTax = 2;
       await database.$transaction((transaction) =>
         writeFinancialPartition(transaction, prepared, window, startedAt),
       );

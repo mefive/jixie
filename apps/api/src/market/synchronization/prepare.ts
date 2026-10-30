@@ -3,7 +3,6 @@ import { writeStockPartition } from '../stocks/write.js';
 import { writeEtfPartition } from '../etfs/write.js';
 import { writeIndexPartition } from '../indices/write.js';
 import { writeFinancialPartition } from '../fundamentals/write.js';
-import { qualifyMarketPartition } from './qualify.js';
 import { prepareCalendarPartition } from '../calendar/sync-partition.js';
 import { prepareStockPartition, prepareStockReference } from '../stocks/sync-partition.js';
 import { prepareIndexPartition } from '../indices/sync-partition.js';
@@ -21,7 +20,7 @@ export interface SyncProviders {
  *
  * Explicitly dispatch Market acquisition rules without locks or cross-domain work.
  */
-async function fetchMarketPartition(
+export async function prepareMarketPartition(
   providers: SyncProviders,
   partition: MarketPartition,
   fetchedAt: Date,
@@ -40,7 +39,7 @@ async function fetchMarketPartition(
     case 'index-prices':
     case 'index-valuations':
     case 'index-weights':
-      return prepareIndexPartition(providers.source, partition);
+      return prepareIndexPartition(providers.source, partition, fetchedAt);
     case 'etf-master':
     case 'etf-prices':
     case 'etf-adjustments':
@@ -54,17 +53,11 @@ async function fetchMarketPartition(
   }
 }
 
-export async function prepareMarketPartition(
-  providers: SyncProviders,
-  partition: MarketPartition,
-  fetchedAt: Date,
-): Promise<PreparedMarketPartition> {
-  const prepared = await fetchMarketPartition(providers, partition, fetchedAt);
-
-  return qualifyMarketPartition(partition, prepared);
-}
-
-/** 已核验数据由对应领域显式提交。 / Persist validated data through its domain's explicit writer. */
+/**
+ * 已核验数据由对应领域显式提交。
+ *
+ * Persist validated data through its domain's explicit writer.
+ */
 export async function writeMarketPartition(
   transaction: MarketTransaction,
   prepared: PreparedMarketPartition,

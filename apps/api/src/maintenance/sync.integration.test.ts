@@ -154,7 +154,7 @@ describe('unified synchronization acceptance', () => {
           scope: 'SSE',
           startDate: '20150101',
           endDate: '20260916',
-          policyVersion: 'sync-v1',
+          policyVersion: 'sync-v2',
           status: 'complete',
         },
       });
@@ -181,7 +181,7 @@ describe('unified synchronization acceptance', () => {
           scope: 'all',
           startDate: '20260915',
           endDate: '20260915',
-          policyVersion: 'sync-v1',
+          policyVersion: 'sync-v2',
           status: 'waiting',
         },
       });

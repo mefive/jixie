@@ -1,6 +1,8 @@
+import { etfDownloadRange } from '../etfs/download-range.js';
 import type { Prisma } from '@prisma/client';
 import { MarketError } from '../errors.js';
 import { DATASET_POLICIES } from './policies.js';
+import { calendarDay } from './date.js';
 import { contiguousCoverage } from './coverage.js';
 import { getDatabase } from '#infra/database/prisma.js';
 
@@ -25,7 +27,48 @@ export async function datasetInputReadiness(
   database: Pick<Prisma.TransactionClient, 'datasetSyncPartition' | 'tradeCal'> = getDatabase(),
 ): Promise<InputReadiness> {
   const gaps: string[] = [];
-  for (const requirement of requirements) {
+  const dependencies = requirements
+    .filter((entry) =>
+      ['stock-adjustments', 'stock-valuations', 'stock-limits'].includes(entry.dataset),
+    )
+    .map((entry) => ({ ...entry, dataset: 'stock-prices' }));
+  for (const requirement of [...requirements, ...dependencies]) {
+    const label = `${requirement.dataset}/${requirement.scope ?? 'all'}`;
+    const master =
+      requirement.dataset === 'stock-prices'
+        ? { dataset: 'stock-master', scopes: ['L', 'D', 'P', 'G'] }
+        : ['etf-prices', 'etf-adjustments'].includes(requirement.dataset)
+          ? { dataset: 'etf-master', scopes: ['all'] }
+          : null;
+    if (master) {
+      const catalogs = await database.datasetSyncPartition.findMany({
+        where: {
+          dataset: master.dataset,
+          policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === master.dataset)!
+            .version,
+          status: 'complete',
+        },
+      });
+      if (master.scopes.some((scope) => !catalogs.some((entry) => entry.scope === scope))) {
+        gaps.push(`${master.dataset}: listing-status inventories are not verified`);
+      }
+    }
+    const unavailable = await database.datasetSyncPartition.findMany({
+      where: {
+        dataset: requirement.dataset,
+        scope: requirement.scope ?? 'all',
+        status: 'unavailable',
+        policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === requirement.dataset)
+          ?.version,
+        startDate: { lte: requirement.endDate },
+        endDate: { gte: requirement.startDate },
+      },
+    });
+    if (unavailable.length) {
+      gaps.push(
+        `${requirement.dataset}/${requirement.scope}: requested history precedes the source`,
+      );
+    }
     const partitions = await database.datasetSyncPartition.findMany({
       where: {
         dataset: requirement.dataset,
@@ -39,16 +82,14 @@ export async function datasetInputReadiness(
       },
       orderBy: { startDate: 'asc' },
     });
-    const daily = [
-      'stock-prices',
-      'stock-adjustments',
-      'stock-valuations',
-      'stock-limits',
-    ].includes(requirement.dataset);
+    const daily =
+      DATASET_POLICIES.find((policy) => policy.dataset === requirement.dataset)?.completion ===
+      'sessions';
     if (daily) {
       const calendarProof = await database.datasetSyncPartition.findMany({
         where: {
           dataset: 'calendar',
+          policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === 'calendar')!.version,
           scope: 'SSE',
           status: 'complete',
           startDate: { lte: requirement.endDate },
@@ -66,9 +107,6 @@ export async function datasetInputReadiness(
         },
         select: { calDate: true },
       });
-      if (!sessions.length) {
-        gaps.push(`${requirement.dataset}: no verified session calendar`);
-      }
       for (const session of sessions) {
         if (
           !partitions.some(
@@ -76,9 +114,7 @@ export async function datasetInputReadiness(
               partition.startDate <= session.calDate && partition.endDate >= session.calDate,
           )
         ) {
-          gaps.push(
-            `${requirement.dataset}/${requirement.scope ?? 'all'}: unverified session ${session.calDate}`,
-          );
+          gaps.push(`${label}: unverified session ${session.calDate}`);
         }
       }
       continue;
@@ -89,17 +125,12 @@ export async function datasetInputReadiness(
         break;
       }
       if (partition.endDate >= cursor) {
-        const date = new Date(
-          `${partition.endDate.slice(0, 4)}-${partition.endDate.slice(4, 6)}-${partition.endDate.slice(6)}T00:00:00Z`,
-        );
-        date.setUTCDate(date.getUTCDate() + 1);
-        cursor = date.toISOString().slice(0, 10).replaceAll('-', '');
+        cursor = calendarDay(partition.endDate, 1);
       }
     }
     if (cursor <= requirement.endDate) {
-      gaps.push(
-        `${requirement.dataset}/${requirement.scope ?? 'all'}: unverified coverage ${cursor}..${requirement.endDate}`,
-      );
+      const range = `${cursor}..${requirement.endDate}`;
+      gaps.push(`${label}: unverified coverage ${range}`);
     }
   }
 
@@ -130,4 +161,40 @@ export async function assertDatasetInputReadiness(
   if (!status.ready) {
     throw new MarketError('inputs_not_ready', { details: { gaps: status.gaps } });
   }
+}
+
+/**
+ * Research 和因子序列共用有效生命周期及价格／复权资格。
+ *
+ * Research and factor series share lifecycle and price/adjustment eligibility.
+ */
+export async function assertPriceSeriesReadiness(
+  assetType: 'stock' | 'etf' | 'index',
+  code: string,
+  startDate: string,
+  endDate: string,
+): Promise<void> {
+  if (assetType === 'etf') {
+    const row = await getDatabase().etfBasic.findUnique({ where: { tsCode: code } });
+    const range = etfDownloadRange(row ?? undefined, '20150101');
+    if (range.blockedReason) {
+      throw new MarketError('inputs_not_ready', { details: { gaps: [range.blockedReason] } });
+    }
+    startDate = [startDate, range.startDate].sort().at(-1)!;
+    endDate = [endDate, range.endDate ?? endDate].sort()[0];
+  }
+  if (startDate > endDate) {
+    return;
+  }
+
+  const datasets =
+    assetType === 'index' ? ['index-prices'] : [`${assetType}-prices`, `${assetType}-adjustments`];
+  await assertDatasetInputReadiness(
+    datasets.map((dataset) => ({
+      dataset,
+      scope: assetType === 'stock' ? 'all' : code,
+      startDate,
+      endDate,
+    })),
+  );
 }

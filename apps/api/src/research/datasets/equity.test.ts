@@ -1,3 +1,4 @@
+import { proveStockCatalog } from '../../../tests/market-contract-fixtures.js';
 import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
@@ -153,6 +154,7 @@ async function seedFixture(database: PrismaClient): Promise<void> {
     ],
   });
   await database.marketDataState.create({ data: { key: 'global', revision: 7 } });
+  await proveStockCatalog(database);
   await database.datasetSyncPartition.createMany({
     data: ['20240131', '20240229'].flatMap((date) =>
       ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations', 'index-weights'].map(
@@ -163,7 +165,7 @@ async function seedFixture(database: PrismaClient): Promise<void> {
           startDate: date,
           endDate: date,
           status: 'complete',
-          policyVersion: 'sync-v1',
+          policyVersion: 'sync-v2',
         }),
       ),
     ),

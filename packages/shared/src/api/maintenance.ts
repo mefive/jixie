@@ -6,6 +6,14 @@
 export interface DatasetCoverage {
   dataset: string;
   scope: string;
+  /**
+   * 完成语义决定日期的解释。
+   *
+   * Completion semantics determine how dates are read.
+   */
+  completion?: 'sessions' | 'calendar' | 'catalog' | 'snapshot' | 'reports' | 'events';
+  checkedThrough?: string | null;
+  lastCheckedAt?: string | null;
   maxObservedDate: string | null;
   verifiedThrough: string | null;
   pending: number;

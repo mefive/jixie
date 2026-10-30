@@ -1,5 +1,7 @@
+import { qualifySessionSeries } from '../calendar/coverage.js';
 import { canonicalStockCode, normalizeStockNameSpells } from '../instruments/stock-identity.js';
 import { getDatabase } from '#infra/database/prisma.js';
+import { DATASET_POLICIES } from '../synchronization/policies.js';
 import { isObservationDate } from '../synchronization/date.js';
 import type { MarketPartition, PreparedMarketPartition } from '../synchronization/partition.js';
 import {
@@ -8,7 +10,7 @@ import {
   mapSourceRecords,
   sourceString,
   sourceValues,
-  validateSourceNumbers,
+  validateSourceBar,
   type SyncSource,
 } from '../synchronization/source.js';
 
@@ -86,17 +88,7 @@ export async function prepareStockPartition(
     }
     values.tsCode = canonicalStockCode(code);
     if (definition.table === 'Daily') {
-      validateSourceNumbers(values, ['open', 'high', 'low', 'close'], ['vol', 'amount']);
-      if (
-        typeof values.close !== 'number' ||
-        values.close <= 0 ||
-        (typeof values.high === 'number' &&
-          typeof values.low === 'number' &&
-          values.high < values.low) ||
-        [values.vol, values.amount].some((value) => typeof value === 'number' && value < 0)
-      ) {
-        throw new Error(`Invalid daily bar ${code}/${partition.startDate}`);
-      }
+      validateSourceBar(values);
     }
     if (
       definition.table === 'AdjFactor' &&
@@ -109,7 +101,7 @@ export async function prepareStockPartition(
       (typeof values.upLimit !== 'number' ||
         typeof values.downLimit !== 'number' ||
         values.upLimit <= 0 ||
-        values.downLimit <= 0 ||
+        values.downLimit < 0 ||
         values.upLimit < values.downLimit)
     ) {
       throw new Error(`Invalid price limits ${code}`);
@@ -127,9 +119,9 @@ export async function prepareStockPartition(
   const prepared = completeResponse({
     pages,
     table: definition.table,
-    coverageComplete: false,
+    coverageComplete: true,
     ...mapped,
-    allowEmpty: false,
+    allowEmpty: true,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
 
@@ -160,6 +152,20 @@ export async function prepareStockPartition(
       .map((record) => String(record.values.tsCode));
   }
 
+  await qualifySessionSeries(partition, prepared);
+  if (
+    prepared.status !== 'not_applicable' &&
+    !prepared.errors.length &&
+    prepared.checks.terminalPage
+  ) {
+    const gaps = await stockPartitionCoverage(partition, prepared);
+    prepared.gaps.push(...gaps);
+    if (gaps.length) {
+      prepared.status = 'partial';
+    }
+    prepared.tables[0].replace = prepared.status === 'complete';
+  }
+
   return prepared;
 }
 
@@ -182,6 +188,7 @@ export async function stockPartitionCoverage(
     const priceProof = await database.datasetSyncPartition.findFirst({
       where: {
         dataset: 'stock-prices',
+        policyVersion: DATASET_POLICIES.find((entry) => entry.dataset === 'stock-prices')!.version,
         scope: 'all',
         startDate: partition.startDate,
         endDate: partition.endDate,
@@ -199,7 +206,11 @@ export async function stockPartitionCoverage(
   }
 
   const masters = await database.datasetSyncPartition.findMany({
-    where: { dataset: 'stock-master', status: 'complete' },
+    where: {
+      dataset: 'stock-master',
+      status: 'complete',
+      policyVersion: DATASET_POLICIES.find((entry) => entry.dataset === 'stock-master')!.version,
+    },
     select: { scope: true },
   });
   if (['L', 'D', 'P', 'G'].some((scope) => !masters.some((row) => row.scope === scope))) {
@@ -230,11 +241,16 @@ export async function stockPartitionCoverage(
     (code) => typeof code === 'string' && suspended.has(code),
   );
 
-  return missing.length || unexpected.length || contradictions.length
-    ? [
-        `Unproven stock price extent: ${missing.length} missing, ${unexpected.length} outside listing intervals, ${contradictions.length} conflicting suspensions`,
-      ]
-    : [];
+  if (!missing.length && !unexpected.length && !contradictions.length) {
+    return [];
+  }
+  const issues = [
+    `${missing.length} missing`,
+    `${unexpected.length} outside listing intervals`,
+    `${contradictions.length} conflicting suspensions`,
+  ];
+
+  return [`Unproven stock price extent: ${issues.join(', ')}`];
 }
 
 /**
@@ -266,12 +282,12 @@ export async function prepareStockReference(
     const mapped = mapSourceRecords(pages.rows, (row) => {
       if (
         row.list_status !== partition.scope ||
-        !/^\d{6}\.(SH|SZ|BJ)$/.test(sourceString(row, 'ts_code'))
+        !/^(?:\d{6}|T\d{6})\.(SH|SZ|BJ)$/.test(sourceString(row, 'ts_code'))
       ) {
         throw new Error('Invalid stock master identity');
       }
 
-      return { values: sourceValues(row, columns) };
+      return { values: sourceValues(row, columns), authoritativeNulls: ['delistDate'] };
     });
     // 状态迁移不是证券删除；保留从另一个状态暂时缺失的历史身份。
     // A status transition is not a security deletion; preserve historical identities between status fetches.
@@ -330,6 +346,7 @@ export async function prepareStockReference(
     .filter((record) => byKey.has(`${record.values.tsCode}|${record.values.startDate}`))
     .map((record) => ({
       ...record,
+      authoritativeNulls: ['endDate'],
       values: {
         ...record.values,
         endDate: byKey.get(`${record.values.tsCode}|${record.values.startDate}`)!.endDate,
@@ -340,7 +357,7 @@ export async function prepareStockReference(
     pages,
     table: 'StockNameHistory',
     coverageComplete: true,
-    replace: true,
+    replace: false,
     ...mapped,
     allowEmpty: true,
   });

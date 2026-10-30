@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { proveRange } from '../../tests/market-contract-fixtures.js';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { synchronizeData } from './sync.js';
 import type { PlannedPartition, SelectWindowInput } from './partitions.js';
@@ -24,7 +25,7 @@ const partition: PlannedPartition = {
   scope: '000300.SH',
   startDate: '20260101',
   endDate: date,
-  policyVersion: 'sync-v1',
+  policyVersion: 'sync-v2',
   history: false,
 };
 beforeEach(() => {
@@ -60,7 +61,7 @@ it.each([true, false])(
             startDate: '19900101',
             endDate: '20251231',
             status: 'complete',
-            policyVersion: 'sync-v1',
+            policyVersion: 'sync-v2',
           },
           {
             id: 'calendar',
@@ -69,7 +70,7 @@ it.each([true, false])(
             startDate: partition.startDate,
             endDate: date,
             status: 'complete',
-            policyVersion: 'sync-v1',
+            policyVersion: 'sync-v2',
           },
         ],
       });
@@ -93,7 +94,16 @@ it.each([true, false])(
               if (!success) {
                 throw new Error('Controlled provider failure');
               }
-              return [{ ts_code: partition.scope, trade_date: date, close: 100 }];
+              return [
+                {
+                  ts_code: partition.scope,
+                  trade_date: date,
+                  open: 100,
+                  high: 100,
+                  low: 100,
+                  close: 100,
+                },
+              ];
             },
           },
         },
@@ -102,7 +112,7 @@ it.each([true, false])(
       const firstRevision = (
         await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })
       ).revision;
-      expect(firstRevision).toBe(success ? 1 : 0);
+      expect(firstRevision).toBe(success ? 2 : 1);
       await synchronizeData(input);
       expect(
         (await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })).revision,
@@ -111,7 +121,7 @@ it.each([true, false])(
       const stored = await database.datasetSyncPartition.findUniqueOrThrow({
         where: { id: partition.id },
       });
-      expect(stored.policyVersion).toBe(success ? 'sync-v1' : 'retired-policy');
+      expect(stored.policyVersion).toBe('sync-v2');
       expect(stored.status).toBe(success ? 'complete' : 'error');
       expect(stored.lastAttemptAt).toEqual(startedAt);
       expect((await datasetInputReadiness([partition])).ready).toBe(success);
@@ -248,6 +258,13 @@ it(
           ? partition
           : null,
       );
+      await proveRange(database, {
+        dataset: 'calendar',
+        scope: 'SSE',
+        startDate: partition.startDate,
+        endDate: partition.endDate,
+      });
+      await database.tradeCal.create({ data: { exchange: 'SSE', calDate: date, isOpen: 1 } });
       expect((await datasetInputReadiness([partition])).ready).toBe(true);
 
       await synchronizeData({

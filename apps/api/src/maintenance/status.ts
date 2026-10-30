@@ -1,7 +1,7 @@
+import { contiguousCoverage } from '#market/synchronization/coverage.js';
 import { calendarDay, localDate, localHour } from '#market/synchronization/date.js';
 import { DATASET_POLICIES } from '#market/synchronization/policies.js';
 import { datasetScopes } from '#market/synchronization/scopes.js';
-import { RETIRED_DATASETS, RETIRED_EXCHANGES } from './retired-datasets.js';
 import type { DatasetCoverage, MaintenanceStatus } from '@jixie/shared/api/maintenance';
 import { getDatabase } from '#infra/database/prisma.js';
 import {
@@ -18,51 +18,48 @@ export type { MaintenanceStatus } from '@jixie/shared/api/maintenance';
  * readiness.
  */
 export async function readDatasetCoverage(): Promise<DatasetCoverage[]> {
-  const [states, partitions] = await Promise.all([
-    getDatabase().datasetSyncState.findMany({
-      where: {
-        dataset: { notIn: RETIRED_DATASETS },
-        NOT: { dataset: 'calendar', scope: { in: RETIRED_EXCHANGES } },
-      },
-      orderBy: [{ dataset: 'asc' }, { scope: 'asc' }],
-    }),
-    getDatabase().datasetSyncPartition.groupBy({
-      by: ['dataset', 'scope', 'status'],
-      where: {
-        dataset: { notIn: RETIRED_DATASETS },
-        NOT: { dataset: 'calendar', scope: { in: RETIRED_EXCHANGES } },
-      },
-      _count: { _all: true },
-    }),
-  ]);
-
-  const byScope = new Map<string, typeof partitions>();
-  for (const partition of partitions) {
-    const key = JSON.stringify([partition.dataset, partition.scope]);
-    const groups = byScope.get(key) ?? [];
-    groups.push(partition);
-    byScope.set(key, groups);
-  }
-  const stateByScope = new Map(
-    states.map((state) => [JSON.stringify([state.dataset, state.scope]), state]),
-  );
+  const database = getDatabase();
+  const states = await database.datasetSyncState.findMany();
+  const partitions = await database.datasetSyncPartition.findMany({
+    where: { status: { notIn: ['superseded', 'unavailable'] } },
+  });
   const coverage: DatasetCoverage[] = [];
+
   for (const policy of DATASET_POLICIES) {
     for (const object of await datasetScopes(policy)) {
-      const key = JSON.stringify([policy.dataset, object.scope]);
-      const state = stateByScope.get(key);
-      const groups = byScope.get(key) ?? [];
+      const state = states.find(
+        (entry) => entry.dataset === policy.dataset && entry.scope === object.scope,
+      );
+      const current = partitions.filter(
+        (entry) =>
+          entry.dataset === policy.dataset &&
+          entry.scope === object.scope &&
+          entry.policyVersion === policy.version &&
+          entry.endDate >= object.startDate &&
+          (!object.endDate || entry.startDate <= object.endDate),
+      );
+      const completed = current.filter((entry) =>
+        ['complete', 'not_applicable'].includes(entry.status),
+      );
+      const dense = ['sessions', 'calendar'].includes(policy.completion);
       coverage.push({
         dataset: policy.dataset,
         scope: object.scope,
+        completion: policy.completion,
         maxObservedDate: state?.maxObservedDate ?? null,
-        verifiedThrough: object.blockedReason ? null : (state?.verifiedThrough ?? null),
-        pending: groups
-          .filter((group) => !['complete', 'not_applicable'].includes(group.status))
-          .reduce((sum, group) => sum + group._count._all, 0),
-        errors: groups
-          .filter((group) => group.status === 'error')
-          .reduce((sum, group) => sum + group._count._all, 0),
+        verifiedThrough:
+          dense && !object.blockedReason && completed.length
+            ? (state?.verifiedThrough ?? null)
+            : null,
+        checkedThrough:
+          completed
+            .map((entry) => entry.endDate)
+            .sort()
+            .at(-1) ?? null,
+        lastCheckedAt: state?.lastCheckedAt?.toISOString() ?? null,
+        pending: current.filter((entry) => !['complete', 'not_applicable'].includes(entry.status))
+          .length,
+        errors: current.filter((entry) => entry.status === 'error').length,
       });
     }
   }
@@ -75,6 +72,13 @@ export async function readDatasetCoverage(): Promise<DatasetCoverage[]> {
         ? {
             dataset: row.dataset,
             scope: 'all',
+            completion: row.completion,
+            checkedThrough:
+              previous.checkedThrough && row.checkedThrough
+                ? [previous.checkedThrough, row.checkedThrough].sort()[0]
+                : null,
+            lastCheckedAt:
+              [previous.lastCheckedAt ?? '', row.lastCheckedAt ?? ''].sort().at(-1) || null,
             maxObservedDate:
               [previous.maxObservedDate ?? '', row.maxObservedDate ?? ''].sort().at(-1) || null,
             verifiedThrough:
@@ -138,7 +142,11 @@ export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
   };
 }
 
-/** 按周期和退市边界报告历史缺口，不要求季度数据达到当天。 / Bound required history by period and lifecycle, not today's date for every series. */
+/**
+ * 按周期和退市边界报告历史缺口，不要求季度数据达到当天。
+ *
+ * Bound required history by period and lifecycle, not today's date for every series.
+ */
 export async function readHistoryGaps(targetDate: string, startedAt: Date): Promise<string[]> {
   const database = getDatabase();
   const states = await database.datasetSyncState.findMany();
@@ -165,6 +173,7 @@ export async function readHistoryGaps(targetDate: string, startedAt: Date): Prom
         continue;
       }
       if (policy.period === 'quarter') {
+        end = [end, calendarDay(today, -1)].sort()[0];
         const year = Number(end.slice(0, 4));
         end = [
           `${year - 1}1231`,
@@ -188,7 +197,36 @@ export async function readHistoryGaps(targetDate: string, startedAt: Date): Prom
         }
         end = last.calDate;
       }
-      const through = byScope.get(JSON.stringify([policy.dataset, object.scope]))?.verifiedThrough;
+      let through = byScope.get(JSON.stringify([policy.dataset, object.scope]))?.verifiedThrough;
+      if (['reports', 'snapshot', 'events'].includes(policy.completion)) {
+        const checked = await database.datasetSyncPartition.findMany({
+          where: {
+            dataset: policy.dataset,
+            scope: object.scope,
+            policyVersion: policy.version,
+            status: { in: ['complete', 'not_applicable'] },
+          },
+          orderBy: { startDate: 'asc' },
+        });
+        if (policy.completion === 'reports') {
+          const firstYear = Number(object.startDate.slice(0, 4));
+          const lastYear = Number(end.slice(0, 4));
+          const reportDates: string[] = [];
+
+          for (let year = firstYear; year <= lastYear; year++) {
+            for (const quarterEnd of ['0331', '0630', '0930', '1231']) {
+              const date = `${year}${quarterEnd}`;
+              if (date >= object.startDate && date <= end) {
+                reportDates.push(date);
+              }
+            }
+          }
+
+          through = contiguousCoverage(object.startDate, checked, reportDates);
+        } else {
+          through = contiguousCoverage(object.startDate, checked);
+        }
+      }
       if (!through || through < end) {
         missing++;
       }

@@ -224,6 +224,10 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - **业务错误统一约定**：Strategy、Factor、Research、Market、Agent、Auth、Maintenance 的业务错误在各自根级 `errors.ts` 定义，继承 `infra/errors.ts` 的 `BusinessError`；调用点直接 `throw new XxxError(reason, options)`，不增加只负责抛出的 `failXxx` 函数。成功返回数据，预期拒绝抛异常；合法的空查询和运行状态仍是数据。错误定义只含稳定 reason、分类、i18n key/参数、可公开 details 与内部 cause，不依赖 HTTP、数据库或业务执行。自定义技术异常也放所属模块根级 `errors.ts`，保留取消、重试和诊断语义，不冒充业务拒绝。HTTP 统一映射：输入 400、缺失 404、状态冲突 409、认证 401、权限 403、暂不可用/维护 503；未知异常记录原始错误并返回安全双语 500。不得按文案识别错误或 catch 所有异常后转 400。非 HTTP 输出在消费边界用 `errorMessage(error, locale)` 翻译。详见 `docs/design/api-errors.md`。
 - **代码注释使用中英文双语**(inline `//`、块注释、JSDoc、Prisma `///`、CSS `/* */`)——用途、复杂流程、计算口径与关键约束均提供语义一致的中文和英文说明；优先在声明上使用双语 JSDoc，中文说明不加语言前缀，JSDoc 的中英文说明之间保留一个空段，供 Markdown hover 分段；Python 使用相邻双语注释，避免仅为补注释改变运行时 docstring。保留标准英文财经术语，不机械解释显而易见的代码。**LLM prompt / 工具 description / few-shot 仍一律英文**(见下「多语言」条)。**面向用户的 UI/报错文案走 i18n**(英文 key,zh+en 值),不再硬编码——详见 `docs/design/i18n.md` 与下「多语言」条
 - 格式化:prettier(`semi`、`singleQuote`、`printWidth 100`、`trailingComma all`)+ eslint `curly: all`(控制语句强制大括号,`if (x) return;` 会被拆成带 `{}` 的多行)。**pre-commit hook**(simple-git-hooks + lint-staged)提交时自动对暂存文件跑 `eslint --fix` + `prettier --write`,机械格式无需手动维护;`.prettierignore` 里 `*.md` 等文档不受 prettier 摆布
+- **主动保证行长与表达式可读性**：`printWidth: 100` 是 Prettier 的排版目标，不是硬性行长上限；格式检查通过不等于代码易读。
+  写代码时主动拆解复杂模板插值、嵌套三元表达式和多层回调：先用有业务含义的局部变量准备数据，再执行计算或调用；必要时使用清晰的 `if` / `switch` 或循环。
+  格式化后仍须检查变更中的超长行和深层嵌套，注释按语义换行；不可拆的 URL、标识符和无需拆解的简单字符串可保留。
+  不要仅为凑行宽新增细碎函数、无意义字符串拼接、改变字符串内容或使用 `prettier-ignore`。
 - **空行分段(工具做不到,唯一靠人/agent 的格式)**:函数体内按逻辑段落用**单空行**分组 —— 入参校验 → 数据准备 → 主循环 → 收尾/return;注释引导的新段落,注释前空一行。函数首行前 / 末行后不空;紧密相关的连续单行不硬插;不留连续空行(prettier 会压成一行)。写的时候主动分段,别挤成一坨
 - **对同一值的等值分支 ≥3 用 `switch`,不写 `if/else` 链**:TS 对可辨识联合(discriminated union)的 switch 能做穷尽检查,加新分支漏处理编译器会抓;纯「值→值」映射优先查表对象(`Record`),连 switch 都不用。条件异构(区间判断、复合谓词、不同变量)的 if/else 链不硬套 switch
 - **命名一律语义全称**(代码是给人看的,没必要省):变量/参数、回调 / reduce / map-item / 临时变量都要有语义(`(sum, close)` 不是 `(a, b)`、`.map((code) => …)` 不是 `(c)`);金融/领域术语在定义处加简短中英文双语注释,保留标准英文财经术语(`ATR`/`EMA`/Donchian channel / after-adjustment price)。领域惯例短名优先展开成全称(`predicate`/`fraction`/`direction`);纯数组下标 `for (let i …)` 可留

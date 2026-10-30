@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto';
 import type { z } from 'zod';
 import type { AcceptedMarketPartition, MarketRow, SourceRecord } from './partition.js';
 
-/** 业务版本和稳定事件身份使用的规范摘要。 / Stable digest for business versions and event identities. */
+/**
+ * 业务版本和稳定事件身份使用的规范摘要。
+ *
+ * Stable digest for business versions and event identities.
+ */
 export function fingerprint(row: object): string {
   return createHash('sha256')
     .update(
@@ -11,7 +15,11 @@ export function fingerprint(row: object): string {
     .digest('hex');
 }
 
-/** 缺失字段与未知 null 不擦除旧值。 / Missing fields and unknown nulls preserve known values. */
+/**
+ * 缺失字段与未知 null 不擦除旧值。
+ *
+ * Missing fields and unknown nulls preserve known values.
+ */
 export function mergeSourceRecord(current: MarketRow | undefined, record: SourceRecord): MarketRow {
   const merged = { ...current };
   for (const [field, value] of Object.entries(record.values)) {
@@ -23,7 +31,11 @@ export function mergeSourceRecord(current: MarketRow | undefined, record: Source
   return merged;
 }
 
-/** 只比较业务值，忽略重复抓取的技术时间。 / Compare business values without retrieval timestamps. */
+/**
+ * 只比较业务值，忽略重复抓取的技术时间。
+ *
+ * Compare business values without retrieval timestamps.
+ */
 export function sameValues(
   left: object,
   right: object,
@@ -41,7 +53,11 @@ export function sameValues(
   });
 }
 
-/** 初始化单个领域写入摘要。 / Initialize one domain write summary. */
+/**
+ * 初始化单个领域写入摘要。
+ *
+ * Initialize one domain write summary.
+ */
 export function emptyWriteResult(): AcceptedMarketPartition {
   return {
     inserted: 0,
@@ -62,6 +78,7 @@ interface MergeRowsInput<Schema extends z.ZodType<object>> {
   replace?: boolean;
   atomic?: boolean;
   transform?: (values: MarketRow, before: MarketRow | undefined) => MarketRow;
+  ignoredDuplicateFields?: readonly string[];
 }
 
 /**
@@ -95,8 +112,8 @@ export function mergeRows<Schema extends z.ZodType<object>>(input: MergeRowsInpu
       if (duplicate) {
         if (
           !input.atomic &&
-          sameValues(duplicate.values, record.values, []) &&
-          sameValues(record.values, duplicate.values, [])
+          sameValues(duplicate.values, record.values, input.ignoredDuplicateFields ?? []) &&
+          sameValues(record.values, duplicate.values, input.ignoredDuplicateFields ?? [])
         ) {
           continue;
         }
@@ -156,7 +173,11 @@ export function mergeRows<Schema extends z.ZodType<object>>(input: MergeRowsInpu
   };
 }
 
-/** 领域完成写入后才累计摘要。 / Count a domain batch only after its writes succeed. */
+/**
+ * 领域完成写入后才累计摘要。
+ *
+ * Count a domain batch only after its writes succeed.
+ */
 export function collectWriteResult(
   result: AcceptedMarketPartition,
   rows: {

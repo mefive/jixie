@@ -45,7 +45,7 @@ describe('ETF listing lifecycle maintenance', () => {
             scope: codes[1],
             startDate: '20260901',
             endDate: '20260915',
-            policyVersion: 'sync-v1',
+            policyVersion: 'sync-v2',
             status: 'error',
           },
         });

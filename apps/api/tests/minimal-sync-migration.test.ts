@@ -19,6 +19,7 @@ import { withDatabase } from '#infra/database/prisma.js';
 import { withMaintenanceLock } from '#infra/coordination/market-access.js';
 import { retireDatasets } from '#maintenance/retired-datasets.js';
 import { synchronizeData } from '#maintenance/sync.js';
+import { STOCK_CODE_CHANGES } from '#market/instruments/stock-identity.js';
 import { legacyMarketTable } from './legacy-market-tables.js';
 
 const migration = '20261028160000_minimal_sync';
@@ -278,8 +279,11 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
       expect(result.partitions).toBe(0);
       expect(
         (await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })).revision,
-      ).toBe(17);
-      expect(await database.datasetSyncPartition.count({ where: { status: 'complete' } })).toBe(1);
+      ).toBe(18 + STOCK_CODE_CHANGES.length);
+      expect(await database.datasetSyncPartition.count({ where: { status: 'complete' } })).toBe(0);
+      expect(
+        await database.datasetSyncPartition.findUniqueOrThrow({ where: { id: 'retained' } }),
+      ).toMatchObject({ status: 'superseded' });
     });
     expect(await database.$queryRaw`PRAGMA foreign_key_check`).toEqual([]);
     expect(await database.$queryRaw`PRAGMA integrity_check`).toEqual([{ integrity_check: 'ok' }]);

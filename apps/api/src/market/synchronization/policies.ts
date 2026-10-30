@@ -11,8 +11,22 @@ function policy(
   period: DatasetPolicy['period'],
   options: Partial<DatasetPolicy> = {},
 ): DatasetPolicy {
+  let completion: DatasetPolicy['completion'] = 'sessions';
+  if (period === 'catalog') {
+    completion = 'catalog';
+  } else if (dataset === 'calendar') {
+    completion = 'calendar';
+  } else if (dataset === 'index-weights') {
+    completion = 'snapshot';
+  } else if (period === 'quarter') {
+    completion = 'reports';
+  } else if (['dividends', 'stock-names'].includes(dataset)) {
+    completion = 'events';
+  }
+
   return {
     dataset,
+    completion,
     startDate,
     period,
     calendar: 'SSE',
@@ -20,7 +34,7 @@ function policy(
     closeHour: 16,
     revisionDays: 20,
     refreshDays: 1,
-    version: 'sync-v1',
+    version: 'sync-v2',
     ...options,
   };
 }

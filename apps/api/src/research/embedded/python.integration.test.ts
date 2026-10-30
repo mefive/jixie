@@ -1,3 +1,4 @@
+import { proveRange, seedSessions } from '../../../tests/market-contract-fixtures.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { quantile, std } from '#math/stats.js';
 import type { ResearchEmbeddedRunSummaryV1 } from '@jixie/shared';
@@ -205,10 +206,24 @@ describe('embedded analysis with the real Research Python runtime', () => {
   it('replaces chat statistics with SDK data, standard Python estimators and a retained rolling chart', async () => {
     const dates = ['20240101', '20240102', '20240103', '20240104', '20240105', '20240108'];
     const returns = [-0.02, 0.01, 0.03, -0.01, 0.04];
+
+    await seedSessions(prisma, '20231219', dates.at(-1)!);
+    await prisma.tradeCal.updateMany({
+      where: { calDate: { notIn: dates } },
+      data: { isOpen: 0 },
+    });
+
     for (const [tsCode, initial, changes] of [
       ['000300.SH', 100, returns],
       ['000852.SH', 200, returns.map((value) => 0.005 + 2 * value)],
     ] as const) {
+      await proveRange(prisma, {
+        dataset: 'index-prices',
+        scope: tsCode,
+        startDate: '20231219',
+        endDate: dates.at(-1)!,
+      });
+
       let close = initial;
       await prisma.indexDaily.createMany({
         data: dates.map((tradeDate, index) => {

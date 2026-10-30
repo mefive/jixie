@@ -1,9 +1,27 @@
+import { calendarDay } from './date.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import type { DatasetPolicy } from './partition.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { readDownloadCodes } from '../downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '../registry/index-presets.js';
 import { etfDownloadRange } from '../etfs/download-range.js';
+
+/**
+ * 已核对来源首日；未知代码保持缺口，不以本地首行猜测。
+ *
+ * Verified source first dates; local first rows never imply full history.
+ */
+const INDEX_PRICE_STARTS: Record<string, string> = {
+  '000300.SH': '20020104',
+  '000905.SH': '20041231',
+  '000852.SH': '20041231',
+  '000985.CSI': '20041231',
+  'H00300.CSI': '20041231',
+};
+const INDEX_VALUATION_STARTS: Record<string, string> = {
+  '000300.SH': '20050408',
+  '000905.SH': '20070115',
+};
 
 export interface DatasetScope {
   scope: string;
@@ -27,7 +45,10 @@ function scopes(policy: DatasetPolicy, names: readonly string[]): DatasetScope[]
 export async function datasetScopes(policy: DatasetPolicy): Promise<DatasetScope[]> {
   switch (policy.dataset) {
     case 'calendar':
-      return scopes(policy, ['SSE', 'SZSE']);
+      return [
+        { scope: 'SSE', startDate: '19901219' },
+        { scope: 'SZSE', startDate: '19910703' },
+      ];
     case 'stock-master':
       return scopes(policy, ['L', 'D', 'P', 'G']);
     case 'stock-names':
@@ -35,13 +56,25 @@ export async function datasetScopes(policy: DatasetPolicy): Promise<DatasetScope
     case 'etf-master':
       return scopes(policy, ['all']);
     case 'index-prices':
-      return scopes(policy, await readDownloadCodes('index'));
-    case 'index-valuations':
-      return scopes(
+      return applySourceBoundaries(
         policy,
-        (await readDownloadCodes('index')).filter((code) =>
-          INDEX_VALUATION_SUPPORTED_CODES.includes(code),
-        ),
+        scopes(policy, await readDownloadCodes('index')).map((entry) => ({
+          ...entry,
+          startDate: INDEX_PRICE_STARTS[entry.scope] ?? entry.startDate,
+        })),
+      );
+    case 'index-valuations':
+      return applySourceBoundaries(
+        policy,
+        scopes(
+          policy,
+          (await readDownloadCodes('index')).filter((code) =>
+            INDEX_VALUATION_SUPPORTED_CODES.includes(code),
+          ),
+        ).map((entry) => ({
+          ...entry,
+          startDate: INDEX_VALUATION_STARTS[entry.scope] ?? entry.startDate,
+        })),
       );
     case 'index-weights':
       return scopes(
@@ -85,4 +118,27 @@ export async function datasetScopes(policy: DatasetPolicy): Promise<DatasetScope
     default:
       return scopes(policy, ['all']);
   }
+}
+
+/**
+ * 两类指数序列复用已探明的来源边界。
+ *
+ * Both index series reuse explicitly discovered source bounds.
+ */
+async function applySourceBoundaries(
+  policy: DatasetPolicy,
+  objects: DatasetScope[],
+): Promise<DatasetScope[]> {
+  const boundaries = await getDatabase().datasetSyncPartition.findMany({
+    where: { dataset: policy.dataset, policyVersion: policy.version, status: 'unavailable' },
+  });
+
+  return objects.map((object) => {
+    const first = boundaries
+      .filter((entry) => entry.scope === object.scope && entry.startDate === policy.startDate)
+      .map((entry) => calendarDay(entry.endDate, 1))
+      .sort()
+      .at(-1);
+    return { ...object, startDate: first && first > object.startDate ? first : object.startDate };
+  });
 }

@@ -1,3 +1,4 @@
+import { proveStockCatalog } from '../../../../tests/market-contract-fixtures.js';
 import { describe, expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../../tests/sync-database.js';
 import { calendarDay } from '#market/synchronization/date.js';
@@ -21,6 +22,7 @@ describe('forward observation maturity', () => {
           dates.push({ exchange: 'SSE', calDate: date, isOpen: day === 0 || day === 6 ? 0 : 1 });
         }
         await database.tradeCal.createMany({ data: dates });
+        await proveStockCatalog(database);
         await database.datasetSyncPartition.createMany({
           data: ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations'].map(
             (dataset) => ({
@@ -30,7 +32,7 @@ describe('forward observation maturity', () => {
               startDate: '20240801',
               endDate: dataset === 'calendar' ? '20241031' : through,
               status: 'complete',
-              policyVersion: 'sync-v1',
+              policyVersion: 'sync-v2',
             }),
           ),
         });

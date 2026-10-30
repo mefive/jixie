@@ -1,32 +1,27 @@
-import type { TradeDate } from '@jixie/shared';
-import { getDatabase } from '#infra/database/prisma.js';
-import { log } from '#infra/logging.js';
-import { tradeCal } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
+import { getDatabase } from '#infra/database/prisma.js';
+import { prepareCalendarPartition } from './sync-partition.js';
+import { writeCalendarPartition } from './write.js';
 
 /**
- * 按范围覆盖同步交易日历，供交易日期判断使用。
+ * 单范围日历入口与正式维护共用校验和写入。
  *
- * Sync the trading calendar (range overwrite).
+ * Single-range calendar synchronization uses the formal domain path.
  */
 export async function syncTradeCal(
   client: TushareClient,
-  start: TradeDate,
-  end: TradeDate,
+  start: string,
+  end: string,
   exchange = 'SSE',
 ): Promise<number> {
-  const rows = await tradeCal(client, { exchange, start_date: start, end_date: end });
-  await getDatabase().$transaction([
-    getDatabase().tradeCal.deleteMany({ where: { exchange, calDate: { gte: start, lte: end } } }),
-    getDatabase().tradeCal.createMany({
-      data: rows.map((r) => ({
-        exchange: r.exchange,
-        calDate: r.cal_date,
-        isOpen: r.is_open,
-        pretradeDate: r.pretrade_date,
-      })),
-    }),
-  ]);
-  log(`trade_cal ${exchange} 落库 ${rows.length} 天（${start} ~ ${end}）`);
-  return rows.length;
+  const partition = { dataset: 'calendar', scope: exchange, startDate: start, endDate: end };
+  const prepared = await prepareCalendarPartition(client, partition);
+  if (prepared.status !== 'complete') {
+    throw new Error([...prepared.errors, ...prepared.gaps].join('; '));
+  }
+  await getDatabase().$transaction((transaction) =>
+    writeCalendarPartition(transaction, prepared, partition),
+  );
+
+  return prepared.tables[0].records.length;
 }

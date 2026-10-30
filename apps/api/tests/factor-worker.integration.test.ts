@@ -1,3 +1,4 @@
+import { proveStockCatalog } from './market-contract-fixtures.js';
 import { execFile } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -195,16 +196,19 @@ beforeAll(async () => {
 
   // 合成行情也要携带当前维护契约要求的覆盖证明。
   // Synthetic observations also carry the coverage proof required by the current maintenance contract.
+  await proveStockCatalog(database);
   await database.datasetSyncPartition.createMany({
-    data: ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations'].map((dataset) => ({
-      id: `fixture:${dataset}`,
-      dataset,
-      scope: dataset === 'calendar' ? 'SSE' : 'all',
-      startDate: dates[0],
-      endDate: dates.at(-1)!,
-      policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === dataset)!.version,
-      status: 'complete',
-    })),
+    data: ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].map(
+      (dataset) => ({
+        id: `fixture:${dataset}`,
+        dataset,
+        scope: dataset === 'calendar' ? 'SSE' : 'all',
+        startDate: dates[0],
+        endDate: dates.at(-1)!,
+        policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === dataset)!.version,
+        status: 'complete',
+      }),
+    ),
   });
   for (const language of ['typescript', 'python'] as const) {
     await database.factor.create({

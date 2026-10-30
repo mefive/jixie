@@ -1,8 +1,9 @@
+import { nextVerifiedSession } from '../calendar/coverage.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import { ulid } from 'ulid';
 import { getDatabase } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
-import { calendarDay, localDate } from '../synchronization/date.js';
+import { calendarDay, isObservationDate, localDate } from '../synchronization/date.js';
 import { fingerprint } from '../synchronization/rows.js';
 import type {
   MarketPartition,
@@ -20,11 +21,13 @@ import {
 } from '../synchronization/source.js';
 import {
   FINANCIAL_SOURCE_CONTRACT_VERSION,
+  FINANCIAL_STORAGE_COLUMNS,
   FINANCIAL_STATEMENT_FIELDS,
   financialStatementSourceFields,
   normalizeFinancialStatementSourceRow,
   resolveFinancialAvailability,
   type FinancialStatementKind,
+  type FinancialCorrectionEvidence,
   type FinancialStatementSourceRow,
 } from './source-contract.js';
 
@@ -81,6 +84,18 @@ async function prepareStatementPartition(
     financialStatementSourceFields(statementKind).join(','),
     5000,
   );
+  if (
+    pages.rows.some(
+      (row) =>
+        typeof row.comp_type !== 'string' ||
+        !['1', '2', '3', '4', '7'].includes(row.comp_type) ||
+        row.end_date !== partition.startDate ||
+        row.report_type !== reportType,
+    )
+  ) {
+    pages.errors.push('Invalid financial report period/type/company classification');
+  }
+
   const identity: StatementPartitionIdentity = {
     statementKind,
     table,
@@ -100,6 +115,7 @@ async function prepareStatementPartition(
     table,
     coverageComplete: true,
     ...mapped,
+    allowEmpty: true,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
   if (
@@ -131,9 +147,19 @@ async function prepareDividendPartition(
   const pages = await fetchSourcePages(
     source,
     'dividend',
-    { ts_code: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
+    { ts_code: partition.scope },
     Object.values(columns).join(','),
   );
+  if (
+    pages.rows.some(
+      (row) =>
+        typeof row.end_date !== 'string' ||
+        !isObservationDate(row.end_date) ||
+        canonicalStockCode(String(row.ts_code)) !== partition.scope,
+    )
+  ) {
+    pages.errors.push('Invalid dividend identity/report period');
+  }
   const mapped = mapSourceRecords(
     pages.rows.filter(
       (row) =>
@@ -198,11 +224,8 @@ async function prepareIndicatorPartition(
     10000,
   );
   const captureDate = localDate(fetchedAt);
-  const nextSession = await getDatabase().tradeCal.findFirst({
-    where: { exchange: 'SSE', isOpen: 1, calDate: { gt: captureDate } },
-    orderBy: { calDate: 'asc' },
-    select: { calDate: true },
-  });
+  const nextSession = await nextVerifiedSession(captureDate);
+  const updateFlags = new Map<string, string>();
   const mapped = mapSourceRecords(pages.rows, (row) => {
     if (row.end_date !== partition.startDate) {
       throw new Error('Unexpected financial indicator period');
@@ -211,7 +234,12 @@ async function prepareIndicatorPartition(
       ...sourceValues(row, columns),
       tsCode: canonicalStockCode(sourceString(row, 'ts_code')),
     };
-    const firstKnownDate = nextSession?.calDate ?? calendarDay(captureDate, 1);
+    const businessFingerprint = fingerprint(values);
+    updateFlags.set(
+      businessFingerprint,
+      row.update_flag === '1' ? '1' : (updateFlags.get(businessFingerprint) ?? '0'),
+    );
+    const firstKnownDate = nextSession ?? calendarDay(captureDate, 1);
     const quality = nextSession ? 'latest_only' : 'unknown';
     const version: SourceRecord = {
       values: {
@@ -220,32 +248,56 @@ async function prepareIndicatorPartition(
         availableDate: firstKnownDate,
         availabilityQuality: quality,
         observedAt: fetchedAt,
-        sourceFingerprint: fingerprint(values),
+        sourceFingerprint: businessFingerprint,
       },
     };
 
     return version;
   });
   const snapshots = new Map<string, SourceRecord>();
+  const conflicts = new Set<string>();
+  const priorities = new Map<string, string>();
   for (const record of mapped.records) {
-    const previous = snapshots.get(String(record.values.tsCode));
-    if (!previous || String(record.values.annDate ?? '') > String(previous.values.annDate ?? '')) {
-      const {
-        id: _id,
-        availableDate: _available,
-        availabilityQuality: _quality,
-        observedAt: _observed,
-        sourceFingerprint: _fingerprint,
-        ...values
-      } = record.values;
-      snapshots.set(String(record.values.tsCode), { ...record, values });
+    const code = String(record.values.tsCode);
+    const announcementDate = record.values.annDate ?? '';
+    const updateFlag = updateFlags.get(String(record.values.sourceFingerprint)) ?? '0';
+    const priority = `${announcementDate}|${updateFlag}`;
+    const previous = snapshots.get(code);
+    if (previous && priority < priorities.get(code)!) {
+      continue;
     }
+    const {
+      id: _id,
+      availableDate: _available,
+      availabilityQuality: _quality,
+      observedAt: _observed,
+      sourceFingerprint: _fingerprint,
+      ...values
+    } = record.values;
+    if (
+      previous &&
+      priority === priorities.get(code) &&
+      fingerprint(previous.values) !== fingerprint(values)
+    ) {
+      conflicts.add(code);
+      continue;
+    }
+    if (!previous || priority > priorities.get(code)!) {
+      conflicts.delete(code);
+    }
+    snapshots.set(code, { values, authoritativeRevision: priority.endsWith('|1') });
+    priorities.set(code, priority);
+  }
+  for (const code of conflicts) {
+    snapshots.delete(code);
+    mapped.errors.push(`Ambiguous current indicator version ${code}/${partition.startDate}`);
   }
   const result = completeResponse({
     pages,
     table: 'FinaIndicatorVersion',
     coverageComplete: true,
     ...mapped,
+    allowEmpty: true,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
   result.tables.push({ table: 'FinaIndicator', records: [...snapshots.values()] });
@@ -294,9 +346,7 @@ async function loadStatementContext(identity: StatementPartitionIdentity, rows: 
         ['update_flag', stored.updateFlag],
         ...fields.map((field) => [
           field.sourceField,
-          (stored as Record<string, unknown>)[
-            field.sourceField.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())
-          ],
+          (stored as Record<string, unknown>)[FINANCIAL_STORAGE_COLUMNS[field.sourceField]],
         ]),
       ].map(([field, value]) => [
         field,
@@ -317,7 +367,36 @@ async function loadStatementContext(identity: StatementPartitionIdentity, rows: 
       // The per-item mapper below reports invalid rows without blocking other statements.
     }
   }
-  return { dates, siblings, fields };
+  const corrections: FinancialCorrectionEvidence[] = [];
+  const storedEvidence = await database.financialCorrectionEvidence.findMany({
+    where: {
+      publishedDate: {
+        in: [
+          ...new Set(
+            siblings
+              .map((row) => row.fAnnDate ?? row.annDate)
+              .filter((date): date is string => date != null),
+          ),
+        ],
+      },
+    },
+  });
+  for (const entry of storedEvidence) {
+    if (
+      !Array.isArray(entry.affectedPeriods) ||
+      entry.affectedPeriods.some((value) => typeof value !== 'string')
+    ) {
+      throw new Error('Invalid stored correction periods');
+    }
+    corrections.push({
+      ...entry,
+      source: 'cninfo',
+      publishedAt: entry.publishedAt.toISOString(),
+      affectedPeriods: entry.affectedPeriods as string[],
+    });
+  }
+
+  return { dates, siblings, fields, corrections };
 }
 
 function mapStatementVersion(
@@ -348,6 +427,7 @@ function mapStatementVersion(
         row,
         siblings,
         (date) => dates.find((entry) => entry.calDate > date)?.calDate,
+        context.corrections,
       )
     : {
         announcementDate,
@@ -379,8 +459,7 @@ function mapStatementVersion(
     if (value !== null && (typeof value !== 'number' || !Number.isFinite(value))) {
       throw new Error(`Invalid ${api}.${field.sourceField}`);
     }
-    values[field.sourceField.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())] =
-      value;
+    values[FINANCIAL_STORAGE_COLUMNS[field.sourceField]] = value;
   }
 
   return {
@@ -388,7 +467,11 @@ function mapStatementVersion(
   };
 }
 
-/** 报表类型对应显式 Prisma 查询。 / Use an explicit Prisma query for each statement kind. */
+/**
+ * 报表类型对应显式 Prisma 查询。
+ *
+ * Use an explicit Prisma query for each statement kind.
+ */
 async function loadStoredStatements(
   database: ReturnType<typeof getDatabase>,
   kind: FinancialStatementKind,

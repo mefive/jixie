@@ -1,6 +1,9 @@
 import { MarketError } from '#market/errors.js';
 import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
-import { assertDatasetInputReadiness } from '#market/synchronization/readiness.js';
+import {
+  assertDatasetInputReadiness,
+  assertPriceSeriesReadiness,
+} from '#market/synchronization/readiness.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import type { BarsRows, EngineDataPort } from '../data/data-port.js';
 
@@ -147,6 +150,26 @@ export const prismaDataPort: EngineDataPort = {
    * caches.
    */
   async barsRows(codes, start, end, options) {
+    const etfs = await getDatabase().etfBasic.findMany({
+      where: { tsCode: { in: codes } },
+      select: { tsCode: true, listDate: true, delistDate: true },
+    });
+    const stocks = codes.filter((code) => !etfs.some((etf) => etf.tsCode === code));
+    await assertDatasetInputReadiness([
+      ...(stocks.length
+        ? [
+            'stock-prices',
+            'stock-adjustments',
+            'stock-limits',
+            ...(options?.includeTurnoverRateF ? ['stock-valuations'] : []),
+          ].map((dataset) => ({ dataset, startDate: start, endDate: end }))
+        : []),
+    ]);
+
+    for (const etf of etfs) {
+      await assertPriceSeriesReadiness('etf', etf.tsCode, start, end);
+    }
+
     const out: BarsRows = { px: [], adj: [], limits: [], turnoverRatesF: [] };
     const CHUNK = 300; // codes per batch — bounds each query's result (full-history × N codes)
     for (let off = 0; off < codes.length; off += CHUNK) {

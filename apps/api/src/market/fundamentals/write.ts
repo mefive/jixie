@@ -1,7 +1,10 @@
+import { nextVerifiedSession } from '../calendar/coverage.js';
 import { z } from 'zod';
 import type {
   MarketPartition,
   MarketTransaction,
+  PreparedTable,
+  AcceptedMarketPartition,
   PreparedMarketPartition,
 } from '../synchronization/partition.js';
 import {
@@ -186,8 +189,11 @@ const dividendSchema = z.strictObject({
   availabilityQuality: z.string().optional(),
 });
 
-/** 显式写入本领域的表，校验与数据变化随调用者事务提交。
- * Write this domain's declared tables within the caller's transaction. */
+/**
+ * 显式写入本领域的表，校验与数据变化随调用者事务提交。
+ *
+ * Write this domain's declared tables within the caller's transaction.
+ */
 export async function writeFinancialPartition(
   transaction: MarketTransaction,
   prepared: PreparedMarketPartition,
@@ -198,246 +204,339 @@ export async function writeFinancialPartition(
 
   for (const batch of prepared.tables) {
     switch (batch.table) {
-      case 'FinancialIncomeStatement': {
-        const existing = await transaction.financialIncomeStatement.findMany({
-          where: {
-            sourceRowFingerprint: {
-              in: batch.records.flatMap((record) =>
-                typeof record.values.sourceRowFingerprint === 'string'
-                  ? [record.values.sourceRowFingerprint]
-                  : [],
-              ),
-            },
-          },
-        });
-        const rows = mergeRows({
-          schema: financialIncomeStatementSchema,
-          keys: ['sourceRowFingerprint'],
-          records: batch.records,
-          existing,
-          replace: false,
-          atomic: batch.atomic,
-          transform: (values, before) =>
-            before ? { ...values, id: before.id, observedAt: before.observedAt } : values,
-        });
-
-        for (const row of rows.updated) {
-          await transaction.financialIncomeStatement.update({
-            where: { sourceRowFingerprint: row.sourceRowFingerprint },
-            data: row,
-          });
-        }
-        if (rows.inserted.length) {
-          await transaction.financialIncomeStatement.createMany({ data: rows.inserted });
-        }
-        collectWriteResult(result, rows);
+      case 'FinancialIncomeStatement':
+        await writeFinancialIncomeStatement(transaction, batch, result);
         break;
-      }
-      case 'FinancialBalanceSheet': {
-        const existing = await transaction.financialBalanceSheet.findMany({
-          where: {
-            sourceRowFingerprint: {
-              in: batch.records.flatMap((record) =>
-                typeof record.values.sourceRowFingerprint === 'string'
-                  ? [record.values.sourceRowFingerprint]
-                  : [],
-              ),
-            },
-          },
-        });
-        const rows = mergeRows({
-          schema: financialBalanceSheetSchema,
-          keys: ['sourceRowFingerprint'],
-          records: batch.records,
-          existing,
-          replace: false,
-          atomic: batch.atomic,
-          transform: (values, before) =>
-            before ? { ...values, id: before.id, observedAt: before.observedAt } : values,
-        });
-
-        for (const row of rows.updated) {
-          await transaction.financialBalanceSheet.update({
-            where: { sourceRowFingerprint: row.sourceRowFingerprint },
-            data: row,
-          });
-        }
-        if (rows.inserted.length) {
-          await transaction.financialBalanceSheet.createMany({ data: rows.inserted });
-        }
-        collectWriteResult(result, rows);
+      case 'FinancialBalanceSheet':
+        await writeFinancialBalanceSheet(transaction, batch, result);
         break;
-      }
-      case 'FinancialCashFlowStatement': {
-        const existing = await transaction.financialCashFlowStatement.findMany({
-          where: {
-            sourceRowFingerprint: {
-              in: batch.records.flatMap((record) =>
-                typeof record.values.sourceRowFingerprint === 'string'
-                  ? [record.values.sourceRowFingerprint]
-                  : [],
-              ),
-            },
-          },
-        });
-        const rows = mergeRows({
-          schema: financialCashFlowStatementSchema,
-          keys: ['sourceRowFingerprint'],
-          records: batch.records,
-          existing,
-          replace: false,
-          atomic: batch.atomic,
-          transform: (values, before) =>
-            before ? { ...values, id: before.id, observedAt: before.observedAt } : values,
-        });
-
-        for (const row of rows.updated) {
-          await transaction.financialCashFlowStatement.update({
-            where: { sourceRowFingerprint: row.sourceRowFingerprint },
-            data: row,
-          });
-        }
-        if (rows.inserted.length) {
-          await transaction.financialCashFlowStatement.createMany({ data: rows.inserted });
-        }
-        collectWriteResult(result, rows);
+      case 'FinancialCashFlowStatement':
+        await writeFinancialCashFlowStatement(transaction, batch, result);
         break;
-      }
-      case 'FinaIndicator': {
-        const existing = await transaction.finaIndicator.findMany({
-          where: { endDate: partition.startDate },
-        });
-        const rows = mergeRows({
-          schema: finaIndicatorSchema,
-          keys: ['tsCode', 'endDate'],
-          records: batch.records,
-          existing,
-          replace: false,
-          atomic: batch.atomic,
-        });
-
-        for (const row of rows.updated) {
-          await transaction.finaIndicator.update({
-            where: { tsCode_endDate: { tsCode: row.tsCode, endDate: row.endDate } },
-            data: row,
-          });
-        }
-        if (rows.inserted.length) {
-          await transaction.finaIndicator.createMany({ data: rows.inserted });
-        }
-        collectWriteResult(result, rows);
+      case 'FinaIndicator':
+        await writeFinaIndicator(transaction, batch, partition, result);
         break;
-      }
-      case 'FinaIndicatorVersion': {
-        const existing = await transaction.finaIndicatorVersion.findMany({
-          where: {
-            sourceFingerprint: {
-              in: batch.records.flatMap((record) =>
-                typeof record.values.sourceFingerprint === 'string'
-                  ? [record.values.sourceFingerprint]
-                  : [],
-              ),
-            },
-          },
-        });
-        const availableByCapture = new Map<string, string>();
-        for (const row of existing.filter((value) => value.availabilityQuality === 'unknown')) {
-          const date = localDate(row.observedAt);
-          if (!availableByCapture.has(date)) {
-            const next = await transaction.tradeCal.findFirst({
-              where: { exchange: 'SSE', isOpen: 1, calDate: { gt: date } },
-              orderBy: { calDate: 'asc' },
-            });
-            if (next) {
-              availableByCapture.set(date, next.calDate);
-            }
-          }
-        }
-        const rows = mergeRows({
-          schema: finaIndicatorVersionSchema,
-          keys: ['sourceFingerprint'],
-          records: batch.records,
-          existing,
-          replace: false,
-          atomic: batch.atomic,
-          transform: (values, before) => {
-            if (!before) {
-              return values;
-            }
-            const next =
-              before.observedAt instanceof Date
-                ? availableByCapture.get(localDate(before.observedAt))
-                : undefined;
-            return {
-              ...values,
-              id: before.id,
-              observedAt: before.observedAt,
-              availableDate: next ?? before.availableDate,
-              availabilityQuality: next ? values.availabilityQuality : before.availabilityQuality,
-            };
-          },
-        });
-
-        for (const row of rows.updated) {
-          await transaction.finaIndicatorVersion.update({
-            where: { sourceFingerprint: row.sourceFingerprint },
-            data: row,
-          });
-        }
-        if (rows.inserted.length) {
-          await transaction.finaIndicatorVersion.createMany({ data: rows.inserted });
-        }
-        collectWriteResult(result, rows);
+      case 'FinaIndicatorVersion':
+        await writeFinaIndicatorVersion(transaction, batch, result);
         break;
-      }
-      case 'Dividend': {
-        const existing = await transaction.dividend.findMany({
-          where: {
-            tsCode: partition.scope,
-            endDate: { gte: partition.startDate, lte: partition.endDate },
-          },
-        });
-        const rows = mergeRows({
-          schema: dividendSchema,
-          keys: ['id'],
-          records: batch.records,
-          existing,
-          replace:
-            batch.replace &&
-            ((prepared.status === 'complete' && !prepared.errors.length) ||
-              (batch.atomic === true &&
-                prepared.checks.terminalPage &&
-                !prepared.checks.sourceFailed)),
-          atomic: batch.atomic,
-          transform: (values, before) => ({
-            ...values,
-            observedAt:
-              before?.observedAt instanceof Date &&
-              sameValues(before, values, ['observedAt', 'availabilityQuality'])
-                ? before.observedAt
-                : fetchedAt,
-            availabilityQuality: 'latest_only',
-          }),
-        });
-
-        for (const row of rows.updated) {
-          await transaction.dividend.update({ where: { id: row.id }, data: row });
-        }
-        if (rows.inserted.length) {
-          await transaction.dividend.createMany({ data: rows.inserted });
-        }
-        for (let offset = 0; offset < rows.deleted.length; offset += 200) {
-          await transaction.dividend.deleteMany({
-            where: { OR: rows.deleted.slice(offset, offset + 200).map((row) => ({ id: row.id })) },
-          });
-        }
-        collectWriteResult(result, rows);
+      case 'Dividend':
+        await writeDividend(transaction, batch, prepared, partition, fetchedAt, result);
         break;
-      }
       default:
         throw new Error(`Unexpected fundamentals table ${batch.table}`);
     }
   }
 
   return result;
+}
+
+/**
+ * 写入 FinancialIncomeStatement 的业务记录。
+ *
+ * Persist typed FinancialIncomeStatement records.
+ */
+async function writeFinancialIncomeStatement(
+  transaction: MarketTransaction,
+  batch: PreparedTable,
+  result: AcceptedMarketPartition,
+) {
+  const existing = await transaction.financialIncomeStatement.findMany({
+    where: {
+      sourceRowFingerprint: {
+        in: batch.records.flatMap((record) =>
+          typeof record.values.sourceRowFingerprint === 'string'
+            ? [record.values.sourceRowFingerprint]
+            : [],
+        ),
+      },
+    },
+  });
+  const rows = mergeRows({
+    schema: financialIncomeStatementSchema,
+    keys: ['sourceRowFingerprint'],
+    ignoredDuplicateFields: ['id', 'observedAt'],
+    records: batch.records,
+    existing,
+    replace: false,
+    atomic: batch.atomic,
+    transform: (values, before) =>
+      before ? { ...values, id: before.id, observedAt: before.observedAt } : values,
+  });
+
+  for (const row of rows.updated) {
+    await transaction.financialIncomeStatement.update({
+      where: { sourceRowFingerprint: row.sourceRowFingerprint },
+      data: row,
+    });
+  }
+  if (rows.inserted.length) {
+    await transaction.financialIncomeStatement.createMany({ data: rows.inserted });
+  }
+  collectWriteResult(result, rows);
+}
+
+/**
+ * 写入 FinancialBalanceSheet 的业务记录。
+ *
+ * Persist typed FinancialBalanceSheet records.
+ */
+async function writeFinancialBalanceSheet(
+  transaction: MarketTransaction,
+  batch: PreparedTable,
+  result: AcceptedMarketPartition,
+) {
+  const existing = await transaction.financialBalanceSheet.findMany({
+    where: {
+      sourceRowFingerprint: {
+        in: batch.records.flatMap((record) =>
+          typeof record.values.sourceRowFingerprint === 'string'
+            ? [record.values.sourceRowFingerprint]
+            : [],
+        ),
+      },
+    },
+  });
+  const rows = mergeRows({
+    schema: financialBalanceSheetSchema,
+    keys: ['sourceRowFingerprint'],
+    ignoredDuplicateFields: ['id', 'observedAt'],
+    records: batch.records,
+    existing,
+    replace: false,
+    atomic: batch.atomic,
+    transform: (values, before) =>
+      before ? { ...values, id: before.id, observedAt: before.observedAt } : values,
+  });
+
+  for (const row of rows.updated) {
+    await transaction.financialBalanceSheet.update({
+      where: { sourceRowFingerprint: row.sourceRowFingerprint },
+      data: row,
+    });
+  }
+  if (rows.inserted.length) {
+    await transaction.financialBalanceSheet.createMany({ data: rows.inserted });
+  }
+  collectWriteResult(result, rows);
+}
+
+/**
+ * 写入 FinancialCashFlowStatement 的业务记录。
+ *
+ * Persist typed FinancialCashFlowStatement records.
+ */
+async function writeFinancialCashFlowStatement(
+  transaction: MarketTransaction,
+  batch: PreparedTable,
+  result: AcceptedMarketPartition,
+) {
+  const existing = await transaction.financialCashFlowStatement.findMany({
+    where: {
+      sourceRowFingerprint: {
+        in: batch.records.flatMap((record) =>
+          typeof record.values.sourceRowFingerprint === 'string'
+            ? [record.values.sourceRowFingerprint]
+            : [],
+        ),
+      },
+    },
+  });
+  const rows = mergeRows({
+    schema: financialCashFlowStatementSchema,
+    keys: ['sourceRowFingerprint'],
+    ignoredDuplicateFields: ['id', 'observedAt'],
+    records: batch.records,
+    existing,
+    replace: false,
+    atomic: batch.atomic,
+    transform: (values, before) =>
+      before ? { ...values, id: before.id, observedAt: before.observedAt } : values,
+  });
+
+  for (const row of rows.updated) {
+    await transaction.financialCashFlowStatement.update({
+      where: { sourceRowFingerprint: row.sourceRowFingerprint },
+      data: row,
+    });
+  }
+  if (rows.inserted.length) {
+    await transaction.financialCashFlowStatement.createMany({ data: rows.inserted });
+  }
+  collectWriteResult(result, rows);
+}
+
+/**
+ * 写入 FinaIndicator 的业务记录。
+ *
+ * Persist typed FinaIndicator records.
+ */
+async function writeFinaIndicator(
+  transaction: MarketTransaction,
+  batch: PreparedTable,
+  partition: MarketPartition,
+  result: AcceptedMarketPartition,
+) {
+  const existing = await transaction.finaIndicator.findMany({
+    where: { endDate: partition.startDate },
+  });
+  const records = batch.records.filter((record) => {
+    const before = existing.find((row) => row.tsCode === record.values.tsCode);
+    if (
+      before &&
+      before.annDate === record.values.annDate &&
+      !record.authoritativeRevision &&
+      !sameValues(before, record.values)
+    ) {
+      result.errors.push(
+        `Ambiguous same-date indicator revision ${before.tsCode}/${before.endDate}`,
+      );
+      result.rejected++;
+      return false;
+    }
+    return true;
+  });
+  const rows = mergeRows({
+    schema: finaIndicatorSchema,
+    keys: ['tsCode', 'endDate'],
+    transform: (values, before) =>
+      before && String(before.annDate ?? '') > String(values.annDate ?? '') ? before : values,
+    records,
+    existing,
+    replace: false,
+    atomic: batch.atomic,
+  });
+
+  for (const row of rows.updated) {
+    await transaction.finaIndicator.update({
+      where: { tsCode_endDate: { tsCode: row.tsCode, endDate: row.endDate } },
+      data: row,
+    });
+  }
+  if (rows.inserted.length) {
+    await transaction.finaIndicator.createMany({ data: rows.inserted });
+  }
+  collectWriteResult(result, rows);
+}
+
+/**
+ * 写入 FinaIndicatorVersion 的业务记录。
+ *
+ * Persist typed FinaIndicatorVersion records.
+ */
+async function writeFinaIndicatorVersion(
+  transaction: MarketTransaction,
+  batch: PreparedTable,
+  result: AcceptedMarketPartition,
+) {
+  const existing = await transaction.finaIndicatorVersion.findMany({
+    where: {
+      sourceFingerprint: {
+        in: batch.records.flatMap((record) =>
+          typeof record.values.sourceFingerprint === 'string'
+            ? [record.values.sourceFingerprint]
+            : [],
+        ),
+      },
+    },
+  });
+  const availableByCapture = new Map<string, string>();
+  for (const row of existing.filter((value) => value.availabilityQuality === 'unknown')) {
+    const date = localDate(row.observedAt);
+    if (!availableByCapture.has(date)) {
+      const next = await nextVerifiedSession(date, transaction);
+      if (next) {
+        availableByCapture.set(date, next);
+      }
+    }
+  }
+  const rows = mergeRows({
+    schema: finaIndicatorVersionSchema,
+    keys: ['sourceFingerprint'],
+    ignoredDuplicateFields: ['id', 'observedAt', 'availableDate', 'availabilityQuality'],
+    records: batch.records,
+    existing,
+    replace: false,
+    atomic: batch.atomic,
+    transform: (values, before) => {
+      if (!before) {
+        return values;
+      }
+      const next =
+        before.observedAt instanceof Date
+          ? availableByCapture.get(localDate(before.observedAt))
+          : undefined;
+      return {
+        ...values,
+        id: before.id,
+        observedAt: before.observedAt,
+        availableDate: next ?? before.availableDate,
+        availabilityQuality: next ? 'latest_only' : before.availabilityQuality,
+      };
+    },
+  });
+
+  for (const row of rows.updated) {
+    await transaction.finaIndicatorVersion.update({
+      where: { sourceFingerprint: row.sourceFingerprint },
+      data: row,
+    });
+  }
+  if (rows.inserted.length) {
+    await transaction.finaIndicatorVersion.createMany({ data: rows.inserted });
+  }
+  collectWriteResult(result, rows);
+}
+
+/**
+ * 写入 Dividend 的业务记录。
+ *
+ * Persist typed Dividend records.
+ */
+async function writeDividend(
+  transaction: MarketTransaction,
+  batch: PreparedTable,
+  prepared: PreparedMarketPartition,
+  partition: MarketPartition,
+  fetchedAt: Date,
+  result: AcceptedMarketPartition,
+) {
+  const existing = await transaction.dividend.findMany({
+    where: {
+      tsCode: partition.scope,
+      endDate: { gte: partition.startDate, lte: partition.endDate },
+    },
+  });
+  const rows = mergeRows({
+    schema: dividendSchema,
+    keys: ['id'],
+    records: batch.records,
+    existing,
+    replace:
+      batch.replace &&
+      ((prepared.status === 'complete' && !prepared.errors.length) ||
+        (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
+    atomic: batch.atomic,
+    transform: (values, before) => ({
+      ...values,
+      observedAt:
+        before?.observedAt instanceof Date &&
+        sameValues(before, values, ['observedAt', 'availabilityQuality'])
+          ? before.observedAt
+          : fetchedAt,
+      availabilityQuality: 'latest_only',
+    }),
+  });
+
+  for (const row of rows.updated) {
+    await transaction.dividend.update({ where: { id: row.id }, data: row });
+  }
+  if (rows.inserted.length) {
+    await transaction.dividend.createMany({ data: rows.inserted });
+  }
+  for (let offset = 0; offset < rows.deleted.length; offset += 200) {
+    await transaction.dividend.deleteMany({
+      where: { OR: rows.deleted.slice(offset, offset + 200).map((row) => ({ id: row.id })) },
+    });
+  }
+  collectWriteResult(result, rows);
 }

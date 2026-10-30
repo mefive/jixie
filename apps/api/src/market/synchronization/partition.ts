@@ -15,10 +15,20 @@ export interface MarketPartition {
   endDate: string;
 }
 
-/** 未知 null 与来源明确清空分开处理。 / Distinguish unknown nulls from explicit clearing. */
+/**
+ * 未知 null 与来源明确清空分开处理。
+ *
+ * Distinguish unknown nulls from explicit clearing.
+ */
 export interface SourceRecord {
   values: MarketRow;
   authoritativeNulls?: readonly string[];
+  /**
+   * 来源明确标为修订的当前版本。
+   *
+   * A current version explicitly marked revised by the source.
+   */
+  authoritativeRevision?: boolean;
 }
 
 export interface PreparedTable {
@@ -30,6 +40,12 @@ export interface PreparedTable {
 
 export interface PreparedMarketPartition {
   tables: PreparedTable[];
+  /**
+   * 完整来源查询证实的历史起点。
+   *
+   * History start established by a complete source query.
+   */
+  sourceStartDate?: string;
   status: 'complete' | 'partial' | 'waiting' | 'not_applicable' | 'error';
   checks: {
     terminalPage: boolean;
@@ -65,6 +81,7 @@ export type MarketTransaction = Prisma.TransactionClient;
  */
 export interface DatasetPolicy {
   dataset: string;
+  completion: 'sessions' | 'calendar' | 'catalog' | 'snapshot' | 'reports' | 'events';
   startDate: string;
   period: 'day' | 'month' | 'year' | 'quarter' | 'catalog';
   calendar: string;

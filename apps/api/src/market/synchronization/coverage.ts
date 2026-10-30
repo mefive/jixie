@@ -80,75 +80,60 @@ export async function updateVerifiedCoverage(
     select: { startDate: true, endDate: true },
   });
   let verifiedThrough: string | null;
-  if (policy.period === 'catalog') {
+  if (['snapshot', 'reports', 'events'].includes(policy.completion)) {
+    verifiedThrough = null;
+  } else if (policy.period === 'catalog') {
     verifiedThrough =
       complete
         .map((partition) => partition.endDate)
         .sort()
         .at(-1) ?? null;
-  } else if (policy.period === 'day' || policy.period === 'quarter') {
-    const calendarProof =
-      policy.period === 'day'
-        ? await transaction.datasetSyncPartition.findMany({
-            where: {
-              dataset: 'calendar',
-              scope: policy.calendar,
-              status: 'complete',
-              policyVersion: policy.version,
-              startDate: {
-                lte:
-                  complete
-                    .map((partition) => partition.endDate)
-                    .sort()
-                    .at(-1) ?? historyStart,
-              },
-              endDate: { gte: historyStart },
-            },
-          })
-        : [];
-    const calendarThrough =
-      policy.period === 'day' ? contiguousCoverage(historyStart, calendarProof) : null;
+  } else if (policy.period === 'day') {
+    const lastCompleteDate =
+      complete
+        .map((partition) => partition.endDate)
+        .sort()
+        .at(-1) ?? historyStart;
+    const calendarProof = await transaction.datasetSyncPartition.findMany({
+      where: {
+        dataset: 'calendar',
+        scope: policy.calendar,
+        status: 'complete',
+        policyVersion: policy.version,
+        startDate: { lte: lastCompleteDate },
+        endDate: { gte: historyStart },
+      },
+    });
+    const calendarThrough = contiguousCoverage(historyStart, calendarProof);
+    const sessions = await transaction.tradeCal.findMany({
+      where: {
+        exchange: policy.calendar,
+        isOpen: 1,
+        calDate: { gte: historyStart, lte: lastCompleteDate },
+      },
+      orderBy: { calDate: 'asc' },
+      select: { calDate: true },
+    });
+    const verifiedSessions = sessions
+      .map((session) => session.calDate)
+      .filter((date) => calendarThrough && date <= calendarThrough);
 
-    const sessions =
-      policy.period === 'day'
-        ? (
-            await transaction.tradeCal.findMany({
-              where: {
-                exchange: policy.calendar,
-                isOpen: 1,
-                calDate: {
-                  gte: historyStart,
-                  lte:
-                    complete
-                      .map((partition) => partition.endDate)
-                      .sort()
-                      .at(-1) ?? historyStart,
-                },
-              },
-              orderBy: { calDate: 'asc' },
-              select: { calDate: true },
-            })
-          ).map((session) => session.calDate)
-        : Array.from(
-            {
-              length: Math.max(
-                0,
-                (Number(complete.at(-1)?.endDate.slice(0, 4) ?? historyStart.slice(0, 4)) -
-                  Number(historyStart.slice(0, 4)) +
-                  1) *
-                  4,
-              ),
-            },
-            (_, index) =>
-              `${Number(historyStart.slice(0, 4)) + Math.floor(index / 4)}${['0331', '0630', '0930', '1231'][index % 4]}`,
-          ).filter((date) => date >= historyStart);
-    verifiedThrough = contiguousCoverage(
-      historyStart,
-      complete,
-      policy.period === 'day'
-        ? sessions.filter((date) => calendarThrough && date <= calendarThrough)
-        : sessions,
-    );
+    verifiedThrough = contiguousCoverage(historyStart, complete, verifiedSessions);
+  } else if (policy.period === 'quarter') {
+    const firstYear = Number(historyStart.slice(0, 4));
+    const lastYear = Number(complete.at(-1)?.endDate.slice(0, 4) ?? historyStart.slice(0, 4));
+    const reportDates: string[] = [];
+
+    for (let year = firstYear; year <= lastYear; year++) {
+      for (const quarterEnd of ['0331', '0630', '0930', '1231']) {
+        const date = `${year}${quarterEnd}`;
+        if (date >= historyStart) {
+          reportDates.push(date);
+        }
+      }
+    }
+
+    verifiedThrough = contiguousCoverage(historyStart, complete, reportDates);
   } else {
     verifiedThrough = contiguousCoverage(historyStart, complete);
   }

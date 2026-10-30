@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { calendarDay } from '#market/synchronization/date.js';
-import { qualifyMarketPartition } from '#market/synchronization/qualify.js';
 import { writeFixture as acceptMarketPartition } from '../../tests/sync-fixtures.js';
 import { prepareStockPartition } from '#market/stocks/sync-partition.js';
 import { prepareIndexPartition } from '#market/indices/sync-partition.js';
@@ -32,7 +31,7 @@ async function calendar(
       startDate: start,
       endDate: end,
       status: 'complete',
-      policyVersion: 'sync-v1',
+      policyVersion: 'sync-v2',
     },
   });
 }
@@ -53,27 +52,24 @@ describe('unified sync review regressions', () => {
         startDate: '20260901',
         endDate: '20260930',
       };
-      const response = await qualifyMarketPartition(
+      const response = await prepareIndexPartition(
+        {
+          call: async () => [
+            {
+              index_code: '000300.SH',
+              con_code: '000001.SZ',
+              trade_date: tradeDate,
+              weight: 100,
+            },
+            {
+              index_code: '000300.SH',
+              con_code: '000001.SZ',
+              trade_date: '20260914',
+              weight: 10,
+            },
+          ],
+        },
         partition,
-        await prepareIndexPartition(
-          {
-            call: async () => [
-              {
-                index_code: '000300.SH',
-                con_code: '000001.SZ',
-                trade_date: tradeDate,
-                weight: 100,
-              },
-              {
-                index_code: '000300.SH',
-                con_code: '000001.SZ',
-                trade_date: '20260914',
-                weight: 10,
-              },
-            ],
-          },
-          partition,
-        ),
       );
       expect(response.status).toBe('error');
       await database.$transaction((transaction) =>
@@ -107,7 +103,7 @@ describe('unified sync review regressions', () => {
           startDate: tradeDate,
           endDate: tradeDate,
           status: 'complete',
-          policyVersion: 'sync-v1',
+          policyVersion: 'sync-v2',
         })),
       });
       await database.daily.createMany({
@@ -115,7 +111,18 @@ describe('unified sync review regressions', () => {
       });
       const source = {
         call: async (api: string) =>
-          api === 'suspend_d' ? [] : [{ ts_code: '600000.SH', trade_date: tradeDate, close: 11 }],
+          api === 'suspend_d'
+            ? []
+            : [
+                {
+                  ts_code: '600000.SH',
+                  trade_date: tradeDate,
+                  open: 11,
+                  high: 11,
+                  low: 11,
+                  close: 11,
+                },
+              ],
       };
       const pricePartition = {
         dataset: 'stock-prices',
@@ -123,10 +130,7 @@ describe('unified sync review regressions', () => {
         startDate: tradeDate,
         endDate: tradeDate,
       };
-      const prices = await qualifyMarketPartition(
-        pricePartition,
-        await prepareStockPartition(source, pricePartition),
-      );
+      const prices = await prepareStockPartition(source, pricePartition);
       expect(prices.checks.terminalPage).toBe(true);
       expect(prices.status).toBe('partial');
       expect(prices.tables[0].replace).toBe(false);
@@ -143,7 +147,7 @@ describe('unified sync review regressions', () => {
           id: 'prices-proof',
           ...pricePartition,
           status: 'complete',
-          policyVersion: 'sync-v1',
+          policyVersion: 'sync-v2',
         },
       });
       const authoritativeSource = {
@@ -157,12 +161,18 @@ describe('unified sync review regressions', () => {
                   suspend_timing: null,
                 },
               ]
-            : [{ ts_code: '600000.SH', trade_date: tradeDate, close: 12 }],
+            : [
+                {
+                  ts_code: '600000.SH',
+                  trade_date: tradeDate,
+                  open: 12,
+                  high: 12,
+                  low: 12,
+                  close: 12,
+                },
+              ],
       };
-      const correction = await qualifyMarketPartition(
-        pricePartition,
-        await prepareStockPartition(authoritativeSource, pricePartition),
-      );
+      const correction = await prepareStockPartition(authoritativeSource, pricePartition);
       expect(correction.status).toBe('complete');
       expect(correction.tables[0].replace).toBe(true);
       const accepted = await database.$transaction((transaction) =>
@@ -218,20 +228,17 @@ it('R09/A06 rejects a canonical identity collision before replacing a constituen
     };
     const original = { indexCode: partition.scope, conCode: '600000.SH', tradeDate, weight: 100 };
     await database.indexWeight.create({ data: original });
-    const response = await qualifyMarketPartition(
+    const response = await prepareIndexPartition(
+      {
+        call: async () =>
+          ['000022.SZ', '001872.SZ'].map((con_code) => ({
+            index_code: partition.scope,
+            con_code,
+            trade_date: tradeDate,
+            weight: 50,
+          })),
+      },
       partition,
-      await prepareIndexPartition(
-        {
-          call: async () =>
-            ['000022.SZ', '001872.SZ'].map((con_code) => ({
-              index_code: partition.scope,
-              con_code,
-              trade_date: tradeDate,
-              weight: 50,
-            })),
-        },
-        partition,
-      ),
     );
     expect(response.status).toBe('error');
     expect(response.errors).toContain(

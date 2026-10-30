@@ -1,4 +1,8 @@
-/** 沪深300全收益基准。 / CSI 300 total-return benchmark. */
+/**
+ * 沪深300全收益基准。
+ *
+ * CSI 300 total-return benchmark.
+ */
 export const CSI_300_TOTAL_RETURN_INDEX_CODE = 'H00300.CSI';
 
 /**
@@ -14,4 +18,12 @@ export const INDEX_VALUATION_SUPPORTED_CODES: readonly string[] = [
   '399001.SZ',
   '399005.SZ',
   '399006.SZ',
+  '000005.SH',
+  '000006.SH',
+  '000688.SH',
+  '000852.SH',
+  '399016.SZ',
+  '399300.SZ',
+  '399905.SZ',
+  '399673.SZ',
 ];

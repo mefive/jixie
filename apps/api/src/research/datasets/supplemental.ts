@@ -82,7 +82,7 @@ export async function loadResearchEquityDividends(request: ResearchDatedIdentifi
         observed_at: row.observedAt.toISOString(),
         report_period: row.endDate,
         announcement_date: row.annDate,
-        cash_dividend_pre_tax: row.cashDiv,
+        cash_dividend_pre_tax: row.cashDivTax,
         cash_dividend_tax_basis: row.cashDivTax,
       },
     ];

@@ -168,10 +168,13 @@ export class TushareClient {
         throw new HttpStatusError(res.status, `HTTP ${res.status} ${res.statusText}`);
       }
       const body = JSON.parse(await readMarketSourceText(res)) as TushareResponse;
+      if (!body || !Number.isInteger(body.code)) {
+        throw new Error('Malformed Tushare response status');
+      }
       if (body.code !== 0) {
         throw new TushareError(apiName, body.code, body.msg ?? 'unknown error');
       }
-      return toRows(body.data);
+      return toRows(body.data, fields);
     } finally {
       clearTimeout(timer);
     }
@@ -183,20 +186,42 @@ export class TushareClient {
  *
  * Convert Tushare's columnar response {fields, items} into a more usable array of row objects.
  */
-function toRows(data: TushareResponse['data']): TushareRow[] {
-  if (!data || !data.items?.length) {
-    return [];
+function toRows(data: TushareResponse['data'], expectedFields?: string): TushareRow[] {
+  if (
+    !data ||
+    !Array.isArray(data.fields) ||
+    !Array.isArray(data.items) ||
+    data.fields.some((field) => typeof field !== 'string' || !field) ||
+    new Set(data.fields).size !== data.fields.length ||
+    (data.items.length > 0 && data.fields.length === 0)
+  ) {
+    throw new Error('Malformed Tushare fields/items response');
   }
-  const { fields, items } = data;
-  return items.map((item) => {
-    const row: TushareRow = {};
-    for (let i = 0; i < fields.length; i++) {
-      // 短行没有返回该字段，不能伪造成权威 null。
-      // A short row omitted the field; do not invent an authoritative null.
-      if (i < item.length) {
-        row[fields[i]] = item[i];
-      }
+
+  if (
+    data.items.length > 0 &&
+    expectedFields
+      ?.split(',')
+      .filter(Boolean)
+      .some((field) => !data.fields.includes(field))
+  ) {
+    throw new Error('Tushare omitted requested response fields');
+  }
+
+  return data.items.map((item) => {
+    if (
+      !Array.isArray(item) ||
+      item.length !== data.fields.length ||
+      item.some(
+        (value) =>
+          value !== null &&
+          typeof value !== 'string' &&
+          (typeof value !== 'number' || !Number.isFinite(value)),
+      )
+    ) {
+      throw new Error('Malformed Tushare response row');
     }
-    return row;
+
+    return Object.fromEntries(data.fields.map((field, index) => [field, item[index]]));
   });
 }
