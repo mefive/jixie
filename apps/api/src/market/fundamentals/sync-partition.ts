@@ -4,7 +4,12 @@ import { ulid } from 'ulid';
 import { getDatabase } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { calendarDay, isObservationDate, localDate } from '../synchronization/date.js';
-import { fingerprint, hasValueConflict, mergeSourceRecord } from '../synchronization/rows.js';
+import { fingerprint } from '../synchronization/rows.js';
+import {
+  finaIndicatorSchema,
+  finaIndicatorVersionSchema,
+  selectIndicatorSnapshots,
+} from './indicator-selection.js';
 import type {
   MarketPartition,
   MarketRow,
@@ -225,74 +230,37 @@ async function prepareIndicatorPartition(
   );
   const captureDate = localDate(fetchedAt);
   const nextSession = await nextVerifiedSession(captureDate);
-  const updateFlags = new Map<string, string>();
   const mapped = mapSourceRecords(pages.rows, (row) => {
     if (row.end_date !== partition.startDate) {
       throw new Error('Unexpected financial indicator period');
     }
-    const values = {
+    const sourceTsCode = sourceString(row, 'ts_code');
+    const values = finaIndicatorSchema.parse({
       ...sourceValues(row, columns),
-      tsCode: canonicalStockCode(sourceString(row, 'ts_code')),
-    };
-    const businessFingerprint = fingerprint(values);
-    updateFlags.set(
-      businessFingerprint,
-      row.update_flag === '1' ? '1' : (updateFlags.get(businessFingerprint) ?? '0'),
-    );
+      tsCode: canonicalStockCode(sourceTsCode),
+      sourceTsCode,
+    });
+    const updateFlag = row.update_flag ?? null;
+    const businessFingerprint = fingerprint({ ...values, updateFlag });
     const firstKnownDate = nextSession ?? calendarDay(captureDate, 1);
     const quality = nextSession ? 'latest_only' : 'unknown';
     const version: SourceRecord = {
-      values: {
+      values: finaIndicatorVersionSchema.parse({
         ...values,
+        updateFlag,
         id: ulid(),
         availableDate: firstKnownDate,
         availabilityQuality: quality,
         observedAt: fetchedAt,
         sourceFingerprint: businessFingerprint,
-      },
+      }),
     };
 
     return version;
   });
-  const snapshots = new Map<string, SourceRecord>();
-  const conflicts = new Set<string>();
-  const priorities = new Map<string, string>();
-  for (const record of mapped.records) {
-    const code = String(record.values.tsCode);
-    const announcementDate = record.values.annDate ?? '';
-    const updateFlag = updateFlags.get(String(record.values.sourceFingerprint)) ?? '0';
-    const priority = `${announcementDate}|${updateFlag}`;
-    const previous = snapshots.get(code);
-    if (previous && priority < priorities.get(code)!) {
-      continue;
-    }
-    const {
-      id: _id,
-      availableDate: _available,
-      availabilityQuality: _quality,
-      observedAt: _observed,
-      sourceFingerprint: _fingerprint,
-      ...values
-    } = record.values;
-    const samePriority = previous && priority === priorities.get(code);
-    if (samePriority && hasValueConflict(previous.values, values)) {
-      conflicts.add(code);
-      continue;
-    }
-    if (!previous || priority > priorities.get(code)!) {
-      conflicts.delete(code);
-    }
-    const snapshotValues = samePriority ? mergeSourceRecord(previous.values, { values }) : values;
-    snapshots.set(code, {
-      values: snapshotValues,
-      authoritativeRevision: priority.endsWith('|1'),
-    });
-    priorities.set(code, priority);
-  }
-  for (const code of conflicts) {
-    snapshots.delete(code);
-    mapped.errors.push(`Ambiguous current indicator version ${code}/${partition.startDate}`);
-  }
+  const snapshots = selectIndicatorSnapshots(mapped.records);
+  mapped.errors.push(...snapshots.errors);
+
   const result = completeResponse({
     pages,
     table: 'FinaIndicatorVersion',
@@ -301,7 +269,7 @@ async function prepareIndicatorPartition(
     allowEmpty: true,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
-  result.tables.push({ table: 'FinaIndicator', records: [...snapshots.values()] });
+  result.tables.push({ table: 'FinaIndicator', records: snapshots.records });
   if (!nextSession && mapped.records.length) {
     result.status = result.errors.length ? 'error' : 'partial';
     result.gaps.push(

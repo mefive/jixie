@@ -10,12 +10,15 @@ import type {
 import {
   collectWriteResult,
   emptyWriteResult,
-  hasValueConflict,
   mergeRows,
-  mergeSourceRecord,
   sameValues,
 } from '../synchronization/rows.js';
 import { localDate } from '../synchronization/date.js';
+import {
+  finaIndicatorSchema,
+  finaIndicatorVersionSchema,
+  mergeIndicatorSnapshot,
+} from './indicator-selection.js';
 
 const financialIncomeStatementSchema = z.strictObject({
   id: z.string(),
@@ -141,41 +144,6 @@ const financialCashFlowStatementSchema = z.strictObject({
   deprFaCogaDpba: z.number().finite().nullish(),
   amortIntangAssets: z.number().finite().nullish(),
   freeCashflow: z.number().finite().nullish(),
-});
-
-const finaIndicatorSchema = z.strictObject({
-  tsCode: z.string(),
-  endDate: z.string(),
-  annDate: z.string().nullish(),
-  roe: z.number().finite().nullish(),
-  roeWaa: z.number().finite().nullish(),
-  roa: z.number().finite().nullish(),
-  grossprofitMargin: z.number().finite().nullish(),
-  netprofitMargin: z.number().finite().nullish(),
-  debtToAssets: z.number().finite().nullish(),
-  orYoy: z.number().finite().nullish(),
-  netprofitYoy: z.number().finite().nullish(),
-  ocfToProfit: z.number().finite().nullish(),
-});
-
-const finaIndicatorVersionSchema = z.strictObject({
-  id: z.string(),
-  tsCode: z.string(),
-  endDate: z.string(),
-  annDate: z.string().nullish(),
-  availableDate: z.string(),
-  availabilityQuality: z.string(),
-  sourceFingerprint: z.string(),
-  observedAt: z.date(),
-  roe: z.number().finite().nullish(),
-  roeWaa: z.number().finite().nullish(),
-  roa: z.number().finite().nullish(),
-  grossprofitMargin: z.number().finite().nullish(),
-  netprofitMargin: z.number().finite().nullish(),
-  debtToAssets: z.number().finite().nullish(),
-  orYoy: z.number().finite().nullish(),
-  netprofitYoy: z.number().finite().nullish(),
-  ocfToProfit: z.number().finite().nullish(),
 });
 
 const dividendSchema = z.strictObject({
@@ -381,30 +349,12 @@ async function writeFinaIndicator(
   const existing = await transaction.finaIndicator.findMany({
     where: { endDate: partition.startDate },
   });
-  const records = batch.records.filter((record) => {
-    const before = existing.find((row) => row.tsCode === record.values.tsCode);
-    const merged = mergeSourceRecord(before, record);
-
-    if (
-      before &&
-      before.annDate === merged.annDate &&
-      !record.authoritativeRevision &&
-      hasValueConflict(before, merged)
-    ) {
-      result.errors.push(
-        `Ambiguous same-date indicator revision ${before.tsCode}/${before.endDate}`,
-      );
-      result.rejected++;
-      return false;
-    }
-    return true;
-  });
+  const records = new Map(batch.records.map((record) => [record.values.tsCode, record]));
   const rows = mergeRows({
     schema: finaIndicatorSchema,
     keys: ['tsCode', 'endDate'],
-    transform: (values, before) =>
-      before && String(before.annDate ?? '') > String(values.annDate ?? '') ? before : values,
-    records,
+    transform: (values, before) => mergeIndicatorSnapshot(before, records.get(values.tsCode)!),
+    records: batch.records,
     existing,
     replace: false,
     atomic: batch.atomic,

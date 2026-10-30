@@ -62,7 +62,7 @@ describe('Research supplemental datasets', () => {
         where: {
           tsCode: '600519.SH',
           availabilityQuality: { not: 'unknown' },
-          availableDate: { gte: '20260101', lte: '20261231' },
+          availableDate: { lte: '20261231' },
         },
       }),
     );

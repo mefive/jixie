@@ -200,11 +200,14 @@ model DailyBasic {
   @@index([tradeDate])
 }
 
-/// Financial indicators per report period (point-in-time via annDate). Unlocks ROE/quality factors.
-/// ROE is cumulative within a year; annual reports end in 1231. The same period can appear multiple
-/// times (restatements) — sync keeps the latest annDate per (tsCode, endDate).
+/// 同一报告期按来源代码、公告及修订规则选择的当前快照；历史可得性由版本表管理。
+/// Current snapshot selected by source code, announcement and revision per period; the version
+/// table governs historical availability.
 model FinaIndicator {
   tsCode            String
+  /// 当前快照的原始来源代码；旧记录未知时保留 null。
+  /// Original source code of the current snapshot; legacy unknowns remain null.
+  sourceTsCode      String?
   endDate           String // report period end, e.g. 20231231
   annDate           String? // announcement date — the PIT gate (value is only public on/after this)
   roe               Float? // return on equity %
@@ -551,6 +554,12 @@ model MarketDataState {
 model FinaIndicatorVersion {
   id                  String   @id
   tsCode              String
+  /// 来源证券代码独立于统一证券身份；不推测旧记录来源。
+  /// Source security code is separate from canonical identity; never infer legacy origins.
+  sourceTsCode        String?
+  /// 来源修订标记；旧记录未知时保留 null。
+  /// Source revision flag; legacy unknowns remain null.
+  updateFlag          String?
   endDate             String
   annDate             String?
   availableDate       String

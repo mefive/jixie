@@ -194,7 +194,7 @@ describe('financial reference maintenance', () => {
   );
 
   it.each([false, true])(
-    'retains the existing snapshot when successor codes report conflicting revised values, reversed=%s',
+    'prefers the successor source while retaining both business versions, reversed=%s',
     async (reversed) =>
       withSyncDatabase(async (database) => {
         await seedSessions(database, '20260917');
@@ -218,15 +218,14 @@ describe('financial reference maintenance', () => {
           { call: async () => (reversed ? [...rows].reverse() : rows) },
           window,
         );
-        expect(result.prepared.status).toBe('error');
-        expect(result.prepared.errors).toEqual([
-          'Ambiguous current indicator version 001872.SZ/20180331',
-        ]);
-        expect(result.accepted.updated).toBe(0);
+        expect(result.prepared.status).toBe('complete');
+        expect(result.prepared.errors).toEqual([]);
+        expect(result.accepted.updated).toBe(1);
         expect(await database.finaIndicator.findFirst()).toMatchObject({
           tsCode: '001872.SZ',
-          roe: 3.1757,
-          roa: 3.119,
+          sourceTsCode: '001872.SZ',
+          roe: 0.8946,
+          roa: 0.4288,
         });
         expect(await database.finaIndicatorVersion.count()).toBe(2);
       }),

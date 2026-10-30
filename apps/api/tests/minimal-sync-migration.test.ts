@@ -262,6 +262,17 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
     expect((await database.datasetSyncPartition.findMany()).map((row) => row.id)).toEqual([
       'retained',
     ]);
+
+    // 历史迁移断言完成后补齐后续迁移，再用当前客户端验证恢复同步。
+    // Apply later migrations after historical assertions before resuming with the current client.
+    await database.$disconnect();
+    for (const name of await readdir(resolve('prisma/migrations'))) {
+      if (name > migration && name !== 'migration_lock.toml') {
+        await cp(resolve('prisma/migrations', name), join(migrations, name), { recursive: true });
+      }
+    }
+    deploy();
+
     await withDatabase(database, async () => {
       const result = await synchronizeData({
         targetDate: '20261027',
@@ -277,6 +288,7 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
         },
       });
       expect(result.partitions).toBe(0);
+      expect(result.errors).toEqual([expect.stringContaining('ETF initialization: ')]);
       expect(
         (await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })).revision,
       ).toBe(18 + STOCK_CODE_CHANGES.length);

@@ -58,6 +58,7 @@ export const DATASET_POLICIES = [
     closeHour: 0,
   }),
   policy('financial-indicators', '20141231', 'quarter', {
+    version: 'indicator-source-v3',
     refreshDays: 7,
     revisionDays: 750,
     closeHour: 0,
