@@ -10,7 +10,9 @@ import type {
 import {
   collectWriteResult,
   emptyWriteResult,
+  hasValueConflict,
   mergeRows,
+  mergeSourceRecord,
   sameValues,
 } from '../synchronization/rows.js';
 import { localDate } from '../synchronization/date.js';
@@ -381,11 +383,13 @@ async function writeFinaIndicator(
   });
   const records = batch.records.filter((record) => {
     const before = existing.find((row) => row.tsCode === record.values.tsCode);
+    const merged = mergeSourceRecord(before, record);
+
     if (
       before &&
-      before.annDate === record.values.annDate &&
+      before.annDate === merged.annDate &&
       !record.authoritativeRevision &&
-      !sameValues(before, record.values)
+      hasValueConflict(before, merged)
     ) {
       result.errors.push(
         `Ambiguous same-date indicator revision ${before.tsCode}/${before.endDate}`,

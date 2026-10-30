@@ -54,6 +54,18 @@ export function sameValues(
 }
 
 /**
+ * 缺值可以互补；只有双方已知的业务值不一致才构成冲突，零也是已知值。
+ *
+ * Missing values can complement each other; only differing known values conflict, including zero.
+ */
+export function hasValueConflict(left: MarketRow, right: MarketRow): boolean {
+  return Object.entries(right).some(
+    ([field, value]) =>
+      value != null && left[field] != null && !sameValues(left, { [field]: value }),
+  );
+}
+
+/**
  * 初始化单个领域写入摘要。
  *
  * Initialize one domain write summary.

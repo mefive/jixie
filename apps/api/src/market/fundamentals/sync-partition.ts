@@ -4,7 +4,7 @@ import { ulid } from 'ulid';
 import { getDatabase } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { calendarDay, isObservationDate, localDate } from '../synchronization/date.js';
-import { fingerprint } from '../synchronization/rows.js';
+import { fingerprint, hasValueConflict, mergeSourceRecord } from '../synchronization/rows.js';
 import type {
   MarketPartition,
   MarketRow,
@@ -274,18 +274,19 @@ async function prepareIndicatorPartition(
       sourceFingerprint: _fingerprint,
       ...values
     } = record.values;
-    if (
-      previous &&
-      priority === priorities.get(code) &&
-      fingerprint(previous.values) !== fingerprint(values)
-    ) {
+    const samePriority = previous && priority === priorities.get(code);
+    if (samePriority && hasValueConflict(previous.values, values)) {
       conflicts.add(code);
       continue;
     }
     if (!previous || priority > priorities.get(code)!) {
       conflicts.delete(code);
     }
-    snapshots.set(code, { values, authoritativeRevision: priority.endsWith('|1') });
+    const snapshotValues = samePriority ? mergeSourceRecord(previous.values, { values }) : values;
+    snapshots.set(code, {
+      values: snapshotValues,
+      authoritativeRevision: priority.endsWith('|1'),
+    });
     priorities.set(code, priority);
   }
   for (const code of conflicts) {
