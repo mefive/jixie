@@ -54,7 +54,7 @@ it('replaces historical ETF shares with download lists while preserving user dat
         ...values,
       );
     }
-    await database.stockBasic.create({
+    await legacyMarketTable(database, 'StockBasic').create({
       data: {
         tsCode: '600000.SH',
         symbol: '600000',

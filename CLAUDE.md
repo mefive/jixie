@@ -287,6 +287,8 @@ A 股回测必须内置以下规则(写回测时别漏):
 
 ETF 基础目录同步全部上市与退市产品，跳过待上市产品；首次按同日最新 `totalSize` 选择上市产品前 100，日常同步只沿用持久名单。退市代码保留历史，只补至退市日；缺少有效退市日时报告缺口并暂缓该代码。管理员用 `pnpm data etf list/select-top/add/remove`、`pnpm data index list/add/remove` 修改，空名单不自动重置。历史 ETF 份额／规模／净值研究接口与人工研究清单已退役；不为来源缺项补零或猜资产暴露。
 
-Maintenance 将日常 `data sync` 与人工 `data clean` 分开。清理项目为 pending-etfs、retired-data、stock-identities、market-range，默认预览、`--apply` 才备份执行；领域规则复用，清理与覆盖失效及 revision 在同一事务发布。bootstrap（包括首次部署）不执行 sync 或 clean；schema 必需的升级搬移仍在部署完成，不能混入可选清理。日常 sync 不再执行退役数据清理或存量身份归并。
+Maintenance 将日常 `data sync` 与人工 `data clean` 分开。清理项目为 pending-etfs、pending-stocks、retired-data、stock-identities、market-range，默认预览、`--apply` 才备份执行；领域规则复用，清理与覆盖失效及 revision 在同一事务发布。bootstrap（包括首次部署）不执行 sync 或 clean；schema 必需的升级搬移仍在部署完成，不能混入可选清理。日常 sync 不再执行退役数据清理或存量身份归并。
 
 `data sync` 不设整轮窗口数、HTTP 次数或时长上限；固定目标内每个窗口每轮只尝试一次，保留单请求超时、有限重试和人工取消。股票入库与覆盖共用市场日期范围，P 为暂停上市，不与未上市 G/UN 混同；暂停的历史日期必须有当日证据，否则保持待核实。清理不能仅凭当前目录日期扩大历史删除。
+
+股票目录只请求 L/D/P，不请求 G/UN；保留曾上市标的历史。交易所使用 StockBasic.exchange，不能由代码后缀推断。目录元数据更新不撤销行情历史；上市范围变化只影响重叠日期，ETF 只影响下载名单内代码。来源请求失败本身不推翻既有历史目录事实。

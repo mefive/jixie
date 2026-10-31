@@ -21,6 +21,7 @@ describe('shared market admission rules', () => {
             symbol: '000001',
             name: 'Listed',
             listStatus: 'L',
+            exchange: 'SZSE',
             listDate: '19910101',
           },
           {
@@ -28,6 +29,7 @@ describe('shared market admission rules', () => {
             symbol: '920489',
             name: 'Predecessor market',
             listStatus: 'L',
+            exchange: 'BSE',
             listDate: '20100101',
           },
         ],
@@ -96,6 +98,7 @@ it.each(['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'
             symbol: '000001',
             name: 'Trading',
             listStatus: 'L',
+            exchange: 'SZSE',
             listDate: '19910101',
           },
           {
@@ -103,6 +106,7 @@ it.each(['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'
             symbol: '000002',
             name: 'Future',
             listStatus: 'L',
+            exchange: 'SZSE',
             listDate: '20260917',
           },
           {
@@ -110,6 +114,7 @@ it.each(['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'
             symbol: '000003',
             name: 'Delisted',
             listStatus: 'D',
+            exchange: 'SZSE',
             listDate: '19910101',
             delistDate: '20260915',
           },
@@ -171,6 +176,7 @@ it.each([true, false])(
             symbol: '000001',
             name: 'Trading',
             listStatus: 'L',
+            exchange: 'SZSE',
             listDate: '19910101',
           },
           {
@@ -178,6 +184,7 @@ it.each([true, false])(
             symbol: '000002',
             name: 'Paused',
             listStatus: 'P',
+            exchange: 'SZSE',
             listDate: '19910101',
           },
           { tsCode: '000003.SZ', symbol: '000003', name: 'Never listed', listStatus: 'G' },
@@ -225,6 +232,7 @@ it('accepts traded history of a currently paused listing without discarding it',
         symbol: '000001',
         name: 'Paused now',
         listStatus: 'P',
+        exchange: 'SZSE',
         listDate: '19910101',
       },
     });

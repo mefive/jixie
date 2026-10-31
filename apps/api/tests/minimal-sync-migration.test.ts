@@ -262,17 +262,8 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
         })
       ).verifiedThrough,
     ).toBeNull();
-    await withDatabase(database, async () => {
-      await expect(cleanData({ apply: true })).rejects.toThrow('backup');
-      await cleanData({ apply: true, backup: async () => 'fixture-backup' });
-      await cleanData({ apply: true, backup: async () => 'fixture-backup' });
-    });
-    expect((await database.datasetSyncPartition.findMany()).map((row) => row.id)).toEqual([
-      'retained',
-    ]);
-
-    // 历史迁移断言完成后补齐后续迁移，再用当前客户端验证恢复同步。
-    // Apply later migrations after historical assertions before resuming with the current client.
+    // 历史迁移断言完成后补齐后续迁移，再用当前客户端验证清理和恢复同步。
+    // Apply later migrations after historical assertions before current-client cleanup and sync.
     await database.$disconnect();
     for (const name of await readdir(resolve('prisma/migrations'))) {
       if (name > migration && name !== 'migration_lock.toml') {
@@ -283,6 +274,13 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
     deploy();
 
     await withDatabase(database, async () => {
+      await expect(cleanData({ apply: true })).rejects.toThrow('backup');
+      await cleanData({ apply: true, backup: async () => 'fixture-backup' });
+      await cleanData({ apply: true, backup: async () => 'fixture-backup' });
+      expect((await database.datasetSyncPartition.findMany()).map((row) => row.id)).toEqual([
+        'retained',
+      ]);
+
       const revision = (
         await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })
       ).revision;

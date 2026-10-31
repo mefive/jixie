@@ -62,7 +62,7 @@ it('drops seven macro, rates, FX and benchmark tables while preserving retained 
         ...values,
       );
     }
-    await database.stockBasic.create({
+    await legacyMarketTable(database, 'StockBasic').create({
       data: {
         tsCode: '600000.SH',
         symbol: '600000',

@@ -143,10 +143,11 @@ describe('unified sync review regressions', () => {
           name: tsCode,
           listDate: '20100101',
           listStatus: 'L',
+          exchange: tsCode === '600000.SH' ? 'SSE' : 'SZSE',
         })),
       });
       await database.datasetSyncPartition.createMany({
-        data: ['L', 'D', 'P', 'G', 'UN'].map((scope) => ({
+        data: ['L', 'D', 'P'].map((scope) => ({
           id: `master-${scope}`,
           dataset: 'stock-master',
           scope,

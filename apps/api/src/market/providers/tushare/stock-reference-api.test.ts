@@ -16,7 +16,7 @@ describe('Tushare stock-reference APIs', () => {
     expect(call).toHaveBeenCalledWith(
       'stock_basic',
       { list_status: 'D' },
-      expect.stringContaining('delist_date'),
+      'ts_code,symbol,name,area,market,exchange,list_date,delist_date,list_status',
     );
   });
 

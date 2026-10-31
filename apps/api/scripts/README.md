@@ -9,7 +9,7 @@
 | [统一数据同步](../src/maintenance/) | 按目标日期推进所有既有数据域、补缺与重查 | 1 | `pnpm data sync [--to YYYYMMDD]` |
 | [同步凭证升级](upgrade-sync-proofs.mjs) | 删除旧策略列前撤销受影响凭证 | 1 | bootstrap |
 | [升级搬移](upgrade-minimal-sync.mjs) | 停服期间分红捕获时间导出／恢复 | 1 | bootstrap |
-| [人工数据清理](../src/maintenance/clean.ts) | 四类存量清理，默认预览、执行前备份 | 1 | `pnpm data clean` |
+| [人工数据清理](../src/maintenance/clean.ts) | 五类存量清理，默认预览、执行前备份 | 1 | `pnpm data clean` |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
 | [audit/](audit/) | 检查现有数据、查看覆盖 | 2 | 导入后的质量检查、研究核验 |
@@ -37,11 +37,12 @@
 
 ## 人工数据清理
 
-`data clean` 不由 timer 或 bootstrap 调用，不下载数据。统一检查以下四类，按类别输出汇总及明细：
+`data clean` 不由 timer 或 bootstrap 调用，不下载数据。统一检查以下五类，按类别输出汇总及明细：
 
 | 项目 | 范围 |
 | --- | --- |
 | `pending-etfs` | 删除无关联依赖的旧 P 目录；有历史、名单或状态引用的保留并报告 |
+| `pending-stocks` | 删除无历史、来源身份及同步引用的 G/UN 目录；带上市日期或引用的保留待核实 |
 | `retired-data` | 已退役数据集的维护记录和明确退役的交易日历 |
 | `stock-identities` | 已确认证券代码接续的存量归并；同源冲突拒绝，保留来源及捕获时间 |
 | `market-range` | 依据已确认市场进入日期清理股票行情、复权、估值、涨跌停四表；未知历史保留 |
@@ -166,3 +167,5 @@ Gate 2 静态检查：API `tsc --noEmit`、改动 TypeScript 的 ESLint / Pretti
 历史记录中保留当时命令与路径；当前同步及人工清理入口以上述说明为准。2026-10-22 候选协议已由统一同步替代，不再作为当前运行方式。
 
 ETF／指数下载名单支持 `pnpm data etf list/select-top/add/remove` 与 `pnpm data index list/add/remove`，详见 [下载名单](../src/market/downloads/README.md)。
+
+股票交易所由 `StockBasic.exchange` 提供；缺少交易所的代码不能仅凭 `.BJ` 后缀进入北交所清理范围。旧 stock-master/G、UN 的状态和分区归 retired-data 人工清理。

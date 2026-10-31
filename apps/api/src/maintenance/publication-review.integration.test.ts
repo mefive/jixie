@@ -31,6 +31,35 @@ beforeEach(() => {
   planning.select.mockReset().mockResolvedValue(null);
 });
 
+it('keeps historical and target gap dates distinct in the run summary', async () =>
+  withSyncDatabase(async () => {
+    const windows = ['20150105', date].map((session) => ({
+      ...partition,
+      id: `gap-${session}`,
+      startDate: session,
+      endDate: session,
+    }));
+    planning.select.mockImplementation(async (input: SelectWindowInput) =>
+      input.policy.dataset === 'index-prices'
+        ? (windows.find((window) => !input.attempted.has(window.id)) ?? null)
+        : null,
+    );
+
+    const result = await synchronizeData({
+      targetDate: date,
+      startedAt,
+      clock: () => startedAt,
+      onLog: () => {},
+      providers: { source: { call: async () => [] } },
+    });
+    expect(result.gaps).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('index-prices/000300.SH 20150105..20150105 (historical):'),
+        expect.stringContaining(`index-prices/000300.SH ${date}..${date} (target):`),
+      ]),
+    );
+  }));
+
 it.each([true, false])(
   'R12/A10 restores eligibility only after complete acceptance: success=%s',
   async (success) =>

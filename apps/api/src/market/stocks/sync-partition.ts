@@ -1,6 +1,10 @@
 import { preferStockSources } from '../instruments/source-selection.js';
 import { qualifySessionSeries } from '../calendar/coverage.js';
-import { stockMarketMembership, stockMarketRanges } from '../instruments/market-range.js';
+import {
+  STOCK_LIST_STATUSES,
+  stockMarketMembership,
+  stockMarketRanges,
+} from '../instruments/market-range.js';
 import { stockPartitionCoverage } from './coverage.js';
 import { canonicalStockCode, normalizeStockNameSpells } from '../instruments/stock-identity.js';
 import { getDatabase } from '#infra/database/prisma.js';
@@ -80,13 +84,25 @@ export async function prepareStockPartition(
   if (!definition) {
     throw new Error(`Unknown stock dataset ${partition.dataset}`);
   }
+  const fields = [...new Set(Object.values(definition.columns))];
+  if (partition.dataset === 'stock-limits') {
+    fields.push('asset_type', 'exchange');
+  }
   const pages = await fetchSourcePages(
     source,
     definition.api,
     { trade_date: partition.startDate },
-    [...new Set(Object.values(definition.columns))].join(','),
+    fields.join(','),
   );
   const ranges = stockMarketRanges(await getDatabase().stockBasic.findMany());
+  const funds =
+    partition.dataset === 'stock-limits'
+      ? new Set(
+          (await getDatabase().etfBasic.findMany({ select: { tsCode: true } })).map(
+            (row) => row.tsCode,
+          ),
+        )
+      : new Set<string>();
 
   // 先核对身份和日期；格式错误不能借范围过滤绕过校验。
   // Check identity and date first; scope filtering must not hide malformed rows.
@@ -94,6 +110,24 @@ export async function prepareStockPartition(
     const code = String(row.ts_code);
     if (!/^\d{6}\.(SH|SZ|BJ)$/.test(code) || row.trade_date !== partition.startDate) {
       return true;
+    }
+    const listing = ranges.get(canonicalStockCode(code));
+    if (partition.dataset === 'stock-limits') {
+      const exchangeConflict =
+        listing?.exchange && row.exchange && listing.exchange !== row.exchange;
+      const assetConflict = listing && row.asset_type && row.asset_type !== 'STK';
+      if (exchangeConflict || assetConflict) {
+        return true;
+      }
+
+      // 交易所来自来源字段；B 股代码段只用于资产分类，不从后缀猜交易所。
+      // Use the declared exchange; B-share number ranges classify assets, not exchanges.
+      const bShare =
+        (row.exchange === 'SSE' && /^900\d{3}\./.test(code)) ||
+        (row.exchange === 'SZSE' && /^20\d{4}\./.test(code));
+      if (!listing && (bShare || funds.has(code))) {
+        return false;
+      }
     }
 
     return stockMarketMembership(code, partition.startDate, ranges) !== 'outside';
@@ -111,6 +145,15 @@ export async function prepareStockPartition(
     }
     values.tsCode = canonicalStockCode(code);
     values.sourceTsCode = code;
+    if (partition.dataset === 'stock-limits') {
+      const listing = ranges.get(canonicalStockCode(code));
+      const exchangeConflict =
+        listing?.exchange && row.exchange && listing.exchange !== row.exchange;
+      const assetConflict = listing && row.asset_type && row.asset_type !== 'STK';
+      if (exchangeConflict || assetConflict) {
+        throw new Error(`Conflicting stock identity ${code}: ${row.exchange}/${row.asset_type}`);
+      }
+    }
     if (definition.table === 'Daily') {
       validateSourceBar(values);
     }
@@ -220,12 +263,16 @@ export async function prepareStockReference(
   partition: MarketPartition,
 ): Promise<PreparedMarketPartition> {
   if (partition.dataset === 'stock-master') {
+    if (!STOCK_LIST_STATUSES.some((status) => status === partition.scope)) {
+      throw new Error(`Unsupported stock listing status ${partition.scope}`);
+    }
     const columns = {
       tsCode: 'ts_code',
       symbol: 'symbol',
       name: 'name',
       area: 'area',
       market: 'market',
+      exchange: 'exchange',
       listDate: 'list_date',
       delistDate: 'delist_date',
       listStatus: 'list_status',
@@ -239,6 +286,7 @@ export async function prepareStockReference(
     const mapped = mapSourceRecords(pages.rows, (row) => {
       if (
         row.list_status !== partition.scope ||
+        !['SSE', 'SZSE', 'BSE'].includes(String(row.exchange)) ||
         !/^(?:\d{6}|T\d{6})\.(SH|SZ|BJ)$/.test(sourceString(row, 'ts_code'))
       ) {
         throw new Error('Invalid stock master identity');

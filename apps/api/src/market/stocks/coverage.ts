@@ -5,6 +5,7 @@ import {
   type StockMarketRange,
 } from '../instruments/market-range.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
+import { confirmedTradingInterruptions } from '../instruments/trading-interruptions.js';
 import type { MarketPartition, PreparedMarketPartition } from '../synchronization/partition.js';
 
 /**
@@ -77,7 +78,10 @@ export async function stockPartitionCoverage(
     gaps.push('Historical listing intervals are unknown');
   }
 
-  const suspended = new Set(prepared.checks.fullDaySuspended ?? []);
+  const suspended = confirmedTradingInterruptions(partition.startDate);
+  for (const code of prepared.checks.fullDaySuspended ?? []) {
+    suspended.add(code);
+  }
   const missing: string[] = [];
   const unverified: string[] = [];
   for (const [code, range] of ranges) {

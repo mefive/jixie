@@ -12,6 +12,7 @@ export function legacyMarketTable(
     | 'MarketCalculationState'
     | 'DatasetSyncState'
     | 'DatasetSyncPartition'
+    | 'StockBasic'
     | 'Daily',
 ) {
   return {

@@ -105,6 +105,7 @@ describe('stock source selection through maintenance', () => {
           tsCode: newCode,
           symbol: '001872',
           name: 'test',
+          exchange: 'SZSE',
           listStatus: 'L',
           listDate: '19930505',
         },

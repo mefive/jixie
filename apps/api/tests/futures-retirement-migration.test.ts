@@ -64,7 +64,7 @@ it('drops nine futures tables while preserving retained schema, sources, user co
         ...values,
       );
     }
-    await database.stockBasic.create({
+    await legacyMarketTable(database, 'StockBasic').create({
       data: {
         tsCode: '600000.SH',
         symbol: '600000',

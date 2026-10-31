@@ -32,6 +32,7 @@ describe('manual market cleanup', () => {
       const preview = await cleanData({ apply: false });
       expect(preview.summary).toEqual([
         { category: 'pending-etfs', candidates: 0, retained: 0, changed: 0 },
+        { category: 'pending-stocks', candidates: 0, retained: 0, changed: 0 },
         { category: 'retired-data', candidates: 1, retained: 0, changed: 0 },
         { category: 'stock-identities', candidates: 1, retained: 0, changed: 0 },
         { category: 'market-range', candidates: 0, retained: 1, changed: 0 },

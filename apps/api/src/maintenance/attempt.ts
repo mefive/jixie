@@ -51,6 +51,8 @@ export async function attemptSyncWindow(context: SyncAttemptInput): Promise<bool
   await recordAttempt(partition, result.runId, fetchedAt);
   const label = `${partition.dataset}/${partition.scope}`;
   const range = `${partition.startDate}..${partition.endDate}`;
+  const period = partition.endDate < input.targetDate ? 'historical' : 'target';
+  const extent = `${label} ${range} (${period})`;
   log(`[data sync] ${label} ${range}`);
   await database.dataSyncRun.update({
     where: { id: result.runId },
@@ -67,17 +69,13 @@ export async function attemptSyncWindow(context: SyncAttemptInput): Promise<bool
     for (const field of ['inserted', 'updated', 'deleted', 'rejected'] as const) {
       result.accepted[field] += committed.accepted[field];
     }
-    result.errors.push(
-      ...committed.errors.map((error) => `${partition.dataset}/${partition.scope}: ${error}`),
-    );
-    result.gaps.push(...prepared.gaps);
+    result.errors.push(...committed.errors.map((error) => `${extent}: ${error}`));
+    result.gaps.push(...prepared.gaps.map((gap) => `${extent}: ${gap}`));
   } catch (error) {
     const deferred =
       error instanceof MarketSyncBudgetError || signal.aborted || budget.remaining <= 0;
     const message = error instanceof Error ? error.message : String(error);
-    (deferred ? result.gaps : result.errors).push(
-      `${partition.dataset}/${partition.scope}: ${message}`,
-    );
+    (deferred ? result.gaps : result.errors).push(`${extent}: ${message}`);
     await publishWindow(
       partition,
       {

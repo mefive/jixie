@@ -16,6 +16,7 @@ export interface StockBasicRow {
   name: string;
   area: string | null;
   market: string | null;
+  exchange: string | null;
   list_date: TradeDate | null;
   delist_date: TradeDate | null;
   list_status: string;
@@ -33,7 +34,7 @@ export async function stockBasic(
   const rows = await client.call(
     'stock_basic',
     { list_status: 'L', ...params },
-    'ts_code,symbol,name,area,market,list_date,delist_date,list_status',
+    'ts_code,symbol,name,area,market,exchange,list_date,delist_date,list_status',
   );
   return rows as unknown as StockBasicRow[];
 }

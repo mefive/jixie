@@ -53,6 +53,7 @@ export async function prepareRetiredCleanup(
     OR: [
       { dataset: { in: RETIRED_DATASETS } },
       { dataset: 'calendar', scope: { in: RETIRED_EXCHANGES } },
+      { dataset: 'stock-master', scope: { in: ['G', 'UN'] } },
     ],
   };
   const counts = await Promise.all([

@@ -157,7 +157,17 @@ async function candidateWindows(
   const lower = [object.startDate, calendarDay(end, -policy.revisionDays)].sort().at(-1)!;
 
   if (policy.period === 'catalog') {
-    if (complete.some((window) => !due(window.checkedAt))) {
+    const missingExchange =
+      policy.dataset === 'stock-master'
+        ? await database.stockBasic.findFirst({
+            where: {
+              listStatus: object.scope,
+              OR: [{ exchange: null }, { exchange: { notIn: ['SSE', 'SZSE', 'BSE'] } }],
+            },
+            select: { tsCode: true },
+          })
+        : null;
+    if (!missingExchange && complete.some((window) => !due(window.checkedAt))) {
       return [];
     }
     windows = [{ startDate: today, endDate: today }];

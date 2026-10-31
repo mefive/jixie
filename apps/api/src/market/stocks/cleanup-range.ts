@@ -24,11 +24,11 @@ export async function prepareMarketRangeCleanup(
   const unproven: DailyFilter[] = [];
 
   for (const code of new Set(candidates.map((row) => row.code!))) {
-    const start = confirmedMarketStart(code);
+    const range = ranges.get(canonicalStockCode(code));
+    const start = confirmedMarketStart(code, range?.exchange);
     if (start) {
       exclusions.push({ tsCode: code, tradeDate: { lt: start.date } });
     }
-    const range = ranges.get(canonicalStockCode(code));
     if (!range?.startDate || range.uncertain) {
       unproven.push({ tsCode: code, tradeDate: { gte: start?.date } });
       continue;
@@ -49,7 +49,8 @@ export async function prepareMarketRangeCleanup(
   const items = (await dailyExtents(transaction, where)).map((item) => ({
     ...item,
     reason: 'History precedes confirmed admission to the maintained market',
-    source: confirmedMarketStart(item.code!)!.source,
+    source: confirmedMarketStart(item.code!, ranges.get(canonicalStockCode(item.code!))?.exchange)!
+      .source,
   }));
   const retained = (await dailyExtents(transaction, { OR: unproven })).map((item) => ({
     ...item,

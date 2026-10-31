@@ -6,11 +6,9 @@ import { writeMarketPartition } from '#market/synchronization/prepare.js';
 import { updateVerifiedCoverage } from '#market/synchronization/coverage.js';
 import { DATASET_POLICIES } from '#market/synchronization/policies.js';
 import { calendarDay } from '#market/synchronization/date.js';
-import type {
-  MarketTransaction,
-  PreparedMarketPartition,
-} from '#market/synchronization/partition.js';
+import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
 import type { PlannedPartition } from './partitions.js';
+import { invalidateDependents } from './dependencies.js';
 
 export async function recordAttempt(partition: PlannedPartition, runId: string, fetchedAt: Date) {
   const database = getDatabase();
@@ -178,7 +176,9 @@ export async function publishWindow(
 
         const previouslyVerified = ['complete', 'not_applicable'].includes(previous.status);
         const invalidated =
-          accepted.changed || !verified ? await invalidateDependents(transaction, partition) : 0;
+          accepted.changed || !verified
+            ? await invalidateDependents(transaction, partition, accepted.coverageChanges)
+            : 0;
         if (
           accepted.changed ||
           overlapping.count > 0 ||
@@ -196,67 +196,4 @@ export async function publishWindow(
       { timeout: 120_000 },
     ),
   );
-}
-
-/**
- * 日历、目录和价格被更正或失效后，撤销依赖范围的旧资格。
- *
- * Revoke dependent eligibility when calendars, catalogs or prices change or fail.
- */
-async function invalidateDependents(
-  transaction: MarketTransaction,
-  partition: PlannedPartition,
-): Promise<number> {
-  let datasets: string[];
-  switch (partition.dataset) {
-    case 'calendar':
-      datasets =
-        partition.scope === 'SSE'
-          ? DATASET_POLICIES.filter((policy) => policy.completion === 'sessions').map(
-              (policy) => policy.dataset,
-            )
-          : [];
-      break;
-    case 'stock-master':
-      datasets = ['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'];
-      break;
-    case 'etf-master':
-      datasets = ['etf-prices', 'etf-adjustments'];
-      break;
-    case 'stock-prices':
-      datasets = ['stock-adjustments', 'stock-valuations', 'stock-limits'];
-      break;
-    default:
-      datasets = [];
-  }
-
-  if (!datasets.length) {
-    return 0;
-  }
-
-  const catalog = partition.dataset.endsWith('-master');
-  const where = {
-    dataset: { in: datasets },
-    status: { in: ['complete', 'not_applicable'] },
-    ...(catalog
-      ? {}
-      : { startDate: { lte: partition.endDate }, endDate: { gte: partition.startDate } }),
-  };
-  const affected = await transaction.datasetSyncPartition.findMany({
-    where,
-    select: { dataset: true, scope: true },
-    distinct: ['dataset', 'scope'],
-  });
-  const result = await transaction.datasetSyncPartition.updateMany({
-    where,
-    data: { status: 'partial', error: null, gaps: ['Dependency changed; revalidation required'] },
-  });
-  if (result.count) {
-    await transaction.datasetSyncState.updateMany({
-      where: { OR: affected },
-      data: { verifiedThrough: null },
-    });
-  }
-
-  return result.count;
 }

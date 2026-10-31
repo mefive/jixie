@@ -107,6 +107,7 @@ export async function datasetScopes(policy: DatasetPolicy): Promise<DatasetScope
       return scopes(policy, ['all']);
     case 'dividends': {
       const rows = await getDatabase().stockBasic.findMany({
+        where: { listStatus: { in: [...STOCK_LIST_STATUSES] } },
         select: { tsCode: true, listDate: true },
       });
       const starts = new Map<string, string>();

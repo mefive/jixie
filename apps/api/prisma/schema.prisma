@@ -14,13 +14,17 @@ datasource db {
 // "delete the day first, then createMany" makes repeatable syncs idempotent.
 // ============================================================================
 
-/// Stock list across listed, delisted, suspended-listing, and approved-but-not-yet-traded statuses.
+/// 已上市、退市及暂停上市的股票目录。
+/// Stock catalog for listed, delisted and suspended-listing securities.
 model StockBasic {
   tsCode     String  @id
   symbol     String
   name       String
   area       String?
   market     String?
+  /// 来源明确提供的交易所；旧数据在目录刷新前保持未知。
+  /// Source-declared exchange; legacy entries remain unknown until catalog refresh.
+  exchange   String?
   listDate   String?
   delistDate String?
   listStatus String

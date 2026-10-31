@@ -1,4 +1,6 @@
 import { mergeStockSource } from '../instruments/source-selection.js';
+import { changedListingIntervals } from '../synchronization/catalog-coverage.js';
+import { stockCoverageIntervals } from '../instruments/market-range.js';
 import { z } from 'zod';
 import type {
   MarketPartition,
@@ -15,6 +17,10 @@ const stockBasicSchema = z.strictObject({
   name: z.string(),
   area: z.string().nullish(),
   market: z.string().nullish(),
+  exchange: z
+    .string()
+    .refine((value) => ['SSE', 'SZSE', 'BSE'].includes(value))
+    .nullish(),
   listDate: z.string().nullish(),
   delistDate: z.string().nullish(),
   listStatus: z.string(),
@@ -143,6 +149,27 @@ async function writeStockBasic(
     await transaction.stockBasic.createMany({ data: rows.inserted });
   }
   collectWriteResult(result, rows);
+
+  const replacements = new Map([...rows.inserted, ...rows.updated].map((row) => [row.tsCode, row]));
+  const before = stockCoverageIntervals(existing);
+  const after = stockCoverageIntervals([
+    ...existing.map((row) => replacements.get(row.tsCode) ?? row),
+    ...rows.inserted,
+  ]);
+  result.coverageChanges = [];
+  for (const code of new Set([...before.keys(), ...after.keys()])) {
+    const changes = changedListingIntervals(before.get(code), after.get(code));
+    for (const dates of changes) {
+      for (const dataset of [
+        'stock-prices',
+        'stock-adjustments',
+        'stock-valuations',
+        'stock-limits',
+      ]) {
+        result.coverageChanges.push({ dataset, scope: 'all', ...dates });
+      }
+    }
+  }
 }
 
 /**

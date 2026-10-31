@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { changedListingIntervals } from '../synchronization/catalog-coverage.js';
+import { etfDownloadRange } from './download-range.js';
+import { isObservationDate } from '../synchronization/date.js';
 import type {
   MarketPartition,
   MarketTransaction,
@@ -105,6 +108,40 @@ async function writeEtfBasic(
     await transaction.etfBasic.createMany({ data: rows.inserted });
   }
   collectWriteResult(result, rows);
+
+  const downloadList = await transaction.marketDownloadList.findUnique({
+    where: { assetType: 'etf' },
+  });
+  const codes = new Set(downloadList ? z.array(z.string()).parse(downloadList.codes) : []);
+  const previous = new Map(existing.map((row) => [row.tsCode, row]));
+  result.coverageChanges = [];
+  for (const row of [...rows.inserted, ...rows.updated]) {
+    if (!codes.has(row.tsCode)) {
+      continue;
+    }
+    const [before, after] = [previous.get(row.tsCode), row].map((entry) => {
+      if (!entry) {
+        return undefined;
+      }
+      const range = etfDownloadRange(
+        { ...entry, listDate: entry.listDate ?? null, delistDate: entry.delistDate ?? null },
+        '19900101',
+      );
+
+      return {
+        startDate: isObservationDate(range.startDate) ? range.startDate : '19900101',
+        endDate: isObservationDate(range.endDate) ? range.endDate : undefined,
+        exchange: entry.exchange,
+        uncertain: Boolean(range.blockedReason) || !isObservationDate(range.startDate),
+      };
+    });
+    const changes = changedListingIntervals(before, after);
+    for (const dates of changes) {
+      for (const dataset of ['etf-prices', 'etf-adjustments']) {
+        result.coverageChanges.push({ dataset, scope: row.tsCode, ...dates });
+      }
+    }
+  }
 }
 
 /**

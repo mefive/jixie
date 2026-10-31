@@ -26,6 +26,7 @@ describe('stock maintenance through the formal domain path', () => {
               symbol: 'T600018',
               name: '上港集箱',
               list_status: 'D',
+              exchange: 'SSE',
               list_date: '20000719',
               delist_date: '20061026',
             },
@@ -41,6 +42,7 @@ describe('stock maintenance through the formal domain path', () => {
           tsCode: bar.ts_code,
           symbol: '920298',
           name: 'IPO fixture',
+          exchange: 'BSE',
           listStatus: 'L',
           listDate: date,
         },
@@ -71,7 +73,7 @@ describe('stock maintenance through the formal domain path', () => {
   it('keeps known rows on a truncated response and refuses wrong-session records', async () =>
     withSyncDatabase(async (database) => {
       await seedSessions(database, date);
-      for (const scope of ['L', 'D', 'P', 'G', 'UN']) {
+      for (const scope of ['L', 'D', 'P']) {
         await proveRange(database, {
           dataset: 'stock-master',
           scope,
@@ -83,6 +85,7 @@ describe('stock maintenance through the formal domain path', () => {
         data: [bar.ts_code, '600000.SH'].map((tsCode) => ({
           tsCode,
           symbol: tsCode.slice(0, 6),
+          exchange: tsCode === bar.ts_code ? 'BSE' : 'SSE',
           name: tsCode,
           listStatus: 'L',
           listDate: '20150101',

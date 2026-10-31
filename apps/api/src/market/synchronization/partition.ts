@@ -63,7 +63,20 @@ export interface PreparedMarketPartition {
   observedDates: string[];
 }
 
+export interface CoverageChange {
+  dataset: string;
+  scope: string;
+  startDate: string;
+  endDate?: string;
+}
+
 export interface AcceptedMarketPartition {
+  /**
+   * 目录变化实际影响的下游日期；未列出的历史凭证保持有效。
+   *
+   * Dependent dates affected by catalog changes; unlisted historical proofs remain valid.
+   */
+  coverageChanges?: CoverageChange[];
   inserted: number;
   updated: number;
   deleted: number;

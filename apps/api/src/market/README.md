@@ -39,3 +39,5 @@ HTTP 从查询能力读取已有数据；Research 再做 SDK 字段与 PIT 投�
 当前日常市场写流程是 `pnpm data sync [--to YYYYMMDD]`。各领域 `sync-partition.ts` 准备来源批次，各领域 `write.ts` 用显式 Prisma 写入，`synchronization/rows.ts` 只做纯内存缺值合并，`coverage.ts` 从实际窗口推导连续覆盖；旧任务选择式 CLI、整轮候选和隐式 Signals 下载已退役。分区覆盖、计算资格与统计/模型门槛分别报告。
 
 存量清理通过 `pnpm data clean` 人工发起。领域只提供预检／修改规则，Maintenance 负责备份、锁和原子发布；入库规则与清理共用已核实市场边界，不在每轮 sync 重复处理历史。
+
+股票目录的内部交易所字段 `StockBasic.exchange` 对应 Tushare `stock_basic.exchange`，存储 SSE/SZSE/BSE；旧行 null 不按后缀猜测，目录刷新后写入。市场范围读取该字段，公开 Research SDK 返回列不变。股票目录维护 L/D/P，G/UN 仅作为人工存量清理对象。

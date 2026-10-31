@@ -6,9 +6,22 @@ const stock = {
   listDate: '20000101',
   delistDate: null,
   listStatus: 'L',
+  exchange: 'SZSE',
 };
 
 describe('dated stock market membership', () => {
+  it('uses catalog exchanges instead of code suffixes and preserves unknown exchanges', () => {
+    const ranges = stockMarketRanges([
+      { ...stock, tsCode: '900901.BJ', exchange: 'SSE' },
+      { ...stock, tsCode: '920489.BJ', exchange: 'BSE' },
+      { ...stock, tsCode: '920999.BJ', exchange: null },
+    ]);
+
+    expect(stockMarketMembership('900901.BJ', '20150105', ranges)).toBe('inside');
+    expect(stockMarketMembership('920489.BJ', '20150105', ranges)).toBe('outside');
+    expect(stockMarketMembership('920999.BJ', '20150105', ranges)).toBe('unknown');
+  });
+
   it('includes boundary dates and excludes pre-listing and post-delisting sessions', () => {
     const ranges = stockMarketRanges([{ ...stock, listStatus: 'D', delistDate: '20200101' }]);
 
@@ -26,14 +39,14 @@ describe('dated stock market membership', () => {
   });
 
   it.each(['G', 'UN'])(
-    'excludes never-listed %s but flags contradictory scheduled dates',
+    'excludes never-listed %s even when a scheduled date is present',
     (status) => {
       const pending = stockMarketRanges([{ ...stock, listDate: null, listStatus: status }]);
       const scheduled = stockMarketRanges([{ ...stock, listStatus: status }]);
 
       expect(stockMarketMembership(stock.tsCode, '19991231', pending)).toBe('outside');
       expect(stockMarketMembership(stock.tsCode, '19991231', scheduled)).toBe('outside');
-      expect(stockMarketMembership(stock.tsCode, '20000101', scheduled)).toBe('unknown');
+      expect(stockMarketMembership(stock.tsCode, '20000101', scheduled)).toBe('outside');
     },
   );
 
@@ -74,6 +87,6 @@ describe('dated stock market membership', () => {
     }
     expect(stockMarketMembership('920139.BJ', '20221027', ranges)).toBe('outside');
     expect(stockMarketMembership('920139.BJ', '20221028', ranges)).toBe('unknown');
-    expect(stockMarketMembership('920489.BJ', '20211114', ranges)).toBe('outside');
+    expect(stockMarketMembership('920489.BJ', '20211114', ranges)).toBe('unknown');
   });
 });

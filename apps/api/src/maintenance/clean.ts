@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { getDatabase } from '#infra/database/prisma.js';
 import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
 import { preparePendingEtfCleanup } from '#market/etfs/cleanup-pending.js';
+import { preparePendingStockCleanup } from '#market/stocks/cleanup-pending.js';
 import { prepareIdentityCleanup } from '#market/instruments/cleanup-identity.js';
 import { prepareMarketRangeCleanup } from '#market/stocks/cleanup-range.js';
 import { updateVerifiedCoverage } from '#market/synchronization/coverage.js';
@@ -80,6 +81,7 @@ export async function cleanData(input: DataCleanupInput) {
 async function processCleanup(transaction: MarketTransaction, apply: boolean) {
   const categories = [
     { category: 'pending-etfs', prepare: () => preparePendingEtfCleanup(transaction) },
+    { category: 'pending-stocks', prepare: () => preparePendingStockCleanup(transaction) },
     { category: 'retired-data', prepare: () => prepareRetiredCleanup(transaction) },
     { category: 'stock-identities', prepare: () => prepareIdentityCleanup(transaction) },
     { category: 'market-range', prepare: () => prepareMarketRangeCleanup(transaction) },
