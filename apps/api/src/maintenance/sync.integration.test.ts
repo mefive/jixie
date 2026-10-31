@@ -57,13 +57,13 @@ describe('unified synchronization acceptance', () => {
     async () =>
       withSyncDatabase(async (database) => {
         const result = await synchronizeData({
-          targetDate: '20260915',
-          startedAt: fetchedAt,
+          targetDate: '20150101',
+          startedAt: new Date('2015-01-02T10:00:00Z'),
           providers: providers(),
           onLog: () => {},
         });
         expect(result.partitions).toBeGreaterThan(0);
-        expect(result.partitions).toBeLessThanOrEqual(240);
+        expect(result.partitions).toBe(await database.datasetSyncPartition.count());
         expect(result.status).toBe('error');
         expect(
           await database.datasetSyncPartition.count({ where: { status: 'error' } }),
@@ -336,8 +336,8 @@ describe('unified synchronization acceptance', () => {
         await mkdir(retired, { recursive: true });
         await writeFile(join(retired, 'candidate.db'), 'fixture candidate');
         await synchronizeData({
-          targetDate: '20260915',
-          startedAt: fetchedAt,
+          targetDate: '20150101',
+          startedAt: new Date('2015-01-02T10:00:00Z'),
           providers: providers(),
           onLog: () => {},
         });

@@ -146,7 +146,7 @@ describe('unified sync review regressions', () => {
         })),
       });
       await database.datasetSyncPartition.createMany({
-        data: ['L', 'D', 'P', 'G'].map((scope) => ({
+        data: ['L', 'D', 'P', 'G', 'UN'].map((scope) => ({
           id: `master-${scope}`,
           dataset: 'stock-master',
           scope,

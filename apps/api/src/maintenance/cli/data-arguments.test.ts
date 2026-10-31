@@ -30,3 +30,27 @@ describe('data list CLI arguments', () => {
     expect(() => parseDataArguments(args)).toThrow('Usage:');
   });
 });
+
+describe('manual cleanup arguments', () => {
+  it('previews all cleanup categories without a selector', () => {
+    expect(parseDataArguments(['clean'])).toEqual({ action: 'clean', apply: false });
+    expect(parseDataArguments(['clean', '--database', '/tmp/selected.db', '--apply'])).toEqual({
+      action: 'clean',
+      database: '/tmp/selected.db',
+      apply: true,
+    });
+    expect(parseDataArguments(['clean', '--help'])).toEqual({ action: 'help' });
+  });
+
+  it.each([
+    ['clean', 'pending-etfs'],
+    ['clean', 'all'],
+    ['clean', '--code', '000001.SZ'],
+    ['clean', '--from', '20150101', '--to', '20250101'],
+    ['clean', '--apply', '--apply'],
+    ['clean', '--database', 'relative.db'],
+    ['clean', '--unknown', 'value'],
+  ])('rejects category selectors and unsupported options %j', (...args) => {
+    expect(() => parseDataArguments(args)).toThrow('Usage:');
+  });
+});

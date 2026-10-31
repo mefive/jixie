@@ -9,7 +9,7 @@
 | [统一数据同步](../src/maintenance/) | 按目标日期推进所有既有数据域、补缺与重查 | 1 | `pnpm data sync [--to YYYYMMDD]` |
 | [同步凭证升级](upgrade-sync-proofs.mjs) | 删除旧策略列前撤销受影响凭证 | 1 | bootstrap |
 | [升级搬移](upgrade-minimal-sync.mjs) | 停服期间分红捕获时间导出／恢复 | 1 | bootstrap |
-| [旧待上市 ETF 清理](../src/market/cli/cleanup-pending-etfs.ts) | 显式数据库的离线预检／清理 | 1 | bootstrap |
+| [人工数据清理](../src/maintenance/clean.ts) | 四类存量清理，默认预览、执行前备份 | 1 | `pnpm data clean` |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
 | [audit/](audit/) | 检查现有数据、查看覆盖 | 2 | 导入后的质量检查、研究核验 |
@@ -19,9 +19,9 @@
 
 ## 运行约定
 
-- `pnpm --filter api` 使用 `apps/api` 为工作目录。除 `backup` 和显式数据库的离线清理外，业务执行均加载 API 的 `.env`；`sync`、`data:audit`、`probe` 在参数校验通过后才加载环境和业务模块，帮助、未知任务及非法参数不连接数据库；数据库连接和 Tushare 等配置沿用应用配置。
+- `pnpm --filter api` 使用 `apps/api` 为工作目录。除 `backup` 外，业务执行均加载 API 的 `.env`；`sync`、`data:audit`、`probe` 在参数校验通过后才加载环境和业务模块，帮助、未知任务及非法参数不连接数据库；数据库连接和 Tushare 等配置沿用应用配置。
 - 下表 `start` / `end` / `date` 使用 `YYYYMMDD`；方括号表示可选参数。各入口保留原有默认值，部分仍默认 2024 年等历史区间，补数时应显式传入日期。
-- 日常数据写入只使用 `pnpm data sync [--to YYYYMMDD]`；只读审计与显式探针保留。停服升级另有下述受限清理入口。
+- 日常数据写入只使用 `pnpm data sync [--to YYYYMMDD]`；只读审计与显式探针保留。人工存量清理使用 `data clean`；部署只保留 schema 必需的升级搬移。
 - `maintenance`、`import:data`、`sync <任务>` 和代码归一 CLI 均已退役，不设置兼容转发。
 
 ## 已退役的数据转换
@@ -31,21 +31,36 @@
 
 ## 数据同步
 
-唯一写流程是 `pnpm data sync [--to YYYYMMDD]`，由 `src/maintenance/cli/data.ts` 进入协调器；生产使用相同编译入口。无参数或 `--help` 显示帮助，未知参数、额外选择器和不存在的日期在环境/数据库加载前失败。退出码：完整/合法 partial 为 0，实际错误为 1，参数错误为 2，写锁争用为 75。
+日常同步流程是 `pnpm data sync [--to YYYYMMDD]`，由 `src/maintenance/cli/data.ts` 进入协调器；生产使用相同编译入口。无参数或 `--help` 显示帮助，未知参数、额外选择器和不存在的日期在环境/数据库加载前失败。退出码：完整/合法 partial 为 0，实际错误为 1，参数错误为 2，写锁争用为 75。
 
 旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs 和 fundamentals 领域；宏观、利率、FX 和跨市场来源已退役；日常补齐与首次回补使用同一有界循环，只记录实际尝试窗口，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [裁剪设计第 5 节](../../../docs/design/system-simplification-plan.md#5-数据维护重新设计)。
 
-## 最小同步的旧库升级
+## 人工数据清理
 
-bootstrap 在迁移与分红恢复完成后、API 启动前执行旧待上市 ETF 清理。源码入口为 `src/market/cli/cleanup-pending-etfs.ts`，生产使用 `dist/src/market/cli/cleanup-pending-etfs.js`；参数为 `check|apply /absolute/path/database.db`，不读取 `.env` 或默认开发库，不访问数据源。`check` stdout 仅返回可删数量，保护记录与原因写 stderr；`apply` 事务内重查依赖，只删除无依赖 P 目录，并在实际删除时推进 revision。所有数据库连接和锁在退出前释放。
+`data clean` 不由 timer 或 bootstrap 调用，不下载数据。统一检查以下四类，按类别输出汇总及明细：
 
-bootstrap 复用部署 M/P/R 锁；有可删记录才使用独立 `pending-etf-cleanup/` 备份目录备份并执行。清理失败保持 API 停止；受关联数据保护的记录只报告、不删除。没有 schema migration，也不删除价格、复权、名单、报告或用户源码。隔离演练示例：
+| 项目 | 范围 |
+| --- | --- |
+| `pending-etfs` | 删除无关联依赖的旧 P 目录；有历史、名单或状态引用的保留并报告 |
+| `retired-data` | 已退役数据集的维护记录和明确退役的交易日历 |
+| `stock-identities` | 已确认证券代码接续的存量归并；同源冲突拒绝，保留来源及捕获时间 |
+| `market-range` | 依据已确认市场进入日期清理股票行情、复权、估值、涨跌停四表；未知历史保留 |
 
-```sh
-node --conditions=development --import tsx apps/api/src/market/cli/cleanup-pending-etfs.ts check /absolute/path/isolated.db
-# 备份后才执行 apply；生产 bootstrap 已负责备份。
-node --conditions=development --import tsx apps/api/src/market/cli/cleanup-pending-etfs.ts apply /absolute/path/isolated.db
+```bash
+pnpm data clean
+pnpm data clean --apply
+pnpm data clean --database /absolute/path/database.db --apply
 ```
+
+默认预览不修改业务数据；`--apply` 才执行。默认数据库沿用 API 环境，也可用绝对路径 `--database` 指定已有库；不创建新库，不要求 Tushare 配置。不提供类别、证券或日期筛选；一次检查全部适用规则，类别只用于组织结果。
+
+有命中项时持维护锁，用既有 SQLite 备份工具生成并检查独立恢复点，路径在结果 `backup` 中返回。目录为 `JIXIE_BACKUP_DIR`（未配置时 `~/jixie-backups`）下的独立 `data-clean-*`，不轮换其他清理的备份。备份失败不执行清理。一个发布事务按类别顺序重新检查并修改原值、撤销受影响的旧资格、更新连续覆盖与 revision，失败回滚；未知或有依赖的记录列入 retained。无命中项不备份、不推进 revision。
+
+items 的 count 表示候选记录数；changed 表示实际写入／删除操作数，身份合并可能同时删除旧行、更新新行及身份记录。输出覆盖影响范围；清理不会生成来源完整凭证，之后用 data sync 重新核验。身份归并保守撤销涉及数据集的旧资格，市场范围清理只撤销命中日期区间及股票日数据依赖。
+
+市场边界唯一来源为 `market/instruments/market-range.ts`，同步入库过滤及覆盖检查复用；当前上市日期本身不是清理依据。当前覆盖北交所开市前历史及已有公告证实的个别上市边界；其他越界候选明确保留，不宣称已经修复全部历史上市／暂停上市问题。
+
+## 最小同步的旧库升级
 
 现有库升级应通过 `scripts/bootstrap.sh` 完成。该脚本持 M/P/R、排空并停服后导出 `${DB_FILE}.minimal-sync.json`，预检并备份、撤销受影响同步凭证，然后执行工具生成迁移并恢复，成功后再启动服务。恢复文件权限为 0600，绑定数据库真实路径与设备／inode；已有未恢复文件不会覆盖。失败保持 API 停止并保留文件，再次部署继续恢复。新空库无需导出。
 
@@ -148,6 +163,6 @@ Gate 2 静态检查：API `tsc --noEmit`、改动 TypeScript 的 ESLint / Pretti
 
 `pnpm sync` 保留全部 24 个命令及参数；业务实现移至 `src/market/sync` 的可调用函数，不再自执行 CLI。维护准备、最终计算与审计在候选数据库作用域中执行；仅财务批次保留子进程。详细边界、升级约束及验证计划见 [设计](../../../docs/design/maintenance-database-scope-and-cleanup.md)。尚未运行本次行为验证。
 
-历史记录中保留当时命令与路径；当前唯一写入口以上述统一同步说明为准。2026-10-22 候选协议已由统一同步替代，不再作为当前运行方式。
+历史记录中保留当时命令与路径；当前同步及人工清理入口以上述说明为准。2026-10-22 候选协议已由统一同步替代，不再作为当前运行方式。
 
 ETF／指数下载名单支持 `pnpm data etf list/select-top/add/remove` 与 `pnpm data index list/add/remove`，详见 [下载名单](../src/market/downloads/README.md)。

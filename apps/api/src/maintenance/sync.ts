@@ -1,22 +1,14 @@
 import { attemptSyncWindow } from './attempt.js';
 import type { DataSyncResult } from '@jixie/shared/api/maintenance';
 import { getDatabase } from '#infra/database/prisma.js';
-import {
-  cleanupOwnerLocks,
-  withMaintenanceLock,
-  withMarketPublication,
-} from '#infra/coordination/market-access.js';
+import { cleanupOwnerLocks, withMaintenanceLock } from '#infra/coordination/market-access.js';
 import { initializeIndexDownloads } from '#market/downloads/lists.js';
 import { selectEtfsUnderMaintenance } from '#market/downloads/select-etfs.js';
-import { normalizeStockIdentity } from '#market/instruments/normalize-identity.js';
-import { STOCK_CODE_CHANGES } from '#market/instruments/stock-identity.js';
 import { isObservationDate, localDate } from '#market/synchronization/date.js';
 import type { SyncProviders } from '#market/synchronization/prepare.js';
 import { DATASET_POLICIES } from '#market/synchronization/policies.js';
 import { withSourceRequestBudget } from '#market/providers/source-fetch.js';
-import { SYNC_LIMITS } from './partitions.js';
 import { startSyncRun, finishSyncRun } from './runs.js';
-import { retireDatasets } from './retired-datasets.js';
 
 export interface DataSyncInput {
   targetDate: string;
@@ -36,13 +28,13 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
   if (!isObservationDate(input.targetDate) || !Number.isFinite(input.startedAt.getTime())) {
     throw new Error('Invalid synchronization date/time');
   }
-  const signal = AbortSignal.any([
-    AbortSignal.timeout(SYNC_LIMITS.milliseconds),
-    ...(input.signal ? [input.signal] : []),
-  ]);
+  const signal = input.signal ?? new AbortController().signal;
+
+  // 整轮按固定目标收敛，不按窗口数、请求数或耗时截断；单请求仍有超时和有限重试。
+  // Finish the fixed target without run-wide caps; individual requests retain timeouts and retries.
   const budget = {
-    remaining: SYNC_LIMITS.requests as number,
-    deadline: Date.now() + SYNC_LIMITS.milliseconds,
+    remaining: Number.POSITIVE_INFINITY,
+    deadline: Number.POSITIVE_INFINITY,
     signal,
     failures: 0,
     lastFailure: undefined as string | undefined,
@@ -58,11 +50,6 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
       let nextIndex = initialized.nextIndex;
       const attempted = new Set<string>();
 
-      const exhausted = () =>
-        signal.aborted ||
-        Date.now() >= budget.deadline ||
-        budget.remaining <= 0 ||
-        result.partitions >= SYNC_LIMITS.partitions;
       let heartbeat = Promise.resolve();
       const timer = setInterval(() => {
         heartbeat = heartbeat
@@ -88,7 +75,6 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
           result,
           attempted,
           budget,
-          exhausted,
           signal,
           clock,
           log,
@@ -102,7 +88,6 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
       };
 
       try {
-        await retireDatasets();
         await cleanupOwnerLocks(true);
         await initializeIndexDownloads();
 
@@ -121,11 +106,9 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
           }
         }
 
-        await normalizeRetainedStockHistory(result);
-
         for (const dataset of ['calendar', 'stock-master', 'etf-master']) {
           const index = DATASET_POLICIES.findIndex((policy) => policy.dataset === dataset);
-          while (!exhausted() && (await acquire(index, false))) {
+          while (!signal.aborted && (await acquire(index, false))) {
             /*
              * 每次只推进一个参考窗口。
              *
@@ -138,10 +121,10 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
         // Reference acquisition does not replace the saved business rotation position.
         referenceStage = false;
 
-        while (!exhausted()) {
+        while (!signal.aborted) {
           let progressed = false;
           const start = nextIndex;
-          for (let offset = 0; offset < DATASET_POLICIES.length && !exhausted(); offset++) {
+          for (let offset = 0; offset < DATASET_POLICIES.length && !signal.aborted; offset++) {
             const index = (start + offset) % DATASET_POLICIES.length;
             progressed = (await acquire(index, false)) || progressed;
             progressed = (await acquire(index, true)) || progressed;
@@ -157,8 +140,8 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
         await heartbeat;
       }
 
-      if (exhausted()) {
-        result.gaps.push('Finite run budget exhausted; remaining windows resume next run');
+      if (signal.aborted) {
+        result.gaps.push('Synchronization cancelled; remaining windows resume next run');
       }
 
       await finishSyncRun(result, nextIndex, input.startedAt, clock());
@@ -166,38 +149,4 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
       return result;
     }),
   );
-}
-
-/**
- * 证券接续属于必要维护，不受网络回补预算限制。
- *
- * Identity maintenance is independent of the download budget.
- */
-async function normalizeRetainedStockHistory(result: DataSyncResult): Promise<void> {
-  const database = getDatabase();
-  for (const change of STOCK_CODE_CHANGES) {
-    try {
-      const accepted = await withMarketPublication(() =>
-        database.$transaction(
-          async (transaction) => {
-            const written = await normalizeStockIdentity(transaction, change);
-            if (written.changed) {
-              await transaction.marketDataState.update({
-                where: { key: 'global' },
-                data: { revision: { increment: 1 } },
-              });
-            }
-
-            return written;
-          },
-          { timeout: 120_000 },
-        ),
-      );
-      for (const field of ['inserted', 'updated', 'deleted', 'rejected'] as const) {
-        result.accepted[field] += accepted[field];
-      }
-    } catch (error) {
-      result.errors.push(`Identity normalization ${change.oldTsCode}: ${String(error)}`);
-    }
-  }
 }

@@ -1,6 +1,7 @@
-import { resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isObservationDate } from '#market/synchronization/date.js';
+import type { DataCleanupInput } from '../cleanup-request.js';
 
 /**
  * 解析完成后才允许加载业务环境。
@@ -10,20 +11,28 @@ import { isObservationDate } from '#market/synchronization/date.js';
 export type DataRequest =
   | { action: 'help' }
   | { action: 'sync'; targetDate?: string }
+  | ({ action: 'clean'; database?: string } & Omit<DataCleanupInput, 'backup' | 'signal'>)
   | { action: 'list'; assetType: 'etf' | 'index' }
   | { action: 'add' | 'remove'; assetType: 'etf' | 'index'; code: string }
   | { action: 'select-top'; assetType: 'etf'; limit: number };
 
 const usage =
-  'Usage: pnpm data sync [--to YYYYMMDD]\n       pnpm data etf list|select-top [--limit 100]|add CODE|remove CODE\n       pnpm data index list|add CODE|remove CODE';
+  'Usage: pnpm data sync [--to YYYYMMDD]\n' +
+  '       pnpm data clean [--database /absolute/path.db] [--apply]\n' +
+  '       pnpm data etf list|select-top [--limit 100]|add CODE|remove CODE\n' +
+  '       pnpm data index list|add CODE|remove CODE\n' +
+  'Cleanup previews all applicable cleanup categories by default.';
 
 export function parseDataArguments(args: string[]): DataRequest {
   if (
     !args.length ||
     (args.length === 1 && args[0] === '--help') ||
-    (args.length === 2 && args[0] === 'sync' && args[1] === '--help')
+    (args.length === 2 && ['sync', 'clean'].includes(args[0]) && args[1] === '--help')
   ) {
     return { action: 'help' };
+  }
+  if (args[0] === 'clean') {
+    return parseCleanupArguments(args.slice(1));
   }
   if (args[0] === 'sync' && args.length === 1) {
     return { action: 'sync' };
@@ -60,6 +69,32 @@ export function parseDataArguments(args: string[]): DataRequest {
     }
   }
   throw new Error(usage);
+}
+
+/**
+ * 清理统一检查全部类别；只接受目标数据库与显式执行选项。
+ *
+ * Inspect all cleanup categories; accept only a target database and explicit application.
+ */
+function parseCleanupArguments(options: string[]): Extract<DataRequest, { action: 'clean' }> {
+  const request: Extract<DataRequest, { action: 'clean' }> = { action: 'clean', apply: false };
+  const seen = new Set<string>();
+  for (let index = 0; index < options.length; index++) {
+    const option = options[index];
+    if (seen.has(option)) {
+      throw new Error(usage);
+    }
+    seen.add(option);
+    if (option === '--apply') {
+      request.apply = true;
+    } else if (option === '--database' && options[index + 1] && isAbsolute(options[index + 1])) {
+      request.database = options[++index];
+    } else {
+      throw new Error(usage);
+    }
+  }
+
+  return request;
 }
 
 /**

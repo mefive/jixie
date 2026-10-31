@@ -36,4 +36,6 @@ HTTP 从查询能力读取已有数据；Research 再做 SDK 字段与 PIT 投�
 
 整体 HTTP 用例在 [routes/index.test.ts](routes/index.test.ts)，各数据域测试就近链接。架构与约束见 [后端架构](../../../../docs/backend-architecture.md)、[依赖边界](../../../../docs/backend-boundaries.md)；目录及共享身份整理的历史结果见 [架构重构记录](../../../../docs/design/backend-architecture-refactor.md)、[服务边界设计](../../../../docs/design/core-business-service-boundaries.md)。
 
-当前唯一市场写流程是 `pnpm data sync [--to YYYYMMDD]`。各领域 `sync-partition.ts` 准备来源批次，各领域 `write.ts` 用显式 Prisma 写入，`synchronization/rows.ts` 只做纯内存缺值合并，`coverage.ts` 从实际窗口推导连续覆盖；旧任务选择式 CLI、整轮候选和隐式 Signals 下载已退役。分区覆盖、计算资格与统计/模型门槛分别报告。
+当前日常市场写流程是 `pnpm data sync [--to YYYYMMDD]`。各领域 `sync-partition.ts` 准备来源批次，各领域 `write.ts` 用显式 Prisma 写入，`synchronization/rows.ts` 只做纯内存缺值合并，`coverage.ts` 从实际窗口推导连续覆盖；旧任务选择式 CLI、整轮候选和隐式 Signals 下载已退役。分区覆盖、计算资格与统计/模型门槛分别报告。
+
+存量清理通过 `pnpm data clean` 人工发起。领域只提供预检／修改规则，Maintenance 负责备份、锁和原子发布；入库规则与清理共用已核实市场边界，不在每轮 sync 重复处理历史。

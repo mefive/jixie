@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { proveRange } from '../../tests/market-contract-fixtures.js';
 import { withSyncDatabase } from '../../tests/sync-database.js';
+import { fetchMarketSource } from '#market/providers/source-fetch.js';
 import { synchronizeData } from './sync.js';
 import type { PlannedPartition, SelectWindowInput } from './partitions.js';
 import { DATASET_POLICIES } from '#market/synchronization/policies.js';
@@ -13,7 +14,6 @@ const planning = vi.hoisted(() => ({ select: vi.fn() }));
 vi.mock('./partitions.js', async (original) => ({
   ...(await original<typeof import('./partitions.js')>()),
   selectSyncWindow: planning.select,
-  SYNC_LIMITS: { partitions: 2, requests: 600, milliseconds: 30 * 60_000 },
 }));
 const date = '20260915';
 const startedAt = new Date('2026-09-16T10:00:00Z');
@@ -150,7 +150,7 @@ it.each([true, false])(
 );
 
 it(
-  'stops at the actual window limit and resumes the saved dataset after references on restart',
+  'stops on cancellation and resumes the saved dataset after references on restart',
   async () =>
     withSyncDatabase(async (database) => {
       await database.stockCodeChange.createMany({ data: [...STOCK_CODE_CHANGES] });
@@ -186,6 +186,7 @@ it(
           : null;
       });
       let requests = 0;
+      const controller = new AbortController();
       const input = {
         targetDate: date,
         startedAt,
@@ -195,15 +196,18 @@ it(
           source: {
             call: async () => {
               requests++;
+              if (requests === 2) {
+                controller.abort();
+              }
               throw new Error('Controlled failure');
             },
           },
         },
       };
-      const first = await synchronizeData(input);
+      const first = await synchronizeData({ ...input, signal: controller.signal });
       expect(first.partitions).toBe(2);
       expect(requests).toBe(2);
-      expect(first.gaps.some((gap) => gap.includes('Finite run budget'))).toBe(true);
+      expect(first.gaps.some((gap) => gap.includes('Synchronization cancelled'))).toBe(true);
       expect(
         (await database.datasetSyncPartition.findMany()).map((window) => window.id).sort(),
       ).toEqual(['bounded-0', 'bounded-1']);
@@ -292,7 +296,7 @@ it(
 );
 
 it(
-  'keeps the saved business dataset when reference acquisition exhausts the run',
+  'keeps the saved business dataset when reference acquisition is cancelled',
   async () =>
     withSyncDatabase(async (database) => {
       await database.stockCodeChange.createMany({ data: [...STOCK_CODE_CHANGES] });
@@ -322,7 +326,10 @@ it(
           : { ...partition, dataset: 'calendar', scope, id: `reference-${scope}` };
       });
 
+      const controller = new AbortController();
+      let requests = 0;
       const result = await synchronizeData({
+        signal: controller.signal,
         targetDate: date,
         startedAt,
         clock: () => startedAt,
@@ -330,6 +337,10 @@ it(
         providers: {
           source: {
             call: async () => {
+              requests++;
+              if (requests === 2) {
+                controller.abort();
+              }
               throw new Error('Controlled reference failure');
             },
           },
@@ -341,4 +352,68 @@ it(
       ).toMatchObject({ resumeDataset: 'index-prices' });
     }),
   30_000,
+);
+
+it(
+  'attempts every target window once beyond the former window, request and time caps',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await database.marketDownloadList.createMany({
+        data: [
+          { assetType: 'etf', codes: [] },
+          { assetType: 'index', codes: ['000300.SH'] },
+        ],
+      });
+      const windows = Array.from(
+        { length: 241 },
+        (_, index): PlannedPartition => ({
+          ...partition,
+          id: `uncapped-${index}`,
+          startDate: calendarDay('20250101', index),
+          endDate: calendarDay('20250101', index),
+        }),
+      );
+      planning.select.mockImplementation(async (input: SelectWindowInput) =>
+        input.policy.dataset === partition.dataset
+          ? (windows.find((window) => !input.attempted.has(window.id)) ?? null)
+          : null,
+      );
+      let requests = 0;
+      const now = Date.now();
+      const wallClock = vi.spyOn(Date, 'now');
+      const fetcher: typeof fetch = async (_url, options) => {
+        requests++;
+        expect(options?.signal?.aborted).toBe(false);
+        return new Response('ok');
+      };
+
+      try {
+        const result = await synchronizeData({
+          targetDate: date,
+          startedAt,
+          clock: () => startedAt,
+          onLog: () => {},
+          providers: {
+            source: {
+              call: async () => {
+                wallClock.mockReturnValue(now + 31 * 60_000);
+                for (let attempt = 0; attempt < 3; attempt++) {
+                  await fetchMarketSource(fetcher, 'https://fixture.invalid');
+                }
+                throw new Error('Controlled unavailable window');
+              },
+            },
+          },
+        });
+
+        expect(result.partitions).toBe(241);
+        expect(requests).toBe(723);
+        expect(await database.datasetSyncPartition.count()).toBe(241);
+        expect(result.errors).not.toEqual([]);
+        expect(result.gaps.some((gap) => gap.includes('budget exhausted'))).toBe(false);
+      } finally {
+        wallClock.mockRestore();
+      }
+    }),
+  120_000,
 );

@@ -1,8 +1,5 @@
-import { getDatabase } from '#infra/database/prisma.js';
-import {
-  assertMaintenanceOwner,
-  withMarketPublication,
-} from '#infra/coordination/market-access.js';
+import type { MarketTransaction } from '#market/synchronization/partition.js';
+import type { PreparedCleanup } from '#market/synchronization/cleanup.js';
 
 export const RETIRED_EXCHANGES = [
   'CFFEX',
@@ -44,36 +41,47 @@ export const RETIRED_DATASETS = [
 ];
 
 /**
- * 持有维护锁时，仅清理已退役来源的维护记录。
+ * 退役范围只清理日历和维护记录；日常同步不再重复执行。
  *
- * Remove maintenance records for retired sources while holding the maintenance lock.
+ * Retired scope cleanup affects only calendars and maintenance records, never routine sync.
  */
-export async function retireDatasets(): Promise<void> {
-  assertMaintenanceOwner();
+export async function prepareRetiredCleanup(
+  transaction: MarketTransaction,
+): Promise<PreparedCleanup> {
+  const calendar = { exchange: { in: RETIRED_EXCHANGES } };
+  const metadata = {
+    OR: [
+      { dataset: { in: RETIRED_DATASETS } },
+      { dataset: 'calendar', scope: { in: RETIRED_EXCHANGES } },
+    ],
+  };
+  const counts = await Promise.all([
+    transaction.tradeCal.count({ where: calendar }),
+    transaction.datasetSyncPartition.count({ where: metadata }),
+    transaction.datasetSyncState.count({ where: metadata }),
+  ]);
+  const tables = ['TradeCal', 'DatasetSyncPartition', 'DatasetSyncState'];
 
-  await withMarketPublication(() =>
-    getDatabase().$transaction([
-      getDatabase().tradeCal.deleteMany({
-        where: { exchange: { in: RETIRED_EXCHANGES } },
-      }),
-      getDatabase().datasetSyncPartition.deleteMany({
-        where: {
-          dataset: 'calendar',
-          scope: { in: RETIRED_EXCHANGES },
-        },
-      }),
-      getDatabase().datasetSyncState.deleteMany({
-        where: {
-          dataset: 'calendar',
-          scope: { in: RETIRED_EXCHANGES },
-        },
-      }),
-      getDatabase().datasetSyncPartition.deleteMany({
-        where: { dataset: { in: RETIRED_DATASETS } },
-      }),
-      getDatabase().datasetSyncState.deleteMany({
-        where: { dataset: { in: RETIRED_DATASETS } },
-      }),
-    ]),
-  );
+  return {
+    items: counts.flatMap((count, index) =>
+      count
+        ? [
+            {
+              table: tables[index],
+              count,
+              reason: 'Retired maintenance scope',
+            },
+          ]
+        : [],
+    ),
+    retained: [],
+    coverage: [],
+    apply: async () => {
+      const calendars = await transaction.tradeCal.deleteMany({ where: calendar });
+      const partitions = await transaction.datasetSyncPartition.deleteMany({ where: metadata });
+      const states = await transaction.datasetSyncState.deleteMany({ where: metadata });
+
+      return calendars.count + partitions.count + states.count;
+    },
+  };
 }

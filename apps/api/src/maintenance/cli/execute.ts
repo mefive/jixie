@@ -20,6 +20,17 @@ export async function executeDataCommand(
   if (existsSync(envFile)) {
     loadEnvFile(envFile);
   }
+  if (request.action === 'clean') {
+    try {
+      const { executeCleanupCommand } = await import('./clean.js');
+
+      return await executeCleanupCommand(request);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+
+      return 1;
+    }
+  }
   const { prisma, withDatabase, closeDatabase } = await import('#infra/database/prisma.js');
   const { synchronizeData } = await import('../sync.js');
   const { TushareClient } = await import('#market/providers/tushare/tushare-client.js');

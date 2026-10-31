@@ -112,7 +112,7 @@ Factor Job kind 的一次性转换已在生产完成，bootstrap 不再执行 `d
 恢复转换前的旧备份或升级尚未转换的开发库，必须在启动 API 前从 Git 历史执行一次性转换，见
 [旧库恢复说明](backend-runtime-entries.md#factor-job-kind-旧库恢复)。
 
-API 更新后在部署发布锁释放之后运行一轮 `data sync`。该流程使用持久分区推进新数据、历史缺口和修订巡检；空库和历史不完整不影响服务启动。来源错误会在同步运行/分区与 journal 中保留，后续 timer 继续尝试。
+部署不执行 `data sync` 或 `data clean`，首次部署也不例外。部署只安装同步 timer；数据初始化由管理员显式调用正式同步命令或由 timer 接手。安装成功不表示数据已就绪，业务按实际覆盖判断输入资格。
 
 Nginx 主配置会 include 仓库中的 `/opt/jixie/deploy/nginx-docs-app.conf`，把独立构建的
 `apps/docs/dist/docs` 挂载到 `/docs/` 并处理深链。脚本不会覆盖 Certbot 已写入的 TLS 配置。
@@ -162,7 +162,7 @@ pnpm data sync --to 20260915
 
 一轮有分区、请求和时间预算。合法部分数据会保存，缺少某一来源只让依赖它的指标等待；运行成功不代表长历史全部补齐。查看 `GET /api/maintenance/status` 的逐数据集覆盖、待办与错误，不能把最大观察日期当作连续覆盖。
 
-`jixie-maintenance.timer` 按上海时间每两小时 :15 调用 `dist/src/maintenance/cli/data.js sync`；升级时停用旧 weekly timer。运行锁争用退出 75，实际错误退出 1，非法参数退出 2，完整或合法 partial 退出 0。systemd 在失败后退避 30 分钟，持久分区另记录自己的下一次尝试。
+`jixie-maintenance.timer` 按上海时间每两小时 :15 调用 `dist/src/maintenance/cli/data.js sync`；升级时停用旧 weekly timer。运行锁争用退出 75，实际错误退出 1，非法参数退出 2，完整或合法 partial 退出 0。systemd 在失败后退避 30 分钟；`TimeoutStartSec=infinity` 不截断历史回补，运行中不会叠加启动同一 oneshot 服务。取消用 `systemctl stop jixie-maintenance.service`，下一次按已保存的窗口进度继续。
 
 ```bash
 sudo systemctl start jixie-maintenance.service
@@ -170,6 +170,8 @@ journalctl -u jixie-maintenance.service -n 200 --no-pager
 ```
 
 网络获取不持部署发布锁。M 串行化市场写者，P/R 只在局部提交时短暂阻止新业务计算；既有业务全程保留共享 R。旧 running 记录、来源待更新和空库均不作为封站理由。旧控制表保留历史及部署用途，不能据其旧日水位推断新系统覆盖。
+
+人工存量修复使用 `pnpm data clean`，默认预览，`--apply` 执行前自动备份；支持 `--database /absolute/path/database.db`，完整项目与范围见 [命令索引](../apps/api/scripts/README.md#人工数据清理)。此命令不接入 timer，也不由部署调用。
 
 ## 5. 数据库备份
 

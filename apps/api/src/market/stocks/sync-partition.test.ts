@@ -36,6 +36,15 @@ describe('stock maintenance through the formal domain path', () => {
       expect(directory.accepted.rejected).toBe(0);
       expect(await database.stockBasic.count()).toBe(1);
       await seedSessions(database, date);
+      await database.stockBasic.create({
+        data: {
+          tsCode: bar.ts_code,
+          symbol: '920298',
+          name: 'IPO fixture',
+          listStatus: 'L',
+          listDate: date,
+        },
+      });
       await database.daily.create({ data: { tsCode: bar.ts_code, tradeDate: date, close: 11 } });
       await proveRange(database, {
         dataset: 'stock-prices',
@@ -62,7 +71,7 @@ describe('stock maintenance through the formal domain path', () => {
   it('keeps known rows on a truncated response and refuses wrong-session records', async () =>
     withSyncDatabase(async (database) => {
       await seedSessions(database, date);
-      for (const scope of ['L', 'D', 'P', 'G']) {
+      for (const scope of ['L', 'D', 'P', 'G', 'UN']) {
         await proveRange(database, {
           dataset: 'stock-master',
           scope,

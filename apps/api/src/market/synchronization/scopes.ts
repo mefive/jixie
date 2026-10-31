@@ -1,6 +1,7 @@
 import { calendarDay } from './date.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import type { DatasetPolicy } from './partition.js';
+import { STOCK_LIST_STATUSES } from '../instruments/market-range.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { readDownloadCodes } from '../downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '../registry/index-presets.js';
@@ -50,7 +51,7 @@ export async function datasetScopes(policy: DatasetPolicy): Promise<DatasetScope
         { scope: 'SZSE', startDate: '19910703' },
       ];
     case 'stock-master':
-      return scopes(policy, ['L', 'D', 'P', 'G']);
+      return scopes(policy, STOCK_LIST_STATUSES);
     case 'stock-names':
       return scopes(policy, ['all']);
     case 'etf-master':

@@ -16,10 +16,8 @@ import { DatabaseSync } from 'node:sqlite';
 import prismaPackage from '@prisma/client';
 import { expect, it } from 'vitest';
 import { withDatabase } from '#infra/database/prisma.js';
-import { withMaintenanceLock } from '#infra/coordination/market-access.js';
-import { retireDatasets } from '#maintenance/retired-datasets.js';
+import { cleanData } from '#maintenance/clean.js';
 import { synchronizeData } from '#maintenance/sync.js';
-import { STOCK_CODE_CHANGES } from '#market/instruments/stock-identity.js';
 import { legacyMarketTable } from './legacy-market-tables.js';
 
 const migration = '20261028160000_minimal_sync';
@@ -265,9 +263,9 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
       ).verifiedThrough,
     ).toBeNull();
     await withDatabase(database, async () => {
-      await expect(retireDatasets()).rejects.toThrow();
-      await withMaintenanceLock(retireDatasets);
-      await withMaintenanceLock(retireDatasets);
+      await expect(cleanData({ apply: true })).rejects.toThrow('backup');
+      await cleanData({ apply: true, backup: async () => 'fixture-backup' });
+      await cleanData({ apply: true, backup: async () => 'fixture-backup' });
     });
     expect((await database.datasetSyncPartition.findMany()).map((row) => row.id)).toEqual([
       'retained',
@@ -285,6 +283,9 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
     deploy();
 
     await withDatabase(database, async () => {
+      const revision = (
+        await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })
+      ).revision;
       const result = await synchronizeData({
         targetDate: '20261027',
         startedAt: new Date('2026-10-28T10:00:00Z'),
@@ -302,7 +303,7 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
       expect(result.errors).toEqual([expect.stringContaining('ETF initialization: ')]);
       expect(
         (await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })).revision,
-      ).toBe(18 + STOCK_CODE_CHANGES.length);
+      ).toBe(revision);
       expect(await database.datasetSyncPartition.count({ where: { status: 'complete' } })).toBe(0);
       expect(
         await database.datasetSyncPartition.findUniqueOrThrow({ where: { id: 'retained' } }),

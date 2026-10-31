@@ -25,7 +25,7 @@ export async function proveRange(database: Prisma, partition: MarketPartition) {
 }
 
 export async function proveStockCatalog(database: Prisma) {
-  for (const scope of ['L', 'D', 'P', 'G']) {
+  for (const scope of ['L', 'D', 'P', 'G', 'UN']) {
     await proveRange(database, {
       dataset: 'stock-master',
       scope,

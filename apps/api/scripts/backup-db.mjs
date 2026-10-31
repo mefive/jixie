@@ -62,7 +62,12 @@ function main() {
   // Online backup — consistent snapshot under WAL, safe while the api holds the DB open.
   console.log(`[backup] ${mib(statSync(dbPath).size)} → ${dest}`);
   const started = Date.now();
-  sqlite3([dbPath, `.backup '${dest}'`]);
+  const quotedDestination = dest
+    .replaceAll('\\', '\\\\')
+    .replaceAll('"', '\\"')
+    .replaceAll('\n', '\\n')
+    .replaceAll('\r', '\\r');
+  sqlite3([dbPath, `.backup "${quotedDestination}"`]);
 
   // Verify the copy is a readable SQLite file (catches truncation / a failed backup) before we trust it
   // enough to rotate old ones out. A cheap open + count, not a full integrity_check (6GB would be slow).

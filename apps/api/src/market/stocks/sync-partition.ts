@@ -1,5 +1,7 @@
 import { preferStockSources } from '../instruments/source-selection.js';
 import { qualifySessionSeries } from '../calendar/coverage.js';
+import { stockMarketMembership, stockMarketRanges } from '../instruments/market-range.js';
+import { stockPartitionCoverage } from './coverage.js';
 import { canonicalStockCode, normalizeStockNameSpells } from '../instruments/stock-identity.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { isObservationDate } from '../synchronization/date.js';
@@ -84,8 +86,20 @@ export async function prepareStockPartition(
     { trade_date: partition.startDate },
     [...new Set(Object.values(definition.columns))].join(','),
   );
+  const ranges = stockMarketRanges(await getDatabase().stockBasic.findMany());
+
+  // 先核对身份和日期；格式错误不能借范围过滤绕过校验。
+  // Check identity and date first; scope filtering must not hide malformed rows.
+  const inScope = pages.rows.filter((row) => {
+    const code = String(row.ts_code);
+    if (!/^\d{6}\.(SH|SZ|BJ)$/.test(code) || row.trade_date !== partition.startDate) {
+      return true;
+    }
+
+    return stockMarketMembership(code, partition.startDate, ranges) !== 'outside';
+  });
   const selected = preferStockSources(
-    pages.rows,
+    inScope,
     (row) => `${canonicalStockCode(String(row.ts_code))}/${row.trade_date}`,
     (row) => String(row.ts_code),
   );
@@ -134,6 +148,7 @@ export async function prepareStockPartition(
     allowEmpty: true,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
+  prepared.checks.excludedRows = pages.rows.length - inScope.length;
 
   if (partition.dataset === 'stock-prices') {
     const suspensions = await fetchSourcePages(
@@ -184,7 +199,7 @@ export async function prepareStockPartition(
     !prepared.errors.length &&
     prepared.checks.terminalPage
   ) {
-    const gaps = await stockPartitionCoverage(partition, prepared);
+    const gaps = await stockPartitionCoverage(partition, prepared, ranges);
     prepared.gaps.push(...gaps);
     if (gaps.length) {
       prepared.status = 'partial';
@@ -193,88 +208,6 @@ export async function prepareStockPartition(
   }
 
   return prepared;
-}
-
-/**
- * 上市区间与全天停牌共同证明行情截面；其他稠密来源覆盖已核验的交易证券。
- *
- * Listing intervals and full-day suspensions prove prices; other dense sources cover verified
- * trades.
- * Suspension contract: https://tushare.pro/document/2?doc_id=214
- */
-export async function stockPartitionCoverage(
-  partition: MarketPartition,
-  prepared: PreparedMarketPartition,
-): Promise<string[]> {
-  const database = getDatabase();
-  const codes = new Set(
-    prepared.tables.flatMap((table) => table.records.map((row) => row.values.tsCode)),
-  );
-  if (partition.dataset !== 'stock-prices') {
-    const priceProof = await database.datasetSyncPartition.findFirst({
-      where: {
-        dataset: 'stock-prices',
-        scope: 'all',
-        startDate: partition.startDate,
-        endDate: partition.endDate,
-        status: 'complete',
-      },
-    });
-    const prices = await database.daily.findMany({
-      where: { tradeDate: partition.startDate },
-      select: { tsCode: true },
-    });
-
-    return !priceProof || !prices.length || prices.some((row) => !codes.has(row.tsCode))
-      ? ['Same-day verified traded-security coverage is incomplete']
-      : [];
-  }
-
-  const masters = await database.datasetSyncPartition.findMany({
-    where: {
-      dataset: 'stock-master',
-      status: 'complete',
-    },
-    select: { scope: true },
-  });
-  if (['L', 'D', 'P', 'G'].some((scope) => !masters.some((row) => row.scope === scope))) {
-    return ['Listing-status inventories are not verified'];
-  }
-  if (prepared.checks.suspensionsVerified !== true) {
-    return ['Full-day suspension evidence is unavailable'];
-  }
-
-  const stocks = await database.stockBasic.findMany();
-  if (!stocks.length || stocks.some((stock) => !stock.listDate && stock.listStatus !== 'G')) {
-    return ['Historical listing intervals are unknown'];
-  }
-  const listed = new Set(
-    stocks
-      .filter(
-        (stock) =>
-          stock.listDate &&
-          stock.listDate <= partition.startDate &&
-          (!stock.delistDate || stock.delistDate >= partition.startDate),
-      )
-      .map((stock) => canonicalStockCode(stock.tsCode)),
-  );
-  const suspended = new Set(prepared.checks.fullDaySuspended ?? []);
-  const missing = [...listed].filter((code) => !codes.has(code) && !suspended.has(code));
-  const unexpected = [...codes].filter((code) => typeof code !== 'string' || !listed.has(code));
-  const contradictions = [...codes].filter(
-    (code) => typeof code === 'string' && suspended.has(code),
-  );
-
-  if (!missing.length && !unexpected.length && !contradictions.length) {
-    return [];
-  }
-  const issues = [
-    `${missing.length} missing`,
-    `${unexpected.length} outside listing intervals`,
-    `${contradictions.length} conflicting suspensions`,
-  ];
-
-  return [`Unproven stock price extent: ${issues.join(', ')}`];
 }
 
 /**

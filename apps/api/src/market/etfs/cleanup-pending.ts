@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { getDatabase } from '#infra/database/prisma.js';
-import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
 import type { MarketTransaction } from '../synchronization/partition.js';
+import type { PreparedCleanup } from '../synchronization/cleanup.js';
 
 interface PendingEtfCleanup {
   removableCodes: string[];
@@ -79,38 +78,38 @@ async function inspectPendingEtfs(transaction: MarketTransaction): Promise<Pendi
 }
 
 /**
- * 预览不写业务数据；执行在同一事务重新核对依赖并发布修订。
+ * 检查待上市目录的所有引用；事务和修订发布由人工清理入口负责。
  *
- * Preview changes no business data; execution rechecks references and publishes a revision atomically.
+ * Inspect every pending-directory reference; manual cleanup owns transactions and revisions.
  */
-export async function cleanupPendingEtfs(apply: boolean) {
-  return withMaintenanceLock(() =>
-    withMarketPublication(() =>
-      getDatabase().$transaction(
-        async (transaction) => {
-          const plan = await inspectPendingEtfs(transaction);
-          let deleted = 0;
+export async function preparePendingEtfCleanup(
+  transaction: MarketTransaction,
+): Promise<PreparedCleanup> {
+  const plan = await inspectPendingEtfs(transaction);
 
-          if (apply && plan.removableCodes.length) {
-            const result = await transaction.etfBasic.deleteMany({
-              where: { listStatus: 'P', tsCode: { in: plan.removableCodes } },
-            });
-            if (result.count !== plan.removableCodes.length) {
-              throw new Error('Pending ETF cleanup changed during inspection');
-            }
+  return {
+    items: plan.removableCodes.map((tsCode) => ({
+      table: 'EtfBasic',
+      code: tsCode,
+      count: 1,
+      reason: 'Unreferenced pending ETF',
+    })),
+    retained: plan.protectedRows.map((row) => ({
+      table: 'EtfBasic',
+      code: row.tsCode,
+      count: 1,
+      reason: row.reasons.join('; '),
+    })),
+    coverage: [],
+    apply: async () => {
+      const result = await transaction.etfBasic.deleteMany({
+        where: { listStatus: 'P', tsCode: { in: plan.removableCodes } },
+      });
+      if (result.count !== plan.removableCodes.length) {
+        throw new Error('Pending ETF cleanup changed during inspection');
+      }
 
-            deleted = result.count;
-            await transaction.marketDataState.upsert({
-              where: { key: 'global' },
-              create: { key: 'global', revision: 1 },
-              update: { revision: { increment: 1 } },
-            });
-          }
-
-          return { ...plan, deleted };
-        },
-        { timeout: 120_000 },
-      ),
-    ),
-  );
+      return result.count;
+    },
+  };
 }

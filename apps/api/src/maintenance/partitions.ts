@@ -6,7 +6,6 @@ import { datasetScopes, type DatasetScope } from '#market/synchronization/scopes
 import type { DatasetPolicy, MarketPartition } from '#market/synchronization/partition.js';
 
 export { datasetScopes } from '#market/synchronization/scopes.js';
-export const SYNC_LIMITS = { partitions: 240, requests: 600, milliseconds: 30 * 60_000 } as const;
 export interface PlannedPartition extends MarketPartition {
   id: string;
   history: boolean;
@@ -18,6 +17,7 @@ export interface SelectWindowInput {
   history: boolean;
   attempted: ReadonlySet<string>;
   deadline: number;
+  signal?: AbortSignal;
 }
 
 function identity(window: MarketPartition) {
@@ -89,7 +89,7 @@ export async function selectSyncWindow(input: SelectWindowInput): Promise<Planne
       continue;
     }
 
-    if (Date.now() >= input.deadline) {
+    if (input.signal?.aborted || Date.now() >= input.deadline) {
       return null;
     }
     const today = localDate(input.startedAt, policy.timeZone);

@@ -3,14 +3,14 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { withSyncDatabase } from '../../../tests/sync-database.js';
-import { cleanupPendingEtfs } from './cleanup-pending.js';
+import { withSyncDatabase } from '../../tests/sync-database.js';
+import { cleanData } from '#maintenance/clean.js';
 
 const execute = promisify(execFile);
-const apiDirectory = fileURLToPath(new URL('../../../', import.meta.url));
+const apiDirectory = fileURLToPath(new URL('../../', import.meta.url));
 
 describe('offline pending ETF cleanup', () => {
-  it('protects every business reference and changes only unreferenced pending metadata once', async () =>
+  it('protects references and removes unreferenced pending ETFs once', async () =>
     withSyncDatabase(async (database) => {
       const codes = Array.from({ length: 12 }, (_, index) => `${510000 + index}.SH`);
       await database.etfBasic.createMany({
@@ -49,16 +49,30 @@ describe('offline pending ETF cleanup', () => {
       await database.marketDownloadList.create({ data: { assetType: 'etf', codes: [codes[8]] } });
       await database.marketDataState.create({ data: { key: 'global', revision: 7 } });
 
-      const preview = await cleanupPendingEtfs(false);
-      expect(preview.removableCodes).toEqual(codes.slice(0, 2));
-      expect(preview.protectedRows.map((row) => row.tsCode)).toEqual(codes.slice(2, 10));
+      const preview = await cleanData({ apply: false });
+      expect(preview.items.map((row) => row.code)).toEqual(codes.slice(0, 2));
+      expect(preview.retained.map((row) => row.code)).toEqual(codes.slice(2, 10));
       expect(await database.etfBasic.count()).toBe(12);
       expect(
         (await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })).revision,
       ).toBe(7);
 
-      expect((await cleanupPendingEtfs(true)).deleted).toBe(2);
-      expect((await cleanupPendingEtfs(true)).deleted).toBe(0);
+      expect(
+        (
+          await cleanData({
+            apply: true,
+            backup: async () => 'fixture-backup',
+          })
+        ).changed,
+      ).toBe(2);
+      expect(
+        (
+          await cleanData({
+            apply: true,
+            backup: async () => 'fixture-backup',
+          })
+        ).changed,
+      ).toBe(0);
       expect(
         (await database.etfBasic.findMany({ orderBy: { tsCode: 'asc' } })).map((row) => row.tsCode),
       ).toEqual(codes.slice(2));
@@ -86,17 +100,20 @@ describe('offline pending ETF cleanup', () => {
       });
       await database.marketDataState.create({ data: { key: 'global', revision: 1 } });
       await database.$executeRawUnsafe(
-        "CREATE TRIGGER reject_cleanup_revision BEFORE UPDATE ON MarketDataState BEGIN SELECT RAISE(ABORT, 'fixture publication failure'); END",
+        `CREATE TRIGGER reject_cleanup_revision BEFORE UPDATE ON MarketDataState
+         BEGIN SELECT RAISE(ABORT, 'fixture publication failure'); END`,
       );
 
-      await expect(cleanupPendingEtfs(true)).rejects.toThrow();
+      await expect(
+        cleanData({ apply: true, backup: async () => 'fixture-backup' }),
+      ).rejects.toThrow();
       expect(await database.etfBasic.count()).toBe(1);
       expect(
         (await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })).revision,
       ).toBe(1);
     }));
 
-  it('executes the source or compiled CLI against only the explicit database without provider configuration', async () =>
+  it('backs up the explicit database through either CLI without a provider', async () =>
     withSyncDatabase(async (database, directory) => {
       await database.etfBasic.create({
         data: {
@@ -109,13 +126,8 @@ describe('offline pending ETF cleanup', () => {
       });
       const entry =
         process.env.JIXIE_TEST_COMPILED === '1'
-          ? ['dist/src/market/cli/cleanup-pending-etfs.js']
-          : [
-              '--conditions=development',
-              '--import',
-              'tsx',
-              'src/market/cli/cleanup-pending-etfs.ts',
-            ];
+          ? ['dist/src/maintenance/cli/data.js']
+          : ['--conditions=development', '--import', 'tsx', 'src/maintenance/cli/data.ts'];
       const options = {
         cwd: apiDirectory,
         env: {
@@ -123,20 +135,40 @@ describe('offline pending ETF cleanup', () => {
           DATABASE_URL: 'invalid-default',
           TUSHARE_TOKEN: '',
           NODE_OPTIONS: '',
+          JIXIE_BACKUP_DIR: join(directory, 'backup\'s "quoted" directory'),
         },
         timeout: 15_000,
       };
       const filename = join(directory, 'test.db');
-      const checked = await execute(process.execPath, [...entry, 'check', filename], options);
-      expect(checked.stdout.trim()).toBe('1');
+      const checked = await execute(
+        process.execPath,
+        [...entry, 'clean', '--database', filename],
+        options,
+      );
+      expect(JSON.parse(checked.stdout).items).toHaveLength(1);
       expect(await database.etfBasic.count()).toBe(1);
-      const applied = await execute(process.execPath, [...entry, 'apply', filename], options);
-      expect(JSON.parse(applied.stdout)).toMatchObject({ deleted: 1 });
+      const applied = await execute(
+        process.execPath,
+        [...entry, 'clean', '--database', filename, '--apply'],
+        options,
+      );
+      expect(JSON.parse(applied.stdout)).toMatchObject({ changed: 1 });
+      const snapshot = await execute('sqlite3', [
+        '-readonly',
+        JSON.parse(applied.stdout).backup,
+        'SELECT count(*) FROM EtfBasic;',
+      ]);
+      expect(snapshot.stdout.trim()).toBe('1');
       expect(await database.etfBasic.count()).toBe(0);
-      expect(
-        (await execute(process.execPath, [...entry, 'check', filename], options)).stdout.trim(),
-      ).toBe('0');
-      await expect(execute(process.execPath, [...entry, 'apply'], options)).rejects.toMatchObject({
+      const repeated = await execute(
+        process.execPath,
+        [...entry, 'clean', '--database', filename, '--apply'],
+        options,
+      );
+      expect(JSON.parse(repeated.stdout)).toMatchObject({ changed: 0, backup: null });
+      await expect(
+        execute(process.execPath, [...entry, 'clean', 'pending-etfs'], options),
+      ).rejects.toMatchObject({
         code: 2,
       });
     }));

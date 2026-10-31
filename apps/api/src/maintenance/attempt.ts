@@ -14,7 +14,6 @@ interface SyncAttemptInput {
   result: DataSyncResult;
   attempted: Set<string>;
   budget: SourceRequestBudget;
-  exhausted: () => boolean;
   signal: AbortSignal;
   clock: () => Date;
   log: (line: string) => void;
@@ -27,21 +26,10 @@ interface SyncAttemptInput {
  * One operation serves references, recent refreshes and historical backfills.
  */
 export async function attemptSyncWindow(context: SyncAttemptInput): Promise<boolean> {
-  const {
-    input,
-    index,
-    history,
-    result,
-    attempted,
-    budget,
-    exhausted,
-    signal,
-    clock,
-    log,
-    resumeDataset,
-  } = context;
+  const { input, index, history, result, attempted, budget, signal, clock, log, resumeDataset } =
+    context;
   const database = getDatabase();
-  if (exhausted()) {
+  if (signal.aborted) {
     return false;
   }
   const partition = await selectSyncWindow({
@@ -51,8 +39,9 @@ export async function attemptSyncWindow(context: SyncAttemptInput): Promise<bool
     history,
     attempted,
     deadline: budget.deadline,
+    signal,
   });
-  if (!partition || exhausted()) {
+  if (!partition || signal.aborted) {
     return false;
   }
 

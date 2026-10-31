@@ -16,6 +16,7 @@ import {
 export async function normalizeStockIdentity(
   transaction: MarketTransaction,
   change: StockCodeChangeDefinition,
+  options: { preview?: boolean } = {},
 ) {
   if (
     !STOCK_CODE_CHANGES.some(
@@ -38,6 +39,12 @@ export async function normalizeStockIdentity(
   normalizeVersions(transaction, change, actions, result);
   await normalizeDividend(transaction, change, actions, result);
   await normalizeIndexWeight(transaction, change, actions, result);
+
+  // 人工预览复用全部冲突检查，不执行已准备的写入动作。
+  // Manual preview shares all conflict checks without executing prepared writes.
+  if (options.preview) {
+    return result;
+  }
 
   const previous = await transaction.stockCodeChange.findUnique({
     where: { oldTsCode: change.oldTsCode },

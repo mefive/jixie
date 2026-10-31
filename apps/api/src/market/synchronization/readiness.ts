@@ -1,3 +1,4 @@
+import { STOCK_LIST_STATUSES } from '../instruments/market-range.js';
 import { etfDownloadRange } from '../etfs/download-range.js';
 import type { Prisma } from '@prisma/client';
 import { MarketError } from '../errors.js';
@@ -42,7 +43,7 @@ export async function datasetInputReadiness(
 
     const master =
       requirement.dataset === 'stock-prices'
-        ? { dataset: 'stock-master', scopes: ['L', 'D', 'P', 'G'] }
+        ? { dataset: 'stock-master', scopes: STOCK_LIST_STATUSES }
         : ['etf-prices', 'etf-adjustments'].includes(requirement.dataset)
           ? { dataset: 'etf-master', scopes: ['all'] }
           : null;

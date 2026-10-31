@@ -5,7 +5,7 @@
 #   (首次机器上还没有代码时,先把这个脚本单独 scp 上去跑,它会自己 clone。)
 #
 # 幂等:已装依赖不重装、已有代码 pull 不重 clone、已存在的 .env.production 不覆盖(只 upsert 注入的密钥)、
-# 已被 certbot 改写的 HTTPS vhost 不覆盖、默认邀请码只在新库首次生成、空库全量导入可断点续传。
+# 已被 certbot 改写的 HTTPS vhost 不覆盖、默认邀请码只在新库首次生成、数据初始化由 maintenance 独立执行。
 set -euo pipefail
 
 # ─────────────────────────────── 配置(env var 覆盖) ───────────────────────────────
@@ -151,76 +151,6 @@ set_env_var() {
   else
     printf '%s="%s"\n' "$key" "$val" >>"$file"
   fi
-}
-
-commodity_etf_coverage() {
-  local database_file="$1"
-  local expected_end="$2"
-
-  sqlite3 "$database_file" "
-    WITH candidates(code, list_date) AS (
-      VALUES
-        ('159985.SZ', '20191205'),
-        ('159980.SZ', '20191224'),
-        ('159981.SZ', '20200117')
-    ),
-    coverage AS (
-      SELECT
-        candidates.code,
-        candidates.list_date,
-        min(daily.\"tradeDate\") AS first_date,
-        max(daily.\"tradeDate\") AS last_date,
-        count(daily.\"tradeDate\") AS daily_rows,
-        count(adjustment.\"tradeDate\") AS adjustment_rows
-      FROM candidates
-      LEFT JOIN \"EtfDaily\" AS daily ON daily.\"tsCode\" = candidates.code
-      LEFT JOIN \"EtfAdjFactor\" AS adjustment
-        ON adjustment.\"tsCode\" = daily.\"tsCode\"
-       AND adjustment.\"tradeDate\" = daily.\"tradeDate\"
-      GROUP BY candidates.code, candidates.list_date
-    )
-    SELECT count(*)
-    FROM coverage
-    WHERE first_date <= list_date
-      AND last_date >= '$expected_end'
-      AND daily_rows = adjustment_rows;
-  "
-}
-
-cross_market_proxy_coverage() {
-  local database_file="$1"
-  local expected_end="$2"
-
-  sqlite3 "$database_file" "
-    WITH candidates(code, latest_first_date, minimum_rows) AS (
-      VALUES
-        ('510300.SH', '20120601', 3000),
-        ('159920.SZ', '20121026', 2800),
-        ('513500.SH', '20140120', 2500)
-    ),
-    coverage AS (
-      SELECT
-        candidates.code,
-        candidates.latest_first_date,
-        candidates.minimum_rows,
-        min(daily.\"tradeDate\") AS first_date,
-        max(daily.\"tradeDate\") AS last_date,
-        count(daily.\"tradeDate\") AS daily_rows,
-        count(adjustment.\"tradeDate\") AS adjustment_rows
-      FROM candidates
-      LEFT JOIN \"EtfDaily\" AS daily ON daily.\"tsCode\" = candidates.code
-      LEFT JOIN \"EtfAdjFactor\" AS adjustment
-        ON adjustment.\"tsCode\" = daily.\"tsCode\"
-       AND adjustment.\"tradeDate\" = daily.\"tradeDate\"
-      GROUP BY candidates.code, candidates.latest_first_date, candidates.minimum_rows
-    )
-    SELECT count(*)
-    FROM coverage
-    WHERE first_date <= latest_first_date
-      AND last_date >= '$expected_end'
-      AND daily_rows >= minimum_rows
-      AND adjustment_rows = daily_rows;
-  "
 }
 
 STAGING_DIR=""
@@ -649,15 +579,6 @@ if [[ "$DEPLOY_API" == "1" ]]; then
     node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-minimal-sync.mjs" restore "$DB_FILE"
   fi
 
-  # 离线清理无依赖的旧待上市目录；独立备份避免覆盖同秒的迁移前备份。
-  # Remove unreferenced pending metadata offline; separate backups preserve pre-migration snapshots.
-  PENDING_ETF_COUNT="$(node "$JIXIE_DIR/apps/api/dist/src/market/cli/cleanup-pending-etfs.js" check "$DB_FILE")"
-  [[ "$PENDING_ETF_COUNT" =~ ^[0-9]+$ ]] || die "待上市 ETF 清理预检返回非法数量"
-  if [[ "$PENDING_ETF_COUNT" -gt 0 ]]; then
-    log "备份并清理 $PENDING_ETF_COUNT 条无依赖的待上市 ETF 目录"
-    JIXIE_DB_PATH="$DB_FILE" JIXIE_BACKUP_DIR="$JIXIE_BACKUP_DIR/pending-etf-cleanup" node "$JIXIE_DIR/apps/api/scripts/backup-db.mjs"
-    node "$JIXIE_DIR/apps/api/dist/src/market/cli/cleanup-pending-etfs.js" apply "$DB_FILE"
-  fi
   SCHEMA_DATA_READY=1
 fi
 
@@ -797,13 +718,8 @@ if [[ -n "${JIXIE_MARKET_ACCESS_LOCK_FD:-}" ]]; then
 fi
 exec 9>&-
 unset JIXIE_MAINTENANCE_LOCK_FD JIXIE_MARKET_ACCESS_LOCK_FD JIXIE_MARKET_PUBLISH_LOCK_FD
-# 发布锁释放之后再下载，避免网络延迟封站。
-# Acquire source data only after releasing deployment publication locks.
-if [[ "$DEPLOY_API" == "1" ]]; then
-  log "执行一轮统一数据同步；未完成分区由 timer 继续推进"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/data.js" sync ||
-    warn "本轮同步存在来源错误或锁争用，查看 DataSyncRun 与分区状态；部署继续"
-fi
+# 数据下载与人工清理由 maintenance CLI 独立负责，首次部署同样不执行。
+# Maintenance CLI owns downloads and manual cleanup, including on first deployment.
 
 log "冒烟测试"
 sleep 1

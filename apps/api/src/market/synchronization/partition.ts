@@ -54,6 +54,7 @@ export interface PreparedMarketPartition {
     emptyResponse: boolean;
     pages: number;
     sourceRows: number;
+    excludedRows?: number;
     suspensionsVerified?: boolean;
     fullDaySuspended?: string[];
   };

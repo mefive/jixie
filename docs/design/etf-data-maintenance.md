@@ -34,19 +34,11 @@
 - 退市不会自动移出保存名单；新规模选池仍只从 L 中选择。历史 Research、Factor 与回测的读取路径不因本修复新增限制。
 - CLI list 增加生命周期和 download 范围／blockedReason；Maintenance 将阻塞列入 gaps，覆盖摘要不把阻塞对象当作已有完整资格。
 
-## bootstrap 离线清理
+## 人工存量清理（2026-10-31 调整）
 
-顺序为：停服并持 M/P/R → 构建并完成 schema 迁移／旧分红恢复 → 清理预检 → 必要时备份 → 清理事务 → 标记升级数据就绪 → 启动 API → 正常有限 sync。
+旧目录清理已从 bootstrap 移到 `pnpm data clean`，默认预览、`--apply` 备份后执行。保护条件沿用本设计，包括行情、复权、规模、旧 EtfSyncSlice、同步状态、名单引用及已存在的上市日期。新入口统一负责维护锁、短发布事务、备份和修订号，旧专用 CLI 删除。
 
-入口：`apps/api/src/market/cli/cleanup-pending-etfs.ts`；生产使用 `dist/src/market/cli/cleanup-pending-etfs.js`。
-
-- 仅接受 `check|apply /absolute/path/database.db`，要求文件已存在。不读取默认开发库或 .env，不访问 Tushare；支持独立运行，并复用／验证 bootstrap 继承的真实锁描述符。
-- check 的 stdout 仅返回可删数量；保护记录与原因写 stderr。预检无业务写入。
-- apply 在短发布事务中重新检查，只有无保护依据的 P 目录可删；删除目录和推进 revision 在同一事务完成，失败回滚。
-- 保护依据包括价格、复权、规模、旧 EtfSyncSlice、DatasetSyncState、DatasetSyncPartition、任何保存名单引用，以及 P 记录已有上市日期的矛盾状态。只删除目录，不改用户源码、报告或任何行情。
-- bootstrap 有可删记录才备份和执行；使用备份根目录下独立 `pending-etf-cleanup/`，避免同秒备份覆盖迁移前快照。预检、备份、清理失败均保持 API 停止。
-- 重复运行没有可删记录则不再备份、删除或推进 revision；受保护记录保留并报告，不将业务异常伪装成无条件删除。
-- bootstrap 阶段不等待外部目录刷新。离线移除无依赖的旧 P 元数据；来源中后来成为 L 的产品由正常同步重新收录。
+部署和首次安装不执行清理或数据同步；来源中后来变为 L 的产品由正式 sync 重新收录。最新命令与验证状态见 [人工清理](../../apps/api/scripts/README.md#人工数据清理) 和 [裁剪计划](system-simplification-plan.md#31-人工数据清理与部署解耦)。下面验收段落保留原改造的历史结果，不代表新入口已经通过行为验证。
 
 本次没有新包／workspace 或跨包构建依赖。新 CLI 位于 API 已有部署路径，bootstrap 已属于全量部署路径；不新增专门部署组件。
 

@@ -26,6 +26,13 @@ test('activation enables unified synchronization and upgrades the legacy retry d
   );
   assert.match(retry, /StartLimitIntervalSec=0/);
   assert.match(retry, /RestartSec=30m/);
+
+  const service = await readFile(
+    new URL('../../deploy/jixie-maintenance.service', import.meta.url),
+    'utf8',
+  );
+  assert.match(service, /^TimeoutStartSec=infinity$/m);
+  assert.doesNotMatch(service, /^RuntimeMaxSec=/m);
 });
 const cleanup = bootstrap.slice(
   bootstrap.indexOf('cleanup_deployment_gate() {'),
@@ -85,7 +92,6 @@ node() {
     *'backup-db.mjs'*)
       printf 'backup\\n'
       if [[ "$FAILURE" == 'backup' ]]; then return 20; fi
-      if [[ "$FAILURE" == 'cleanup-backup' && "$JIXIE_BACKUP_DIR" == *'/pending-etf-cleanup' ]]; then return 23; fi
       if [[ "$FAILURE" == 'proof-backup' && "$JIXIE_BACKUP_DIR" == *'/sync-proof-upgrade' ]]; then
         return 26
       fi
@@ -103,16 +109,6 @@ node() {
     *'upgrade-minimal-sync.mjs restore'*)
       printf 'restore\\n'
       if [[ "$FAILURE" == 'restore' ]]; then return 21; fi
-      ;;
-    *'cleanup-pending-etfs.js check'*)
-      if [[ "$FAILURE" == 'cleanup-check' ]]; then return 22; fi
-      if [[ "$FAILURE" == 'cleanup-invalid' ]]; then printf 'invalid\\n';
-      elif [[ "$FAILURE" == 'new' || "$FAILURE" == 'empty' ]]; then printf '0\\n';
-      else printf '2\\n'; fi
-      ;;
-    *'cleanup-pending-etfs.js apply'*)
-      printf 'cleanup\\n'
-      if [[ "$FAILURE" == 'cleanup' ]]; then return 24; fi
       ;;
     *) return 99 ;;
   esac
@@ -141,8 +137,6 @@ test('generates, builds and migrates the schema before continuing', () => {
     'revoke proofs',
     'pnpm --filter api exec prisma migrate deploy',
     'restore',
-    'backup',
-    'cleanup',
     'deployment continued',
   ]);
 });
@@ -188,10 +182,6 @@ for (const [failure, status] of [
   ['export', 19],
   ['backup', 20],
   ['restore', 21],
-  ['cleanup-check', 22],
-  ['cleanup-backup', 23],
-  ['cleanup', 24],
-  ['cleanup-invalid', 1],
   ['proof-check', 25],
   ['proof-backup', 26],
   ['proof-apply', 27],
@@ -223,10 +213,16 @@ test('a new database migrates without capture export, backup or restoration', ()
   ]);
 });
 
-test('an empty cleanup preserves the restored database without another backup or deletion', () => {
+test('restores the database without a cleanup step when no old proofs need repair', () => {
   const result = runMigrationStage('1', 'empty');
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.split('\n').filter((line) => line === 'backup').length, 1);
   assert.doesNotMatch(result.stdout, /cleanup/);
   assert.match(result.stdout, /restore\ndeployment continued/);
+});
+
+test('deployment never downloads or cleans market data, including first installation', () => {
+  assert.doesNotMatch(bootstrap, /cleanup-pending-etfs|PENDING_ETF_COUNT/);
+  assert.doesNotMatch(bootstrap, /dist\/src\/maintenance\/cli\/data\.js/);
+  assert.doesNotMatch(bootstrap, /commodity_etf_coverage|cross_market_proxy_coverage/);
 });
