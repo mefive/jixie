@@ -70,7 +70,7 @@ describe('stock maintenance through the formal domain path', () => {
       });
     }));
 
-  it('keeps known rows on a truncated response and refuses wrong-session records', async () =>
+  it('preserves known values across source absences and refuses wrong-session records', async () =>
     withSyncDatabase(async (database) => {
       await seedSessions(database, date);
       for (const scope of ['L', 'D', 'P']) {
@@ -98,7 +98,8 @@ describe('stock maintenance through the formal domain path', () => {
         { call: async (api) => (api === 'suspend_d' ? [] : [bar]) },
         partition,
       );
-      expect(first.prepared.status).toBe('partial');
+      expect(first.prepared.status).toBe('complete');
+      expect(first.prepared.notes?.join()).toContain('600000.SH');
       expect(first.accepted.deleted).toBe(0);
       expect(await database.daily.count()).toBe(2);
       const wrongDate = await acceptSource(

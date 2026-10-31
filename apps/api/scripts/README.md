@@ -45,7 +45,7 @@
 | `pending-stocks` | 删除无历史、来源身份及同步引用的 G/UN 目录；带上市日期或引用的保留待核实 |
 | `retired-data` | 已退役数据集的维护记录和明确退役的交易日历 |
 | `stock-identities` | 已确认证券代码接续的存量归并；同源冲突拒绝，保留来源及捕获时间 |
-| `market-range` | 依据已确认市场进入日期清理股票行情、复权、估值、涨跌停四表；未知历史保留 |
+| `market-range` | 依据已确认市场进入日期清理四类股票日数据；另清理误入 StkLimit 的已确认 ETF／B 股，未知身份保留 |
 
 ```bash
 pnpm data clean

@@ -182,8 +182,9 @@ describe('unified sync review regressions', () => {
       };
       const prices = await prepareStockPartition(source, pricePartition);
       expect(prices.checks.terminalPage).toBe(true);
-      expect(prices.status).toBe('partial');
-      expect(prices.tables[0].replace).toBe(false);
+      expect(prices.status).toBe('complete');
+      expect(prices.checks.sourceAbsences).toBe(true);
+      expect(prices.notes?.join()).toContain('000001.SZ');
       await database.$transaction((transaction) =>
         acceptMarketPartition(transaction, prices, 'stock-prices', fetchedAt),
       );
@@ -227,8 +228,11 @@ describe('unified sync review regressions', () => {
       const accepted = await database.$transaction((transaction) =>
         acceptMarketPartition(transaction, correction, 'stock-prices', fetchedAt),
       );
-      expect(accepted.deleted).toBe(1);
-      expect(await database.daily.findMany()).toMatchObject([{ tsCode: '600000.SH', close: 12 }]);
+      expect(accepted.deleted).toBe(0);
+      expect(await database.daily.findMany({ orderBy: { tsCode: 'asc' } })).toMatchObject([
+        { tsCode: '000001.SZ', close: 10 },
+        { tsCode: '600000.SH', close: 12 },
+      ]);
     }));
 
   it(

@@ -31,6 +31,63 @@ beforeEach(() => {
   planning.select.mockReset().mockResolvedValue(null);
 });
 
+it('keeps source absence annotations out of failure gaps while persisting and logging them', async () =>
+  withSyncDatabase(async (database) => {
+    const window: PlannedPartition = {
+      id: 'etf-source-absence',
+      dataset: 'etf-prices',
+      scope: '510300.SH',
+      startDate: date,
+      endDate: date,
+      history: false,
+    };
+    await database.etfBasic.create({
+      data: {
+        tsCode: window.scope,
+        name: 'ETF',
+        listStatus: 'L',
+        listDate: date,
+        exchange: 'SH',
+        sameDayTurnover: false,
+      },
+    });
+    await database.marketDownloadList.createMany({
+      data: [
+        { assetType: 'etf', codes: [window.scope] },
+        { assetType: 'index', codes: [] },
+      ],
+    });
+    await proveRange(database, {
+      dataset: 'calendar',
+      scope: 'SSE',
+      startDate: date,
+      endDate: date,
+    });
+    await database.tradeCal.create({ data: { exchange: 'SSE', calDate: date, isOpen: 1 } });
+    planning.select.mockImplementation(async (input: SelectWindowInput) =>
+      input.policy.dataset === window.dataset && !input.attempted.has(window.id) ? window : null,
+    );
+    const messages: string[] = [];
+
+    const result = await synchronizeData({
+      targetDate: date,
+      startedAt,
+      clock: () => startedAt,
+      onLog: (message) => messages.push(message),
+      providers: { source: { call: async () => [] } },
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.gaps.some((gap) => gap.includes('Source returned no observations'))).toBe(false);
+    expect(messages.join()).toContain('Source returned no observations');
+    expect(
+      await database.datasetSyncPartition.findUnique({ where: { id: window.id } }),
+    ).toMatchObject({
+      status: 'complete',
+      gaps: [`Source returned no observations on sessions: ${date}`],
+    });
+  }));
+
 it('keeps historical and target gap dates distinct in the run summary', async () =>
   withSyncDatabase(async () => {
     const windows = ['20150105', date].map((session) => ({

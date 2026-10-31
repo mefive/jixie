@@ -25,6 +25,16 @@ describe('stock source selection through maintenance', () => {
     async (dataset, old, current, field, value) =>
       withSyncDatabase(async (database) => {
         await seedSessions(database, date);
+        await database.stockBasic.create({
+          data: {
+            tsCode: newCode,
+            symbol: '001872',
+            name: 'Source fixture',
+            exchange: 'SZSE',
+            listDate: '19930505',
+            listStatus: 'L',
+          },
+        });
         const partition = { dataset, scope: 'all', startDate: date, endDate: date };
         const previous = { ts_code: oldCode, trade_date: date, ...old };
         const successor = { ts_code: newCode, trade_date: date, ...current };
@@ -137,7 +147,7 @@ describe('stock source selection through maintenance', () => {
       expect(result.prepared.status).toBe('complete');
     }));
 
-  it('reports contradictory preferred suspension evidence without falling back', async () =>
+  it('does not treat mixed ordinary suspension timings as invalid source records', async () =>
     withSyncDatabase(async (database) => {
       const result = await acceptSource(
         database,
@@ -157,10 +167,8 @@ describe('stock source selection through maintenance', () => {
         },
         { dataset: 'stock-prices', scope: 'all', startDate: date, endDate: date },
       );
-      expect(result.prepared.checks.suspensionsVerified).toBe(false);
-      expect(result.prepared.errors).toContain(
-        'Conflicting full-day and intraday suspension evidence',
-      );
+      expect(result.prepared.checks.suspensionsVerified).toBe(true);
+      expect(result.prepared.errors).toEqual([]);
     }));
 
   it('keeps independent histories when a preferred name interval conflicts', async () =>

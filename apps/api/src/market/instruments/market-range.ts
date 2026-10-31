@@ -1,5 +1,5 @@
 import { canonicalStockCode, hasStockCodePredecessor } from './stock-identity.js';
-import { isObservationDate } from '../synchronization/date.js';
+import { calendarDay, isObservationDate } from '../synchronization/date.js';
 import type { ListingInterval } from '../synchronization/catalog-coverage.js';
 
 export const STOCK_LIST_STATUSES = ['L', 'D', 'P'] as const;
@@ -84,7 +84,11 @@ export function stockMarketRanges(stocks: readonly StockListing[]): Map<string, 
       .filter(isObservationDate)
       .sort();
     const startDate = dates[0];
-    const endDate = isObservationDate(current?.delistDate) ? current.delistDate : undefined;
+    // 目录退市日为摘牌生效日；可交易区间在此前结束。
+    // The catalog delisting date is effective removal; the trading interval ends before it.
+    const endDate = isObservationDate(current?.delistDate)
+      ? calendarDay(current.delistDate, -1)
+      : undefined;
     const listStatus = current?.listStatus ?? listings[0].listStatus;
     const missingPredecessor =
       hasStockCodePredecessor(code) &&

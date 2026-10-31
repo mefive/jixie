@@ -169,6 +169,7 @@ async function writeEtfDaily(
     existing,
     replace:
       batch.replace &&
+      !prepared.checks.sourceAbsences &&
       ((prepared.status === 'complete' && !prepared.errors.length) ||
         (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
     atomic: batch.atomic,
@@ -220,6 +221,7 @@ async function writeEtfAdjFactor(
     existing,
     replace:
       batch.replace &&
+      !prepared.checks.sourceAbsences &&
       ((prepared.status === 'complete' && !prepared.errors.length) ||
         (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
     atomic: batch.atomic,

@@ -657,7 +657,7 @@ export class EngineData {
       series.adjClose.push(price.close * adjFactor);
       series.adj.push(adjFactor);
       series.up.push(
-        limit && limit.downLimit === 0 && limit.upLimit === 99999.99
+        limit && (limit.upLimit === 0 || (limit.downLimit === 0 && limit.upLimit === 99999.99))
           ? null
           : (limit?.upLimit ?? null),
       );

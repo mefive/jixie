@@ -92,7 +92,7 @@ export async function prepareEtfPartition(
     observedDates: mapped.records.map((record) => String(record.values.tradeDate)),
   });
 
-  return qualifySessionSeries(partition, prepared);
+  return qualifySessionSeries(partition, prepared, 'SSE', true);
 }
 
 /**

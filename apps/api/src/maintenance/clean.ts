@@ -129,22 +129,36 @@ async function invalidateCleanedCoverage(
   if (!coverage.length) {
     return 0;
   }
-  const scopes = coverage.map(({ dataset, scope }) => ({ dataset, ...(scope ? { scope } : {}) }));
+  const scopes = [
+    ...new Map(
+      coverage.map(({ dataset, scope }) => [
+        `${dataset}/${scope ?? ''}`,
+        { dataset, ...(scope ? { scope } : {}) },
+      ]),
+    ).values(),
+  ];
   const ranges: Prisma.DatasetSyncPartitionWhereInput[] = coverage.map((extent) => ({
     dataset: extent.dataset,
     ...(extent.scope ? { scope: extent.scope } : {}),
     ...(extent.to ? { startDate: { lte: extent.to } } : {}),
     ...(extent.from ? { endDate: { gte: extent.from } } : {}),
   }));
-  const invalidated = await transaction.datasetSyncPartition.updateMany({
-    where: { OR: ranges, status: { in: ['complete', 'not_applicable', 'unavailable'] } },
-    data: {
-      status: 'partial',
-      checkedAt: null,
-      error: null,
-      gaps: ['Manual cleanup requires source revalidation'],
-    },
-  });
+  let invalidated = 0;
+  for (let offset = 0; offset < ranges.length; offset += 100) {
+    const removed = await transaction.datasetSyncPartition.updateMany({
+      where: {
+        OR: ranges.slice(offset, offset + 100),
+        status: { in: ['complete', 'not_applicable', 'unavailable'] },
+      },
+      data: {
+        status: 'partial',
+        checkedAt: null,
+        error: null,
+        gaps: ['Manual cleanup requires source revalidation'],
+      },
+    });
+    invalidated += removed.count;
+  }
   const states = await transaction.datasetSyncState.findMany({ where: { OR: scopes } });
   for (const state of states) {
     const policy = DATASET_POLICIES.find((entry) => entry.dataset === state.dataset);
@@ -169,7 +183,13 @@ async function invalidateCleanedCoverage(
         data: { maxObservedDate: maxima[index]._max.tradeDate },
       });
     }
+  } else if (coverage.some((extent) => extent.dataset === 'stock-limits')) {
+    const maximum = await transaction.stkLimit.aggregate({ _max: { tradeDate: true } });
+    await transaction.datasetSyncState.updateMany({
+      where: { dataset: 'stock-limits', scope: 'all' },
+      data: { maxObservedDate: maximum._max.tradeDate },
+    });
   }
 
-  return invalidated.count;
+  return invalidated;
 }

@@ -1,6 +1,8 @@
 import { mergeStockSource } from '../instruments/source-selection.js';
 import { changedListingIntervals } from '../synchronization/catalog-coverage.js';
 import { stockCoverageIntervals } from '../instruments/market-range.js';
+import { canonicalStockCode } from '../instruments/stock-identity.js';
+import { isOutsideStockLimitScope } from './limit-scope.js';
 import { z } from 'zod';
 import type {
   MarketPartition,
@@ -262,6 +264,7 @@ async function writeDaily(
     existing,
     replace:
       batch.replace &&
+      !prepared.checks.sourceAbsences &&
       ((prepared.status === 'complete' && !prepared.errors.length) ||
         (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
     atomic: batch.atomic,
@@ -311,6 +314,7 @@ async function writeAdjFactor(
     existing,
     replace:
       batch.replace &&
+      !prepared.checks.sourceAbsences &&
       ((prepared.status === 'complete' && !prepared.errors.length) ||
         (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
     atomic: batch.atomic,
@@ -360,6 +364,7 @@ async function writeDailyBasic(
     existing,
     replace:
       batch.replace &&
+      !prepared.checks.sourceAbsences &&
       ((prepared.status === 'complete' && !prepared.errors.length) ||
         (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
     atomic: batch.atomic,
@@ -407,10 +412,7 @@ async function writeStkLimit(
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
-    replace:
-      batch.replace &&
-      ((prepared.status === 'complete' && !prepared.errors.length) ||
-        (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
+    replace: false,
     atomic: batch.atomic,
   });
 
@@ -423,14 +425,42 @@ async function writeStkLimit(
   if (rows.inserted.length) {
     await transaction.stkLimit.createMany({ data: rows.inserted });
   }
-  for (let offset = 0; offset < rows.deleted.length; offset += 200) {
-    await transaction.stkLimit.deleteMany({
+  collectWriteResult(result, rows);
+
+  // 只在本次窗口完整核验后删除已确认范围外的旧限价；未知身份与缺席股票保留。
+  // Remove only proven out-of-scope limits after this window verifies.
+  // Retain unknown identities and absent stocks.
+  if (
+    !batch.replace ||
+    prepared.status !== 'complete' ||
+    !prepared.checks.terminalPage ||
+    prepared.checks.sourceFailed ||
+    prepared.errors.length ||
+    rows.errors.length
+  ) {
+    return;
+  }
+  const [stockRows, fundRows] = await Promise.all([
+    transaction.stockBasic.findMany({ select: { tsCode: true } }),
+    transaction.etfBasic.findMany({ select: { tsCode: true } }),
+  ]);
+  const stocks = new Set(stockRows.map((row) => canonicalStockCode(row.tsCode)));
+  const funds = new Set(fundRows.map((row) => row.tsCode));
+  const outside = existing.filter((row) => isOutsideStockLimitScope(row.tsCode, stocks, funds));
+
+  for (let offset = 0; offset < outside.length; offset += 200) {
+    const removed = await transaction.stkLimit.deleteMany({
       where: {
-        OR: rows.deleted
-          .slice(offset, offset + 200)
-          .map((row) => ({ tsCode: row.tsCode, tradeDate: row.tradeDate })),
+        tradeDate: partition.startDate,
+        tsCode: { in: outside.slice(offset, offset + 200).map((row) => row.tsCode) },
       },
     });
+    result.deleted += removed.count;
+    result.changed ||= removed.count > 0;
   }
-  collectWriteResult(result, rows);
+  if (outside.length) {
+    result.maxObservedDate = (
+      await transaction.stkLimit.aggregate({ _max: { tradeDate: true } })
+    )._max.tradeDate;
+  }
 }

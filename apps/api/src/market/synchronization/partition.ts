@@ -41,6 +41,12 @@ export interface PreparedTable {
 export interface PreparedMarketPartition {
   tables: PreparedTable[];
   /**
+   * 完整来源响应中的无记录等说明；保存为窗口注记，不作为同步失败缺口。
+   *
+   * Notes such as source-confirmed absence; persist with the window without failing acquisition.
+   */
+  notes?: string[];
+  /**
    * 完整来源查询证实的历史起点。
    *
    * History start established by a complete source query.
@@ -57,6 +63,7 @@ export interface PreparedMarketPartition {
     excludedRows?: number;
     suspensionsVerified?: boolean;
     fullDaySuspended?: string[];
+    sourceAbsences?: boolean;
   };
   gaps: string[];
   errors: string[];
@@ -71,6 +78,12 @@ export interface CoverageChange {
 }
 
 export interface AcceptedMarketPartition {
+  /**
+   * 删除记录后重新确认的实际最大日期；省略时沿用正常观察日累积。
+   *
+   * Actual maximum date after deletions; omission retains normal observation accumulation.
+   */
+  maxObservedDate?: string | null;
   /**
    * 目录变化实际影响的下游日期；未列出的历史凭证保持有效。
    *

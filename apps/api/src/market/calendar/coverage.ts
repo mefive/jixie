@@ -12,6 +12,7 @@ export async function qualifySessionSeries(
   partition: MarketPartition,
   prepared: PreparedMarketPartition,
   exchange = 'SSE',
+  allowSourceAbsence = false,
 ): Promise<PreparedMarketPartition> {
   if (
     !prepared.checks.terminalPage ||
@@ -38,6 +39,7 @@ export async function qualifySessionSeries(
   const sessions = await database.tradeCal.findMany({
     where: { exchange, isOpen: 1, calDate: { gte: partition.startDate, lte: partition.endDate } },
     select: { calDate: true },
+    orderBy: { calDate: 'asc' },
   });
   if (
     !sessions.length &&
@@ -67,10 +69,26 @@ export async function qualifySessionSeries(
   }
 
   const observed = new Set(prepared.observedDates);
+  const sourceAbsences: string[] = [];
   for (const session of sessions) {
     if (!observed.has(session.calDate)) {
-      gaps.push(`${partition.dataset}/${partition.scope}: missing observation ${session.calDate}`);
+      if (allowSourceAbsence && !gaps.length && !prepared.errors.length) {
+        sourceAbsences.push(session.calDate);
+      } else {
+        gaps.push(
+          `${partition.dataset}/${partition.scope}: missing observation ${session.calDate}`,
+        );
+      }
     }
+  }
+  if (sourceAbsences.length) {
+    // 成功且完整的来源检查可以没有观察值；这不代表停牌，也不生成价格。
+    // A complete source check may have no observations.
+    // This neither proves suspension nor creates prices.
+    (prepared.notes ??= []).push(
+      `Source returned no observations on sessions: ${sourceAbsences.join(', ')}`,
+    );
+    prepared.checks.sourceAbsences = true;
   }
   if (gaps.length) {
     prepared.status = prepared.errors.length ? 'error' : 'partial';

@@ -2,6 +2,7 @@ import type { MarketTransaction } from '../synchronization/partition.js';
 import type { CleanupItem, PreparedCleanup } from '../synchronization/cleanup.js';
 import { confirmedMarketStart, stockMarketRanges } from '../instruments/market-range.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
+import { prepareStockLimitScopeCleanup } from './cleanup-limit-scope.js';
 
 interface DailyFilter {
   tsCode?: string;
@@ -20,6 +21,8 @@ export async function prepareMarketRangeCleanup(
   const candidates = await dailyExtents(transaction, {});
   const stocks = await transaction.stockBasic.findMany();
   const ranges = stockMarketRanges(stocks);
+  const limitScope = await prepareStockLimitScopeCleanup(transaction);
+  const outsideLimits = new Set(limitScope.items.map((item) => item.code));
   const exclusions: DailyFilter[] = [];
   const unproven: DailyFilter[] = [];
 
@@ -52,10 +55,12 @@ export async function prepareMarketRangeCleanup(
     source: confirmedMarketStart(item.code!, ranges.get(canonicalStockCode(item.code!))?.exchange)!
       .source,
   }));
-  const retained = (await dailyExtents(transaction, { OR: unproven })).map((item) => ({
-    ...item,
-    reason: 'Historical market or listing status is unverified; retained for review',
-  }));
+  const retained = (await dailyExtents(transaction, { OR: unproven }))
+    .filter((item) => item.table !== 'StkLimit' || !outsideLimits.has(item.code))
+    .map((item) => ({
+      ...item,
+      reason: 'Historical market or listing status is unverified; retained for review',
+    }));
   const from = items.map((item) => item.from!).sort()[0];
   const to = items
     .map((item) => item.to!)
@@ -63,13 +68,16 @@ export async function prepareMarketRangeCleanup(
     .at(-1);
 
   return {
-    items,
+    items: [...items, ...limitScope.items],
     retained,
-    coverage: items.length
-      ? ['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].map(
-          (dataset) => ({ dataset, scope: 'all', from, to }),
-        )
-      : [],
+    coverage: [
+      ...(items.length
+        ? ['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].map(
+            (dataset) => ({ dataset, scope: 'all', from, to }),
+          )
+        : []),
+      ...limitScope.coverage,
+    ],
     apply: async () => {
       let changed = 0;
       for (const batch of dailyBatches(where)) {
@@ -79,6 +87,7 @@ export async function prepareMarketRangeCleanup(
         const limits = await transaction.stkLimit.deleteMany({ where: batch });
         changed += prices.count + adjustments.count + valuations.count + limits.count;
       }
+      changed += await limitScope.apply();
 
       return changed;
     },

@@ -22,12 +22,13 @@ describe('dated stock market membership', () => {
     expect(stockMarketMembership('920999.BJ', '20150105', ranges)).toBe('unknown');
   });
 
-  it('includes boundary dates and excludes pre-listing and post-delisting sessions', () => {
+  it('includes listing and excludes the effective delisting date', () => {
     const ranges = stockMarketRanges([{ ...stock, listStatus: 'D', delistDate: '20200101' }]);
 
     expect(stockMarketMembership(stock.tsCode, '19991231', ranges)).toBe('outside');
     expect(stockMarketMembership(stock.tsCode, '20000101', ranges)).toBe('inside');
-    expect(stockMarketMembership(stock.tsCode, '20200101', ranges)).toBe('inside');
+    expect(stockMarketMembership(stock.tsCode, '20191231', ranges)).toBe('inside');
+    expect(stockMarketMembership(stock.tsCode, '20200101', ranges)).toBe('outside');
     expect(stockMarketMembership(stock.tsCode, '20200102', ranges)).toBe('outside');
   });
 

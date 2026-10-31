@@ -52,7 +52,7 @@ describe('daily stock eligibility', () => {
         });
         const extras: TushareRow[] = [
           { ...limit, ts_code: '200011.SZ' },
-          { ...limit, ts_code: '900901.BJ', exchange: 'SSE' },
+          { ...limit, ts_code: '900901.BJ', exchange: 'BSE' },
           { ...limit, ts_code: '510300.SH', exchange: 'SSE' },
         ];
         const rows: TushareRow[] = [limit, ...extras];
@@ -82,6 +82,9 @@ describe('daily stock eligibility', () => {
         } else if (scenario === 'unknown-stock') {
           expect(result.status).toBe('partial');
           expect(result.gaps.join()).toContain('000099.SZ');
+          expect(result.tables[0].records.map((row) => row.values.tsCode)).not.toContain(
+            '000099.SZ',
+          );
         } else {
           expect(result.errors.length).toBeGreaterThan(0);
         }
@@ -136,8 +139,11 @@ describe('daily stock eligibility', () => {
         },
         partition,
       );
-      expect(conflict.status).toBe('partial');
-      expect(conflict.gaps.join()).toContain('Conflicting full-day suspension evidence: 000520.SZ');
+      expect(conflict.status).toBe('complete');
+      expect(conflict.gaps).toEqual([]);
+      expect(conflict.notes?.join()).toContain(
+        'Source returned prices on suspension-record dates: 000520.SZ',
+      );
     }));
 
   it('requests only listed-history catalogs and never schedules pending dividends', async () =>

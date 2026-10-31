@@ -9,9 +9,9 @@ import { confirmedTradingInterruptions } from '../instruments/trading-interrupti
 import type { MarketPartition, PreparedMarketPartition } from '../synchronization/partition.js';
 
 /**
- * 范围判断与入库共用，停牌只接受当日证据；当前 P 状态没有历史起止日期。
+ * 范围判断与入库共用；完整来源响应的缺席记为无记录，不从缺席推断停牌。
  *
- * Share ingestion membership and require dated suspensions; current P status has no past interval.
+ * Share ingestion membership; annotate absence in a complete response without inferring suspension.
  * Source contracts: https://tushare.pro/document/2?doc_id=25 and doc_id=214.
  */
 export async function stockPartitionCoverage(
@@ -56,9 +56,16 @@ export async function stockPartitionCoverage(
     const traded = prices.filter(
       (row) => stockMarketMembership(row.tsCode, partition.startDate, ranges) !== 'outside',
     );
-    const missingTrade = traded.some((row) => !codes.has(canonicalStockCode(row.tsCode)));
-    if (!priceProof || !traded.length || missingTrade) {
+    const missingTrade = traded
+      .filter((row) => !codes.has(canonicalStockCode(row.tsCode)))
+      .map((row) => canonicalStockCode(row.tsCode));
+    if (!priceProof) {
       gaps.push('Same-day verified traded-security coverage is incomplete');
+    } else if (missingTrade.length) {
+      (prepared.notes ??= []).push(
+        `Source returned no records for traded stocks: ${missingTrade.join(', ')}`,
+      );
+      prepared.checks.sourceAbsences = true;
     }
 
     return gaps;
@@ -84,15 +91,11 @@ export async function stockPartitionCoverage(
   }
   const missing: string[] = [];
   const unverified: string[] = [];
-  for (const [code, range] of ranges) {
+  for (const code of ranges.keys()) {
     if (membership.get(code) === 'outside' || codes.has(code)) {
       continue;
     }
     if (membership.get(code) === 'unknown') {
-      unverified.push(code);
-    } else if (suspended.has(code)) {
-      continue;
-    } else if (range.listStatus === 'P') {
       unverified.push(code);
     } else {
       missing.push(code);
@@ -100,7 +103,8 @@ export async function stockPartitionCoverage(
   }
   const contradictions = [...codes].filter((code) => suspended.has(code));
   if (missing.length) {
-    gaps.push(`Missing stock prices without suspension evidence: ${missing.join(', ')}`);
+    (prepared.notes ??= []).push(`Source returned no stock prices: ${missing.join(', ')}`);
+    prepared.checks.sourceAbsences = true;
   }
   if (unverified.length) {
     gaps.push(
@@ -108,7 +112,9 @@ export async function stockPartitionCoverage(
     );
   }
   if (contradictions.length) {
-    gaps.push(`Conflicting full-day suspension evidence: ${contradictions.join(', ')}`);
+    (prepared.notes ??= []).push(
+      `Source returned prices on suspension-record dates: ${contradictions.join(', ')}`,
+    );
   }
 
   return gaps;

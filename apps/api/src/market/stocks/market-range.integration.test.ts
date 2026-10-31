@@ -163,7 +163,7 @@ it.each(['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'
 );
 
 it.each([true, false])(
-  'requires dated evidence for a missing paused listing: evidence=%s',
+  'records source absence without inventing suspension history: evidence=%s',
   async (evidence) =>
     withSyncDatabase(async (database) => {
       const date = '20150105';
@@ -214,10 +214,11 @@ it.each([true, false])(
       );
 
       expect(prepared.errors).toEqual([]);
-      expect(prepared.status).toBe(evidence ? 'complete' : 'partial');
-      expect(prepared.gaps).toEqual(
-        evidence ? [] : ['Historical listing or suspension intervals are unverified: 000002.SZ'],
-      );
+      expect(prepared.status).toBe('complete');
+      expect(prepared.gaps).toEqual([]);
+      if (!evidence) {
+        expect(prepared.notes?.join()).toContain('Source returned no stock prices: 000002.SZ');
+      }
     }),
 );
 

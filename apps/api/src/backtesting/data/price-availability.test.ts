@@ -3,6 +3,23 @@ import { EngineData } from './engine-data.js';
 import { fixturePort } from '../testing/fixture-port.js';
 
 describe('exact-date execution data and carried valuations', () => {
+  it('does not interpret zero limit placeholders as a zero upper execution price', async () => {
+    const date = '20240102';
+    const data = new EngineData({
+      start: date,
+      end: date,
+      dataPort: fixturePort({
+        dates: [date],
+        stocks: [{ code: 'A', bars: [{ date, open: 10, close: 11, up: 0, down: 0 }] }],
+      }),
+    });
+    await data.load();
+    await data.loadBars(['A']);
+
+    expect(data.priceLimitsOn('A', date)).toEqual({ up: null, down: 0 });
+    expect(data.adjustedOpenOn('A', date)).toBe(10);
+  });
+
   it('carries a suspended close without inventing an executable bar or future price', async () => {
     const data = new EngineData({
       start: '20240102',

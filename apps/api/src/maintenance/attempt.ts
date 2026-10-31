@@ -71,6 +71,9 @@ export async function attemptSyncWindow(context: SyncAttemptInput): Promise<bool
     }
     result.errors.push(...committed.errors.map((error) => `${extent}: ${error}`));
     result.gaps.push(...prepared.gaps.map((gap) => `${extent}: ${gap}`));
+    for (const note of prepared.notes ?? []) {
+      log(`[data sync] ${extent}: ${note}`);
+    }
   } catch (error) {
     const deferred =
       error instanceof MarketSyncBudgetError || signal.aborted || budget.remaining <= 0;

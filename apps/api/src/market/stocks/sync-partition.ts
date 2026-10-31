@@ -6,6 +6,7 @@ import {
   stockMarketRanges,
 } from '../instruments/market-range.js';
 import { stockPartitionCoverage } from './coverage.js';
+import { selectStockLimitRows } from './limit-scope.js';
 import { canonicalStockCode, normalizeStockNameSpells } from '../instruments/stock-identity.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { isObservationDate } from '../synchronization/date.js';
@@ -106,32 +107,19 @@ export async function prepareStockPartition(
 
   // 先核对身份和日期；格式错误不能借范围过滤绕过校验。
   // Check identity and date first; scope filtering must not hide malformed rows.
-  const inScope = pages.rows.filter((row) => {
-    const code = String(row.ts_code);
-    if (!/^\d{6}\.(SH|SZ|BJ)$/.test(code) || row.trade_date !== partition.startDate) {
-      return true;
-    }
-    const listing = ranges.get(canonicalStockCode(code));
-    if (partition.dataset === 'stock-limits') {
-      const exchangeConflict =
-        listing?.exchange && row.exchange && listing.exchange !== row.exchange;
-      const assetConflict = listing && row.asset_type && row.asset_type !== 'STK';
-      if (exchangeConflict || assetConflict) {
+  const limitScope =
+    partition.dataset === 'stock-limits'
+      ? selectStockLimitRows(pages.rows, partition, ranges, funds)
+      : undefined;
+  const inScope =
+    limitScope?.rows ??
+    pages.rows.filter((row) => {
+      const code = String(row.ts_code);
+      if (!/^\d{6}\.(SH|SZ|BJ)$/.test(code) || row.trade_date !== partition.startDate) {
         return true;
       }
-
-      // 交易所来自来源字段；B 股代码段只用于资产分类，不从后缀猜交易所。
-      // Use the declared exchange; B-share number ranges classify assets, not exchanges.
-      const bShare =
-        (row.exchange === 'SSE' && /^900\d{3}\./.test(code)) ||
-        (row.exchange === 'SZSE' && /^20\d{4}\./.test(code));
-      if (!listing && (bShare || funds.has(code))) {
-        return false;
-      }
-    }
-
-    return stockMarketMembership(code, partition.startDate, ranges) !== 'outside';
-  });
+      return stockMarketMembership(code, partition.startDate, ranges) !== 'outside';
+    });
   const selected = preferStockSources(
     inScope,
     (row) => `${canonicalStockCode(String(row.ts_code))}/${row.trade_date}`,
@@ -148,8 +136,8 @@ export async function prepareStockPartition(
     if (partition.dataset === 'stock-limits') {
       const listing = ranges.get(canonicalStockCode(code));
       const exchangeConflict =
-        listing?.exchange && row.exchange && listing.exchange !== row.exchange;
-      const assetConflict = listing && row.asset_type && row.asset_type !== 'STK';
+        listing?.exchange && row.exchange != null && listing.exchange !== row.exchange;
+      const assetConflict = listing && row.asset_type != null && row.asset_type !== 'STK';
       if (exchangeConflict || assetConflict) {
         throw new Error(`Conflicting stock identity ${code}: ${row.exchange}/${row.asset_type}`);
       }
@@ -167,7 +155,7 @@ export async function prepareStockPartition(
       definition.table === 'StkLimit' &&
       (typeof values.upLimit !== 'number' ||
         typeof values.downLimit !== 'number' ||
-        values.upLimit <= 0 ||
+        values.upLimit < 0 ||
         values.downLimit < 0 ||
         values.upLimit < values.downLimit)
     ) {
@@ -191,7 +179,13 @@ export async function prepareStockPartition(
     allowEmpty: true,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
-  prepared.checks.excludedRows = pages.rows.length - inScope.length;
+  prepared.checks.excludedRows = limitScope?.excludedRows ?? pages.rows.length - inScope.length;
+  if (limitScope?.gaps.length) {
+    prepared.gaps.push(...limitScope.gaps);
+    if (!prepared.errors.length && prepared.status === 'complete') {
+      prepared.status = 'partial';
+    }
+  }
 
   if (partition.dataset === 'stock-prices') {
     const suspensions = await fetchSourcePages(
@@ -223,20 +217,13 @@ export async function prepareStockPartition(
         .filter((record) => !record.values.timing)
         .map((record) => String(record.values.tsCode)),
     );
-    const contradictory = suspended.records.some(
-      (record) => record.values.timing && fullDay.has(String(record.values.tsCode)),
-    );
-    if (contradictory) {
-      suspended.errors.push('Conflicting full-day and intraday suspension evidence');
-    }
-
     prepared.errors.push(...suspensions.errors, ...suspended.errors);
     prepared.checks.suspensionsVerified =
       suspensions.complete && !suspensions.errors.length && !suspended.errors.length;
     prepared.checks.fullDaySuspended = [...fullDay];
   }
 
-  await qualifySessionSeries(partition, prepared);
+  await qualifySessionSeries(partition, prepared, 'SSE', true);
   if (
     prepared.status !== 'not_applicable' &&
     !prepared.errors.length &&

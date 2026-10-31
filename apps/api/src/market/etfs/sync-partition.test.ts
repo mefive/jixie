@@ -73,11 +73,12 @@ describe('ETF formal maintenance validation', () => {
       }),
   );
 
-  it('keeps valid partial data, proves complete dates, and repeats without writes', async () =>
+  it('annotates source absences without fabricating prices and repeats without writes', async () =>
     withSyncDatabase(async (database) => {
       await seedSessions(database, partition.startDate, partition.endDate);
       const partial = await acceptSource(database, { call: async () => [bar] }, partition);
-      expect(partial.prepared.status).toBe('partial');
+      expect(partial.prepared.status).toBe('complete');
+      expect(partial.prepared.notes?.join()).toContain('20260916');
       expect(partial.accepted.inserted).toBe(1);
       const source = { call: async () => [bar, { ...bar, trade_date: '20260916' }] };
       const full = await acceptSource(database, source, partition);

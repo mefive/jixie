@@ -112,7 +112,7 @@ export async function publishWindow(
             lastRunId: runId,
             lastAttemptAt: fetchedAt,
             checkedAt: verified ? fetchedAt : previous.checkedAt,
-            gaps: prepared.gaps,
+            gaps: [...prepared.gaps, ...(prepared.notes ?? [])],
             error: errors.join('\n') || null,
           },
         });
@@ -164,7 +164,9 @@ export async function publishWindow(
           where: { dataset_scope: { dataset: partition.dataset, scope: partition.scope } },
           data: {
             maxObservedDate:
-              [...accepted.observedDates, state.maxObservedDate ?? ''].sort().at(-1) || null,
+              accepted.maxObservedDate !== undefined
+                ? accepted.maxObservedDate
+                : [...accepted.observedDates, state.maxObservedDate ?? ''].sort().at(-1) || null,
           },
         });
         await updateVerifiedCoverage(
