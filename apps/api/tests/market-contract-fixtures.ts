@@ -13,18 +13,14 @@ export const capturedAt = new Date('2026-09-16T10:00:00Z');
  *
  * Formal-path fixtures, only for isolated databases.
  */
-export async function proveRange(
-  database: Prisma,
-  partition: MarketPartition,
-  version = 'sync-v2',
-) {
+export async function proveRange(database: Prisma, partition: MarketPartition) {
   const id = createHash('sha256')
     .update(JSON.stringify(Object.values(partition)))
     .digest('hex');
   await database.datasetSyncPartition.upsert({
     where: { id },
-    create: { id, ...partition, policyVersion: version, status: 'complete', checkedAt: capturedAt },
-    update: { policyVersion: version, status: 'complete' },
+    create: { id, ...partition, status: 'complete', checkedAt: capturedAt },
+    update: { status: 'complete' },
   });
 }
 

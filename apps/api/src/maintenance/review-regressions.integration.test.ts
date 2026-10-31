@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { withSyncDatabase } from '../../tests/sync-database.js';
+import { currentPolicy, proveRange } from '../../tests/market-contract-fixtures.js';
 import { calendarDay } from '#market/synchronization/date.js';
+import { updateVerifiedCoverage } from '#market/synchronization/coverage.js';
+import { selectSyncWindow } from './partitions.js';
 import { writeFixture as acceptMarketPartition } from '../../tests/sync-fixtures.js';
 import { prepareStockPartition } from '#market/stocks/sync-partition.js';
 import { prepareIndexPartition } from '#market/indices/sync-partition.js';
@@ -31,12 +34,59 @@ async function calendar(
       startDate: start,
       endDate: end,
       status: 'complete',
-      policyVersion: 'sync-v2',
     },
   });
 }
 
 describe('unified sync review regressions', () => {
+  it.each(['complete', 'partial', 'superseded'] as const)(
+    'requires complete calendar proof for planning and coverage: %s',
+    async (proofStatus) =>
+      withSyncDatabase(async (database) => {
+        const policy = { ...currentPolicy('stock-prices'), startDate: tradeDate };
+
+        await calendar(database, tradeDate, tradeDate, [tradeDate]);
+        await database.datasetSyncPartition.updateMany({
+          where: { dataset: 'calendar' },
+          data: { status: proofStatus },
+        });
+
+        const selected = await selectSyncWindow({
+          policy,
+          targetDate: tradeDate,
+          startedAt: fetchedAt,
+          history: true,
+          attempted: new Set(),
+          deadline: Date.now() + 60_000,
+        });
+        if (proofStatus === 'complete') {
+          expect(selected).toMatchObject({
+            dataset: policy.dataset,
+            startDate: tradeDate,
+            endDate: tradeDate,
+          });
+        } else {
+          expect(selected).toBeNull();
+        }
+
+        await proveRange(database, {
+          dataset: policy.dataset,
+          scope: 'all',
+          startDate: tradeDate,
+          endDate: tradeDate,
+        });
+        await database.datasetSyncState.create({ data: { dataset: policy.dataset, scope: 'all' } });
+
+        await database.$transaction((transaction) =>
+          updateVerifiedCoverage(transaction, policy.dataset, 'all', tradeDate),
+        );
+        const state = await database.datasetSyncState.findUniqueOrThrow({
+          where: { dataset_scope: { dataset: policy.dataset, scope: 'all' } },
+        });
+        expect(state.verifiedThrough).toBe(proofStatus === 'complete' ? tradeDate : null);
+      }),
+  );
+
   it('R01/A06 replaces a complete atomic snapshot independently while retaining an invalid one', async () =>
     withSyncDatabase(async (database) => {
       await database.indexWeight.createMany({
@@ -103,7 +153,6 @@ describe('unified sync review regressions', () => {
           startDate: tradeDate,
           endDate: tradeDate,
           status: 'complete',
-          policyVersion: 'sync-v2',
         })),
       });
       await database.daily.createMany({
@@ -147,7 +196,6 @@ describe('unified sync review regressions', () => {
           id: 'prices-proof',
           ...pricePartition,
           status: 'complete',
-          policyVersion: 'sync-v2',
         },
       });
       const authoritativeSource = {
@@ -218,7 +266,7 @@ describe('unified sync review regressions', () => {
   );
 });
 
-it('R09/A06 rejects a canonical identity collision before replacing a constituent snapshot', async () =>
+it('R09/A06 rejects low weight totals and same-source duplicates', async () =>
   withSyncDatabase(async (database) => {
     const partition = {
       dataset: 'index-weights',
@@ -226,7 +274,13 @@ it('R09/A06 rejects a canonical identity collision before replacing a constituen
       startDate: tradeDate,
       endDate: tradeDate,
     };
-    const original = { indexCode: partition.scope, conCode: '600000.SH', tradeDate, weight: 100 };
+    const original = {
+      indexCode: partition.scope,
+      conCode: '600000.SH',
+      tradeDate,
+      weight: 100,
+      sourceTsCode: null,
+    };
     await database.indexWeight.create({ data: original });
     const response = await prepareIndexPartition(
       {
@@ -321,7 +375,6 @@ it(
               scope: partition.scope,
               startDate: partition.startDate,
               endDate: partition.endDate,
-              policyVersion: partition.policyVersion,
               status: 'complete',
               checkedAt: fetchedAt,
             };

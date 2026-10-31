@@ -1,7 +1,6 @@
 import { calendarDay } from '../synchronization/date.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { contiguousCoverage } from '../synchronization/coverage.js';
-import { DATASET_POLICIES } from '../synchronization/policies.js';
 import type { MarketPartition, PreparedMarketPartition } from '../synchronization/partition.js';
 
 /**
@@ -28,7 +27,6 @@ export async function qualifySessionSeries(
       dataset: 'calendar',
       scope: exchange,
       status: 'complete',
-      policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === 'calendar')!.version,
       startDate: { lte: partition.endDate },
       endDate: { gte: partition.startDate },
     },
@@ -111,7 +109,6 @@ export async function nextVerifiedSession(
       dataset: 'calendar',
       scope: 'SSE',
       status: 'complete',
-      policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === 'calendar')!.version,
       startDate: { lte: next.calDate },
       endDate: { gt: date },
     },

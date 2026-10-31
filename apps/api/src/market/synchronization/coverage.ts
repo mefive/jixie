@@ -73,7 +73,6 @@ export async function updateVerifiedCoverage(
     where: {
       dataset,
       scope,
-      policyVersion: policy.version,
       status: { in: ['complete', 'not_applicable'] },
     },
     orderBy: { startDate: 'asc' },
@@ -99,7 +98,6 @@ export async function updateVerifiedCoverage(
         dataset: 'calendar',
         scope: policy.calendar,
         status: 'complete',
-        policyVersion: policy.version,
         startDate: { lte: lastCompleteDate },
         endDate: { gte: historyStart },
       },

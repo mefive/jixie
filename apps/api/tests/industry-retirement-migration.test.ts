@@ -46,7 +46,7 @@ it('drops only industry tables and the stock industry column while preserving us
     await database.user.create({
       data: { id: 'owner', email: 'industry-upgrade@fixture.invalid' },
     });
-    await database.daily.create({
+    await legacyMarketTable(database, 'Daily').create({
       data: { tsCode: '600000.SH', tradeDate: '20260915', close: 10 },
     });
     await database.factorReport.create({
@@ -122,7 +122,7 @@ it('drops only industry tables and the stock industry column while preserving us
         policyVersion: 'sync-v1',
       })),
     });
-    await database.datasetSyncPartition.createMany({
+    await legacyMarketTable(database, 'DatasetSyncPartition').createMany({
       data: datasets.map((dataset) => ({
         id: dataset,
         dataset,

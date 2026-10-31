@@ -34,7 +34,6 @@ export async function readDatasetCoverage(): Promise<DatasetCoverage[]> {
         (entry) =>
           entry.dataset === policy.dataset &&
           entry.scope === object.scope &&
-          entry.policyVersion === policy.version &&
           entry.endDate >= object.startDate &&
           (!object.endDate || entry.startDate <= object.endDate),
       );
@@ -203,7 +202,6 @@ export async function readHistoryGaps(targetDate: string, startedAt: Date): Prom
           where: {
             dataset: policy.dataset,
             scope: object.scope,
-            policyVersion: policy.version,
             status: { in: ['complete', 'not_applicable'] },
           },
           orderBy: { startDate: 'asc' },

@@ -111,7 +111,9 @@ export async function datasetScopes(policy: DatasetPolicy): Promise<DatasetScope
       const starts = new Map<string, string>();
       for (const row of rows) {
         const code = canonicalStockCode(row.tsCode);
-        starts.set(code, [policy.startDate, row.listDate ?? policy.startDate].sort().at(-1)!);
+        const start = [policy.startDate, row.listDate ?? policy.startDate].sort().at(-1)!;
+        const previous = starts.get(code);
+        starts.set(code, previous && previous < start ? previous : start);
       }
       return [...starts].map(([scope, startDate]) => ({ scope, startDate }));
     }
@@ -130,7 +132,7 @@ async function applySourceBoundaries(
   objects: DatasetScope[],
 ): Promise<DatasetScope[]> {
   const boundaries = await getDatabase().datasetSyncPartition.findMany({
-    where: { dataset: policy.dataset, policyVersion: policy.version, status: 'unavailable' },
+    where: { dataset: policy.dataset, status: 'unavailable' },
   });
 
   return objects.map((object) => {

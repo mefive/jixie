@@ -76,7 +76,7 @@ it('drops nine futures tables while preserving retained schema, sources, user co
     await database.user.create({
       data: { id: 'owner', email: 'futures-upgrade@fixture.invalid' },
     });
-    await database.daily.create({
+    await legacyMarketTable(database, 'Daily').create({
       data: { tsCode: '600000.SH', tradeDate: '20260915', close: 10 },
     });
     const legacyCode =
@@ -165,7 +165,7 @@ it('drops nine futures tables while preserving retained schema, sources, user co
         policyVersion: 'sync-v1',
       })),
     });
-    await database.datasetSyncPartition.createMany({
+    await legacyMarketTable(database, 'DatasetSyncPartition').createMany({
       data: datasets.map((dataset) => ({
         id: dataset,
         dataset,
@@ -218,7 +218,7 @@ it('drops nine futures tables while preserving retained schema, sources, user co
           policyVersion: 'sync-v1',
         },
       });
-      await database.datasetSyncPartition.create({
+      await legacyMarketTable(database, 'DatasetSyncPartition').create({
         data: {
           id: `calendar:${scope}`,
           dataset: 'calendar',

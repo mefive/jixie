@@ -1,10 +1,11 @@
+import { preferStockSources } from '../instruments/source-selection.js';
 import { createHash } from 'node:crypto';
 
 import { getDatabase, type Prisma } from '#infra/database/prisma.js';
-import { canonicalStockCode } from '../instruments/stock-identity.js';
+import { canonicalStockCode, hasStockCodePredecessor } from '../instruments/stock-identity.js';
 import type { FinancialAvailabilityQuality, FinancialStatementKind } from './source-contract.js';
 
-export const FINANCIAL_RESOLVER_VERSION = 2;
+export const FINANCIAL_RESOLVER_VERSION = 3;
 
 export type FinancialStatementReportType = '1' | '4' | '5';
 
@@ -33,6 +34,7 @@ export interface FinancialStatementVersionMetadata {
   contractVersion: number;
   statementKind: FinancialStatementKind;
   tsCode: string;
+  sourceTsCode?: string | null;
   endDate: string;
   announcementDate: string;
   availableDate: string;
@@ -384,8 +386,13 @@ export function selectLatestStatementVersions<Statement extends ResolvedFinancia
   for (const [endDate, periodRows] of [...byPeriod].sort(([left], [right]) =>
     left.localeCompare(right),
   )) {
-    const eligible = periodRows.filter((row) => row.availabilityQuality !== 'reconstructed');
-    const reconstructed = periodRows.length - eligible.length;
+    const usable = periodRows.filter((row) => row.availabilityQuality !== 'reconstructed');
+    const reconstructed = periodRows.length - usable.length;
+    const eligible = preferStockSources(
+      usable,
+      (row) => `${row.tsCode}/${row.statementKind}/${row.endDate}`,
+      (row) => row.sourceTsCode ?? (hasStockCodePredecessor(row.tsCode) ? null : row.tsCode),
+    );
     if (reconstructed > 0) {
       diagnostics.push({
         code: 'reconstructed_versions_excluded',
@@ -493,6 +500,7 @@ function commonMetadata(
     source: string;
     contractVersion: number;
     tsCode: string;
+    sourceTsCode?: string | null;
     endDate: string;
     announcementDate: string;
     availableDate: string;
@@ -516,6 +524,7 @@ function commonMetadata(
     contractVersion: row.contractVersion,
     statementKind,
     tsCode: row.tsCode,
+    sourceTsCode: row.sourceTsCode ?? null,
     endDate: row.endDate,
     announcementDate: row.announcementDate,
     availableDate: row.availableDate,

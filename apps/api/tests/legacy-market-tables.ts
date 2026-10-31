@@ -7,7 +7,12 @@ import type { Prisma } from '#infra/database/prisma.js';
  */
 export function legacyMarketTable(
   database: Pick<Prisma, '$executeRawUnsafe' | '$queryRawUnsafe'>,
-  table: 'MarketRecordEvidence' | 'MarketCalculationState' | 'DatasetSyncState',
+  table:
+    | 'MarketRecordEvidence'
+    | 'MarketCalculationState'
+    | 'DatasetSyncState'
+    | 'DatasetSyncPartition'
+    | 'Daily',
 ) {
   return {
     async createMany(input: { data: object[] }) {

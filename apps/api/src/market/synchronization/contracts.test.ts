@@ -65,6 +65,22 @@ describe('source protocol boundaries', () => {
 });
 
 describe('dataset-specific progress and dependencies', () => {
+  it('rejects unknown datasets even if stored windows claim completion', async () =>
+    withSyncDatabase(async (database) => {
+      const requirement = {
+        dataset: 'unknown-dataset',
+        scope: 'all',
+        startDate: '20260916',
+        endDate: '20260916',
+      };
+      await proveRange(database, requirement);
+
+      expect(await datasetInputReadiness([requirement])).toEqual({
+        ready: false,
+        gaps: ['unknown-dataset/all: unknown dataset'],
+      });
+    }));
+
   it('treats no new monthly weight snapshot as a completed check and keeps the previous snapshot', async () =>
     withSyncDatabase(async (database) => {
       await database.indexWeight.create({
@@ -105,12 +121,12 @@ describe('dataset-specific progress and dependencies', () => {
       expect(result.tables[0].records).toEqual([]);
     }));
 
-  it('rejects stale calendar rules for both stock and ETF consumers', async () =>
+  it('rejects revoked calendar proof for both stock and ETF consumers', async () =>
     withSyncDatabase(async (database) => {
       await seedSessions(database, '20260916');
       await database.datasetSyncPartition.updateMany({
         where: { dataset: 'calendar' },
-        data: { policyVersion: 'sync-v1' },
+        data: { status: 'superseded' },
       });
       for (const [dataset, scope] of [
         ['stock-prices', 'all'],

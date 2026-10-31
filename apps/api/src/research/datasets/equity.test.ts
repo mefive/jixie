@@ -165,7 +165,6 @@ async function seedFixture(database: PrismaClient): Promise<void> {
           startDate: date,
           endDate: date,
           status: 'complete',
-          policyVersion: 'sync-v2',
         }),
       ),
     ),

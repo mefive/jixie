@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { canonicalStockCode, STOCK_CODE_CHANGES } from '../instruments/stock-identity.js';
+import { stockSourceRank, hasStockCodePredecessor } from '../instruments/stock-identity.js';
 import { hasValueConflict, mergeSourceRecord } from '../synchronization/rows.js';
 import type { MarketRow, SourceRecord } from '../synchronization/partition.js';
 
@@ -45,26 +45,6 @@ export const finaIndicatorVersionSchema = finaIndicatorSchema.extend({
 });
 
 /**
- * 已确认的接续链中越新的来源优先；未知旧来源保持最低优先级。
- *
- * Prefer newer sources in confirmed succession chains; unknown legacy origins rank last.
- */
-function indicatorSourceRank(sourceTsCode: string | null): number {
-  if (!sourceTsCode) {
-    return Number.NEGATIVE_INFINITY;
-  }
-  const canonical = canonicalStockCode(sourceTsCode);
-  let current = sourceTsCode;
-  let distance = 0;
-  while (current !== canonical) {
-    current = STOCK_CODE_CHANGES.find((change) => change.oldTsCode === current)!.newTsCode;
-    distance++;
-  }
-
-  return -distance;
-}
-
-/**
  * 每个报告期先选来源，再选公告和修订；同优先级只允许缺值互补。
  *
  * Select source, announcement and revision per period; equal priorities only complement
@@ -77,7 +57,7 @@ export function selectIndicatorSnapshots(records: readonly SourceRecord[]) {
   for (const record of records) {
     const values = finaIndicatorSchema.parse(record.values);
     const key = `${values.tsCode}/${values.endDate}`;
-    const source = indicatorSourceRank(values.sourceTsCode);
+    const source = stockSourceRank(values.sourceTsCode);
     const revision = record.values.updateFlag === '1';
     const version = `${values.annDate ?? ''}|${revision ? '1' : '0'}`;
     const priority = priorities.get(key);
@@ -126,12 +106,12 @@ export function mergeIndicatorSnapshot(before: MarketRow | undefined, record: So
     return incoming;
   }
   const previous = finaIndicatorSchema.parse(before);
-  const source = indicatorSourceRank(incoming.sourceTsCode);
-  const previousSource = indicatorSourceRank(previous.sourceTsCode);
+  const source = stockSourceRank(incoming.sourceTsCode);
+  const previousSource = stockSourceRank(previous.sourceTsCode);
   if (source < previousSource) {
     return previous;
   }
-  const hasAliases = STOCK_CODE_CHANGES.some((change) => change.newTsCode === incoming.tsCode);
+  const hasAliases = hasStockCodePredecessor(incoming.tsCode);
   const switched = source > previousSource && (previous.sourceTsCode !== null || hasAliases);
   if (switched) {
     return incoming;

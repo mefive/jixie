@@ -228,9 +228,11 @@ test('unknown paths fail safe to a full deployment', () => {
 });
 
 test('offline maintenance upgrade changes require the complete deployment path', () => {
-  const plan = classifyChangedPaths(['apps/api/scripts/upgrade-minimal-sync.mjs'], manifest);
-  assert.equal(plan.fullDeploy, true);
-  for (const component of manifest.allComponents) {
-    assert.equal(plan[component], true);
+  for (const filename of ['upgrade-minimal-sync.mjs', 'upgrade-sync-proofs.mjs']) {
+    const plan = classifyChangedPaths([`apps/api/scripts/${filename}`], manifest);
+    assert.equal(plan.fullDeploy, true);
+    for (const component of manifest.allComponents) {
+      assert.equal(plan[component], true);
+    }
   }
 });

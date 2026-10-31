@@ -90,7 +90,7 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
         },
       ],
     });
-    await database.datasetSyncPartition.createMany({
+    await legacyMarketTable(database, 'DatasetSyncPartition').createMany({
       data: [
         {
           id: 'retained',
@@ -224,7 +224,12 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
     expect(() => command('restore')).toThrow();
     expect(await readFile(transfer, 'utf8')).toBe(exported);
     expect(
-      (await database.dividend.findUniqueOrThrow({ where: { id: 'known' } })).observedAt,
+      (
+        await database.dividend.findUniqueOrThrow({
+          where: { id: 'known' },
+          select: { observedAt: true },
+        })
+      ).observedAt,
     ).toEqual(new Date('2026-06-02T02:00:00Z'));
     await database.marketDownloadList.update({
       where: { assetType: 'index' },
@@ -235,7 +240,12 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
     expect(command('export')).toBe('');
     expect(await saved()).toEqual(before);
     expect(await unaffectedSchema()).toEqual(schemaBefore);
-    expect(await database.dividend.findMany({ orderBy: { id: 'asc' } })).toMatchObject([
+    expect(
+      await database.dividend.findMany({
+        orderBy: { id: 'asc' },
+        select: { id: true, cashDiv: true, observedAt: true, availabilityQuality: true },
+      }),
+    ).toMatchObject([
       {
         id: 'known',
         cashDiv: 1.2,
@@ -271,6 +281,7 @@ it('upgrades offline, preserves dividend capture and saved user data, and resume
         await cp(resolve('prisma/migrations', name), join(migrations, name), { recursive: true });
       }
     }
+    execFileSync(process.execPath, ['scripts/upgrade-sync-proofs.mjs', 'apply', filename]);
     deploy();
 
     await withDatabase(database, async () => {

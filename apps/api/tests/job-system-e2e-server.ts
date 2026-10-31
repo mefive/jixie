@@ -239,7 +239,6 @@ async function seedMarket() {
     ),
   });
 
-  const { DATASET_POLICIES } = await import('#market/synchronization/policies.js');
   await prisma.datasetSyncPartition.createMany({
     data: ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations'].map((dataset) => ({
       id: `fixture:${dataset}`,
@@ -247,7 +246,6 @@ async function seedMarket() {
       scope: dataset === 'calendar' ? 'SSE' : 'all',
       startDate: dates[0]!,
       endDate: dates.at(-1)!,
-      policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === dataset)!.version,
       status: 'complete',
     })),
   });

@@ -25,7 +25,6 @@ const partition: PlannedPartition = {
   scope: '000300.SH',
   startDate: '20260101',
   endDate: date,
-  policyVersion: 'sync-v2',
   history: false,
 };
 beforeEach(() => {
@@ -33,7 +32,7 @@ beforeEach(() => {
 });
 
 it.each([true, false])(
-  'R12/A10 publishes current policy only after complete acceptance: success=%s',
+  'R12/A10 restores eligibility only after complete acceptance: success=%s',
   async (success) =>
     withSyncDatabase(async (database) => {
       await database.stockCodeChange.createMany({ data: [...STOCK_CODE_CHANGES] });
@@ -53,7 +52,7 @@ it.each([true, false])(
       const { history: _history, ...storedPartition } = partition;
       await database.datasetSyncPartition.createMany({
         data: [
-          { ...storedPartition, status: 'complete', policyVersion: 'retired-policy' },
+          { ...storedPartition, status: 'superseded' },
           {
             id: 'old-history',
             dataset: 'index-prices',
@@ -61,7 +60,6 @@ it.each([true, false])(
             startDate: '19900101',
             endDate: '20251231',
             status: 'complete',
-            policyVersion: 'sync-v2',
           },
           {
             id: 'calendar',
@@ -70,7 +68,6 @@ it.each([true, false])(
             startDate: partition.startDate,
             endDate: date,
             status: 'complete',
-            policyVersion: 'sync-v2',
           },
         ],
       });
@@ -112,7 +109,7 @@ it.each([true, false])(
       const firstRevision = (
         await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })
       ).revision;
-      expect(firstRevision).toBe(success ? 2 : 1);
+      expect(firstRevision).toBe(success ? 1 : 0);
       await synchronizeData(input);
       expect(
         (await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })).revision,
@@ -121,7 +118,6 @@ it.each([true, false])(
       const stored = await database.datasetSyncPartition.findUniqueOrThrow({
         where: { id: partition.id },
       });
-      expect(stored.policyVersion).toBe('sync-v2');
       expect(stored.status).toBe(success ? 'complete' : 'error');
       expect(stored.lastAttemptAt).toEqual(startedAt);
       expect((await datasetInputReadiness([partition])).ready).toBe(success);
@@ -247,7 +243,6 @@ it(
           startDate: '19900101',
           endDate: '20261231',
           status: 'complete',
-          policyVersion: partition.policyVersion,
         },
       });
       await database.indexDaily.create({

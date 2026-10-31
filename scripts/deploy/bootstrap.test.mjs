@@ -86,6 +86,19 @@ node() {
       printf 'backup\\n'
       if [[ "$FAILURE" == 'backup' ]]; then return 20; fi
       if [[ "$FAILURE" == 'cleanup-backup' && "$JIXIE_BACKUP_DIR" == *'/pending-etf-cleanup' ]]; then return 23; fi
+      if [[ "$FAILURE" == 'proof-backup' && "$JIXIE_BACKUP_DIR" == *'/sync-proof-upgrade' ]]; then
+        return 26
+      fi
+      ;;
+    *'upgrade-sync-proofs.mjs check'*)
+      if [[ "$FAILURE" == 'proof-check' ]]; then return 25; fi
+      if [[ "$FAILURE" == 'proof-invalid' ]]; then printf 'invalid\\n';
+      elif [[ "$FAILURE" == 'new' || "$FAILURE" == 'empty' ]]; then printf '0\\n';
+      else printf '2\\n'; fi
+      ;;
+    *'upgrade-sync-proofs.mjs apply'*)
+      printf 'revoke proofs\\n'
+      if [[ "$FAILURE" == 'proof-apply' ]]; then return 27; fi
       ;;
     *'upgrade-minimal-sync.mjs restore'*)
       printf 'restore\\n'
@@ -124,6 +137,8 @@ test('generates, builds and migrates the schema before continuing', () => {
     'pnpm --filter api exec prisma generate',
     'pnpm --filter api build',
     'backup',
+    'backup',
+    'revoke proofs',
     'pnpm --filter api exec prisma migrate deploy',
     'restore',
     'backup',
@@ -177,13 +192,21 @@ for (const [failure, status] of [
   ['cleanup-backup', 23],
   ['cleanup', 24],
   ['cleanup-invalid', 1],
+  ['proof-check', 25],
+  ['proof-backup', 26],
+  ['proof-apply', 27],
+  ['proof-invalid', 1],
 ]) {
   test(`keeps the API stopped when ${failure} fails`, () => {
     const result = runMigrationStage('1', failure);
     assert.equal(result.status, status, result.stderr);
     assert.doesNotMatch(result.stdout, /sudo systemctl start fixture-api|deployment continued/);
     assert.match(result.stderr, /API 保持停止/);
-    if (['export', 'backup'].includes(failure)) {
+    if (
+      ['export', 'backup', 'proof-check', 'proof-backup', 'proof-apply', 'proof-invalid'].includes(
+        failure,
+      )
+    ) {
       assert.doesNotMatch(result.stdout, /prisma migrate deploy/);
     }
   });

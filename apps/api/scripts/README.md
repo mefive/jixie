@@ -7,6 +7,7 @@
 | 目录 / 文件 | 用途 | 入口数 | 主要调用方 |
 | --- | --- | --- | --- |
 | [统一数据同步](../src/maintenance/) | 按目标日期推进所有既有数据域、补缺与重查 | 1 | `pnpm data sync [--to YYYYMMDD]` |
+| [同步凭证升级](upgrade-sync-proofs.mjs) | 删除旧策略列前撤销受影响凭证 | 1 | bootstrap |
 | [升级搬移](upgrade-minimal-sync.mjs) | 停服期间分红捕获时间导出／恢复 | 1 | bootstrap |
 | [旧待上市 ETF 清理](../src/market/cli/cleanup-pending-etfs.ts) | 显式数据库的离线预检／清理 | 1 | bootstrap |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
@@ -46,16 +47,21 @@ node --conditions=development --import tsx apps/api/src/market/cli/cleanup-pendi
 node --conditions=development --import tsx apps/api/src/market/cli/cleanup-pending-etfs.ts apply /absolute/path/isolated.db
 ```
 
-现有库升级应通过 `scripts/bootstrap.sh` 完成。该脚本持 M/P/R、排空并停服后导出 `${DB_FILE}.minimal-sync.json`、备份数据库，执行工具生成迁移并恢复，成功后再启动服务。恢复文件权限为 0600，绑定数据库真实路径与设备／inode；已有未恢复文件不会覆盖。失败保持 API 停止并保留文件，再次部署继续恢复。新空库无需导出。
+现有库升级应通过 `scripts/bootstrap.sh` 完成。该脚本持 M/P/R、排空并停服后导出 `${DB_FILE}.minimal-sync.json`，预检并备份、撤销受影响同步凭证，然后执行工具生成迁移并恢复，成功后再启动服务。恢复文件权限为 0600，绑定数据库真实路径与设备／inode；已有未恢复文件不会覆盖。失败保持 API 停止并保留文件，再次部署继续恢复。新空库无需导出。
 
 管理员隔离演练时的顺序如下（数据库路径必须显式指定，脚本不读开发库默认值）：
 
 ```sh
 node apps/api/scripts/upgrade-minimal-sync.mjs export /absolute/path/isolated.db
-# 使用 backup-db.mjs 备份；随后在同一隔离库执行 prisma migrate deploy。
+# 使用 backup-db.mjs 备份，再预检／应用凭证升级。
+node apps/api/scripts/upgrade-sync-proofs.mjs check /absolute/path/isolated.db
+node apps/api/scripts/upgrade-sync-proofs.mjs apply /absolute/path/isolated.db
+# 随后在同一隔离库执行 prisma migrate deploy。
 # restore 需要已构建的 shared/API 和最新生成 Prisma Client。
 node apps/api/scripts/upgrade-minimal-sync.mjs restore /absolute/path/isolated.db
 ```
+
+`upgrade-sync-proofs.mjs` 不加载应用或 Prisma Client，只对显式旧库离线执行。`check` 返回将修改的凭证与覆盖记录总数；`apply` 在同一事务撤销资格、清空连续覆盖并在有变化时推进 revision，保留业务值、捕获时间与失败证据。bootstrap 使用独立 `sync-proof-upgrade/` 备份目录；失败不得继续迁移或启动 API。旧列删除后此步骤自动跳过，重复部署不会撤销重新获得的资格。普通同步没有策略版本或版本对账。
 
 恢复会核对迁移已完成及分红身份集合，恢复必要时间／质量和 revision，重算覆盖并逐值复核后才删除文件。丢失恢复文件时不能从公告日或除权日推测捕获时间；应保留停服状态，从升级前备份恢复并重做。旧库不能跳过搬移直接裸迁移后开放服务。
 

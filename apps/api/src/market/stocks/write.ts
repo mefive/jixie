@@ -1,3 +1,4 @@
+import { mergeStockSource } from '../instruments/source-selection.js';
 import { z } from 'zod';
 import type {
   MarketPartition,
@@ -20,6 +21,7 @@ const stockBasicSchema = z.strictObject({
 });
 
 const stockNameHistorySchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   tsCode: z.string(),
   name: z.string(),
   startDate: z.string(),
@@ -29,6 +31,7 @@ const stockNameHistorySchema = z.strictObject({
 });
 
 const dailySchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   tsCode: z.string(),
   tradeDate: z.string(),
   open: z.number().finite().nullish(),
@@ -42,12 +45,14 @@ const dailySchema = z.strictObject({
 });
 
 const adjFactorSchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   tsCode: z.string(),
   tradeDate: z.string(),
   adjFactor: z.number().finite(),
 });
 
 const dailyBasicSchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   tsCode: z.string(),
   tradeDate: z.string(),
   pe: z.number().finite().nullish(),
@@ -64,6 +69,7 @@ const dailyBasicSchema = z.strictObject({
 });
 
 const stkLimitSchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   tsCode: z.string(),
   tradeDate: z.string(),
   upLimit: z.number().finite(),
@@ -153,6 +159,7 @@ async function writeStockNameHistory(
   const existing = await transaction.stockNameHistory.findMany({ where: {} });
   const rows = mergeRows({
     schema: stockNameHistorySchema,
+    merge: mergeStockSource,
     keys: ['tsCode', 'startDate'],
     records: batch.records,
     existing,
@@ -222,6 +229,7 @@ async function writeDaily(
   });
   const rows = mergeRows({
     schema: dailySchema,
+    merge: mergeStockSource,
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
@@ -270,6 +278,7 @@ async function writeAdjFactor(
   });
   const rows = mergeRows({
     schema: adjFactorSchema,
+    merge: mergeStockSource,
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
@@ -318,6 +327,7 @@ async function writeDailyBasic(
   });
   const rows = mergeRows({
     schema: dailyBasicSchema,
+    merge: mergeStockSource,
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
@@ -366,6 +376,7 @@ async function writeStkLimit(
   });
   const rows = mergeRows({
     schema: stkLimitSchema,
+    merge: mergeStockSource,
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,

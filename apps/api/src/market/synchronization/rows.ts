@@ -89,6 +89,7 @@ interface MergeRowsInput<Schema extends z.ZodType<object>> {
   existing: z.output<Schema>[];
   replace?: boolean;
   atomic?: boolean;
+  merge?: (before: MarketRow | undefined, record: SourceRecord) => MarketRow;
   transform?: (values: MarketRow, before: MarketRow | undefined) => MarketRow;
   ignoredDuplicateFields?: readonly string[];
 }
@@ -150,7 +151,7 @@ export function mergeRows<Schema extends z.ZodType<object>>(input: MergeRowsInpu
     try {
       const before = known.get(identity);
       const previous = before as MarketRow | undefined;
-      const merged = mergeSourceRecord(previous, record);
+      const merged = (input.merge ?? mergeSourceRecord)(previous, record);
       const values = input.schema.parse(
         input.transform ? input.transform(merged, previous) : merged,
       );

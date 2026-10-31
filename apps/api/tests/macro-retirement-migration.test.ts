@@ -74,7 +74,7 @@ it('drops seven macro, rates, FX and benchmark tables while preserving retained 
     await database.user.create({
       data: { id: 'owner', email: 'macro-upgrade@fixture.invalid' },
     });
-    await database.daily.create({
+    await legacyMarketTable(database, 'Daily').create({
       data: { tsCode: '600000.SH', tradeDate: '20260915', close: 10 },
     });
     const legacyCode =
@@ -161,7 +161,7 @@ it('drops seven macro, rates, FX and benchmark tables while preserving retained 
         policyVersion: 'sync-v1',
       })),
     });
-    await database.datasetSyncPartition.createMany({
+    await legacyMarketTable(database, 'DatasetSyncPartition').createMany({
       data: datasets.map((dataset) => ({
         id: dataset,
         dataset,
@@ -214,7 +214,7 @@ it('drops seven macro, rates, FX and benchmark tables while preserving retained 
           policyVersion: 'sync-v1',
         },
       });
-      await database.datasetSyncPartition.create({
+      await legacyMarketTable(database, 'DatasetSyncPartition').create({
         data: {
           id: `calendar:${scope}`,
           dataset: 'calendar',

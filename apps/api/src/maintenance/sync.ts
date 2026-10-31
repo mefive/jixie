@@ -16,7 +16,6 @@ import { DATASET_POLICIES } from '#market/synchronization/policies.js';
 import { withSourceRequestBudget } from '#market/providers/source-fetch.js';
 import { SYNC_LIMITS } from './partitions.js';
 import { startSyncRun, finishSyncRun } from './runs.js';
-import { reconcileSyncRules } from './reconcile.js';
 import { retireDatasets } from './retired-datasets.js';
 
 export interface DataSyncInput {
@@ -104,7 +103,6 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
 
       try {
         await retireDatasets();
-        await reconcileSyncRules();
         await cleanupOwnerLocks(true);
         await initializeIndexDownloads();
 

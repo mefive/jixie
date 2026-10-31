@@ -34,6 +34,12 @@ export async function datasetInputReadiness(
     .map((entry) => ({ ...entry, dataset: 'stock-prices' }));
   for (const requirement of [...requirements, ...dependencies]) {
     const label = `${requirement.dataset}/${requirement.scope ?? 'all'}`;
+    const policy = DATASET_POLICIES.find((entry) => entry.dataset === requirement.dataset);
+    if (!policy) {
+      gaps.push(`${label}: unknown dataset`);
+      continue;
+    }
+
     const master =
       requirement.dataset === 'stock-prices'
         ? { dataset: 'stock-master', scopes: ['L', 'D', 'P', 'G'] }
@@ -44,8 +50,6 @@ export async function datasetInputReadiness(
       const catalogs = await database.datasetSyncPartition.findMany({
         where: {
           dataset: master.dataset,
-          policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === master.dataset)!
-            .version,
           status: 'complete',
         },
       });
@@ -58,8 +62,6 @@ export async function datasetInputReadiness(
         dataset: requirement.dataset,
         scope: requirement.scope ?? 'all',
         status: 'unavailable',
-        policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === requirement.dataset)
-          ?.version,
         startDate: { lte: requirement.endDate },
         endDate: { gte: requirement.startDate },
       },
@@ -73,23 +75,16 @@ export async function datasetInputReadiness(
       where: {
         dataset: requirement.dataset,
         scope: requirement.scope ?? 'all',
-        policyVersion:
-          DATASET_POLICIES.find((policy) => policy.dataset === requirement.dataset)?.version ??
-          'unknown',
         startDate: { lte: requirement.endDate },
         endDate: { gte: requirement.startDate },
         status: { in: ['complete', 'not_applicable'] },
       },
       orderBy: { startDate: 'asc' },
     });
-    const daily =
-      DATASET_POLICIES.find((policy) => policy.dataset === requirement.dataset)?.completion ===
-      'sessions';
-    if (daily) {
+    if (policy.completion === 'sessions') {
       const calendarProof = await database.datasetSyncPartition.findMany({
         where: {
           dataset: 'calendar',
-          policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === 'calendar')!.version,
           scope: 'SSE',
           status: 'complete',
           startDate: { lte: requirement.endDate },

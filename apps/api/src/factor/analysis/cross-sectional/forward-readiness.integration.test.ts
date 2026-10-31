@@ -32,7 +32,6 @@ describe('forward observation maturity', () => {
               startDate: '20240801',
               endDate: dataset === 'calendar' ? '20241031' : through,
               status: 'complete',
-              policyVersion: 'sync-v2',
             }),
           ),
         });

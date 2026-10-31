@@ -215,7 +215,6 @@ describe('administrator download lists', () => {
           scope: '500000.SH',
           startDate: '20200101',
           endDate: '20201231',
-          policyVersion: 'sync-v1',
           status: 'pending',
         },
       });

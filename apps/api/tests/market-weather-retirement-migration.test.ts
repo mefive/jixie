@@ -39,7 +39,7 @@ it('drops weather history while preserving raw data, historical maintenance rows
     deploy();
 
     await database.user.create({ data: { id: 'owner', email: 'weather-upgrade@fixture.invalid' } });
-    await database.daily.create({
+    await legacyMarketTable(database, 'Daily').create({
       data: { tsCode: '600000.SH', tradeDate: '20260915', close: 10 },
     });
     await database.indexDailyBasic.create({
@@ -105,7 +105,7 @@ it('drops weather history while preserving raw data, historical maintenance rows
 
     const snapshot = () =>
       Promise.all([
-        database.daily.findMany(),
+        legacyMarketTable(database, 'Daily').findMany(),
         database.indexDailyBasic.findMany(),
         database.factor.findMany(),
         database.factorReport.findMany(),

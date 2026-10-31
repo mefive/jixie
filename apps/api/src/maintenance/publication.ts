@@ -14,7 +14,7 @@ import type { PlannedPartition } from './partitions.js';
 
 export async function recordAttempt(partition: PlannedPartition, runId: string, fetchedAt: Date) {
   const database = getDatabase();
-  const { id, dataset, scope, startDate, endDate, policyVersion } = partition;
+  const { id, dataset, scope, startDate, endDate } = partition;
   await database.$transaction(async (transaction) => {
     await transaction.datasetSyncPartition.upsert({
       where: { id },
@@ -24,7 +24,6 @@ export async function recordAttempt(partition: PlannedPartition, runId: string, 
         scope,
         startDate,
         endDate,
-        policyVersion,
         status: 'pending',
         lastRunId: runId,
         lastAttemptAt: fetchedAt,
@@ -93,7 +92,6 @@ export async function publishWindow(
         } else {
           overlapFilter.startDate = { lte: partition.endDate };
           overlapFilter.endDate = { gte: partition.startDate };
-          overlapFilter.policyVersion = partition.policyVersion;
           overlapFilter.status = { in: ['complete', 'not_applicable'] };
         }
 
@@ -101,7 +99,6 @@ export async function publishWindow(
           where: overlapFilter,
           data: {
             status: verified ? 'superseded' : 'partial',
-            policyVersion: partition.policyVersion,
             ...(!verified
               ? {
                   error: 'Overlapping source window needs verification',
@@ -114,7 +111,6 @@ export async function publishWindow(
           where: { id: partition.id },
           data: {
             status,
-            policyVersion: partition.policyVersion,
             lastRunId: runId,
             lastAttemptAt: fetchedAt,
             checkedAt: verified ? fetchedAt : previous.checkedAt,
@@ -150,7 +146,6 @@ export async function publishWindow(
             create: {
               id,
               ...boundary,
-              policyVersion: partition.policyVersion,
               status: 'unavailable',
               checkedAt: fetchedAt,
               lastAttemptAt: fetchedAt,
@@ -158,7 +153,6 @@ export async function publishWindow(
             },
             update: {
               status: 'unavailable',
-              policyVersion: partition.policyVersion,
               checkedAt: fetchedAt,
               error: null,
               gaps: [],
@@ -182,9 +176,7 @@ export async function publishWindow(
           prepared.sourceStartDate,
         );
 
-        const previouslyVerified =
-          ['complete', 'not_applicable'].includes(previous.status) &&
-          previous.policyVersion === partition.policyVersion;
+        const previouslyVerified = ['complete', 'not_applicable'].includes(previous.status);
         const invalidated =
           accepted.changed || !verified ? await invalidateDependents(transaction, partition) : 0;
         if (

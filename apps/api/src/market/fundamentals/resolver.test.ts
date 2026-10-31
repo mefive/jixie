@@ -81,6 +81,35 @@ describe('financial statement resolver', () => {
     );
   });
 
+  it('prefers available successors and excludes reconstructed reports', () => {
+    const old = incomeVersion({
+      tsCode: '001872.SZ',
+      sourceTsCode: '000022.SZ',
+      availableDate: '20240501',
+    });
+    const current = incomeVersion({
+      tsCode: '001872.SZ',
+      sourceTsCode: '001872.SZ',
+      availableDate: '20240401',
+      values: { revenue: 0 },
+    });
+    for (const rows of [
+      [old, current],
+      [current, old],
+    ]) {
+      expect(selectLatestStatementVersions(rows)).toEqual([current]);
+    }
+    expect(
+      selectLatestStatementVersions([old, { ...current, availabilityQuality: 'reconstructed' }]),
+    ).toEqual([old]);
+  });
+
+  it('does not demote later legacy reports for securities without a code succession', () => {
+    const legacy = incomeVersion({ availableDate: '20240501', sourceTsCode: null });
+    const refetched = incomeVersion({ availableDate: '20240401', sourceTsCode: legacy.tsCode });
+    expect(selectLatestStatementVersions([legacy, refetched])).toEqual([legacy]);
+  });
+
   it('gates the first statement on availableDate and converts market cap to CNY', async () => {
     const row = databaseStatement({ availableDate: '20230504' });
     const database = resolverDatabase({ income: [row], marketCapitalizationWan: 20 });

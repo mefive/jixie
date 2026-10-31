@@ -13,7 +13,6 @@ import type { BacktestConfig, FactorLanguage, StrategyScanPayload } from '@jixie
 import type { BacktestResult } from '#strategy/backtests/result.js';
 import { runWorker } from '#jobs/worker.js';
 import { strategyScanWorkerMessageSchema } from '#strategy/scans/worker-protocol.js';
-import { DATASET_POLICIES } from '#market/synchronization/policies.js';
 
 const executeFile = promisify(execFile);
 const apiDirectory = fileURLToPath(new URL('../', import.meta.url));
@@ -205,7 +204,6 @@ beforeAll(async () => {
         scope: dataset === 'calendar' ? 'SSE' : 'all',
         startDate: dates[0],
         endDate: dates.at(-1)!,
-        policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === dataset)!.version,
         status: 'complete',
       }),
     ),

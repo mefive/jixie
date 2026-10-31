@@ -1,3 +1,4 @@
+import { preferStockSources } from '../instruments/source-selection.js';
 import { isObservationDate, localDate } from '../synchronization/date.js';
 import { DATASET_POLICIES } from '../synchronization/policies.js';
 import { qualifySessionSeries } from '../calendar/coverage.js';
@@ -150,11 +151,17 @@ async function prepareIndexWeights(
   const errors: string[] = [];
   const completeDates: string[] = [];
 
-  for (const [date, rows] of groups) {
+  for (const [date, candidates] of groups) {
+    const rows = preferStockSources(
+      candidates,
+      (row) => `${row.index_code}/${canonicalStockCode(String(row.con_code))}/${row.trade_date}`,
+      (row) => String(row.con_code),
+    );
     const snapshot = mapSourceRecords(rows, (row) => ({
       values: {
         indexCode: sourceString(row, 'index_code'),
         conCode: canonicalStockCode(sourceString(row, 'con_code')),
+        sourceTsCode: sourceString(row, 'con_code'),
         tradeDate: sourceString(row, 'trade_date'),
         weight: row.weight,
       },

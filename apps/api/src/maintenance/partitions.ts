@@ -9,7 +9,6 @@ export { datasetScopes } from '#market/synchronization/scopes.js';
 export const SYNC_LIMITS = { partitions: 240, requests: 600, milliseconds: 30 * 60_000 } as const;
 export interface PlannedPartition extends MarketPartition {
   id: string;
-  policyVersion: string;
   history: boolean;
 }
 export interface SelectWindowInput {
@@ -126,7 +125,7 @@ export async function selectSyncWindow(input: SelectWindowInput): Promise<Planne
       };
       const id = identity(partition);
       if (!input.attempted.has(id)) {
-        return { ...partition, id, policyVersion: policy.version, history: input.history };
+        return { ...partition, id, history: input.history };
       }
     }
   }
@@ -151,11 +150,7 @@ async function candidateWindows(
     where: { dataset: policy.dataset, scope: object.scope },
     orderBy: { startDate: 'asc' },
   });
-  const complete = saved.filter(
-    (window) =>
-      ['complete', 'not_applicable'].includes(window.status) &&
-      window.policyVersion === policy.version,
-  );
+  const complete = saved.filter((window) => ['complete', 'not_applicable'].includes(window.status));
   const due = (checked: Date | null) =>
     !checked || input.startedAt.getTime() - checked.getTime() >= policy.refreshDays * 86400_000;
   let windows: Array<{ startDate: string; endDate: string }>;
@@ -196,7 +191,6 @@ async function candidateWindows(
           dataset: 'calendar',
           scope: policy.calendar,
           status: 'complete',
-          policyVersion: policy.version,
           startDate: { lte: end },
           endDate: { gte: start },
         },

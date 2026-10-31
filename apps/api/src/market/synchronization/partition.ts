@@ -89,5 +89,4 @@ export interface DatasetPolicy {
   closeHour: number;
   revisionDays: number;
   refreshDays: number;
-  version: string;
 }

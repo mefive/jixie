@@ -56,12 +56,45 @@ export function canonicalStockCode(tsCode: string): string {
 }
 
 /**
+ * 判断规范证券是否具有已确认的历史代码。
+ *
+ * Check whether a canonical security has confirmed predecessor codes.
+ */
+export function hasStockCodePredecessor(tsCode: string): boolean {
+  const canonical = canonicalStockCode(tsCode);
+
+  return STOCK_CODE_CHANGES.some((change) => canonicalStockCode(change.oldTsCode) === canonical);
+}
+
+/**
+ * 已确认接续链中越新的来源优先；未知历史来源排在最后。
+ *
+ * Rank newer sources first within confirmed chains; unknown legacy origins rank last.
+ */
+export function stockSourceRank(sourceTsCode: string | null | undefined): number {
+  if (!sourceTsCode) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  const canonical = canonicalStockCode(sourceTsCode);
+  let current = sourceTsCode;
+  let distance = 0;
+
+  while (current !== canonical) {
+    current = CODE_CHANGE_BY_OLD.get(current)!.newTsCode;
+    distance++;
+  }
+
+  return -distance;
+}
+
+/**
  * 保留证券名称的生效区间，供历史风险警示判断。
  *
  * Retain security-name effective intervals for dated risk-status checks.
  */
 export interface StockNameSpell {
   tsCode: string;
+  sourceTsCode?: string | null;
   name: string;
   startDate: string;
   endDate: string | null;
@@ -94,9 +127,30 @@ function previousCalendarDate(date: string): string {
  */
 export function normalizeStockNameSpells<Spell extends StockNameSpell>(spells: Spell[]): Spell[] {
   const unique = new Map<string, Spell>();
+  const ranks = new Map<string, number>();
+  for (const spell of spells) {
+    const key = `${canonicalStockCode(spell.tsCode)}|${spell.startDate}`;
+    const rank = stockSourceRank('sourceTsCode' in spell ? spell.sourceTsCode : spell.tsCode);
+    ranks.set(key, Math.max(ranks.get(key) ?? Number.NEGATIVE_INFINITY, rank));
+  }
+
   for (const spell of spells) {
     const canonical = { ...spell, tsCode: canonicalStockCode(spell.tsCode) };
-    unique.set(`${canonical.tsCode}|${canonical.startDate}`, canonical);
+    const key = `${canonical.tsCode}|${canonical.startDate}`;
+    const previous = unique.get(key);
+    const rank = stockSourceRank('sourceTsCode' in spell ? spell.sourceTsCode : spell.tsCode);
+    const previousRank = ranks.get(key);
+    if (previousRank !== undefined && rank < previousRank) {
+      continue;
+    }
+    if (
+      previous &&
+      rank === previousRank &&
+      (spell.name !== previous.name || spell.endDate !== previous.endDate)
+    ) {
+      throw new Error(`Conflicting stock name interval ${key}`);
+    }
+    unique.set(key, canonical);
   }
 
   const byCode = new Map<string, Spell[]>();
@@ -154,7 +208,11 @@ export function classifyStockName(name: string | null): HistoricalStockStatus {
   };
 }
 
-/** Tiny in-memory PIT index over name spells; one instance is shared for a complete analysis/run. */
+/**
+ * 名称区间的内存时点索引，一次分析或运行共用一个实例。
+ *
+ * In-memory PIT index over name spells, shared throughout one analysis or run.
+ */
 export class StockNameLookup {
   private readonly spellsByCode = new Map<string, StockNameSpell[]>();
 

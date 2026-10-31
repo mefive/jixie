@@ -1,3 +1,4 @@
+import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { createHash } from 'node:crypto';
 
 import type { TushareRow, TushareValue } from '../providers/tushare/tushare-client.js';
@@ -225,7 +226,8 @@ export function normalizeFinancialStatementSourceRow(
 /**
  * 为完整选定来源行计算指纹，忽略对象键序和 undefined 字段。
  *
- * Fingerprints the complete selected source row; object key order and undefined fields do not matter.
+ * Fingerprints the complete selected source row; object key order and undefined fields
+ * do not matter.
  */
 export function financialSourceRowFingerprint(
   statementKind: FinancialStatementKind,
@@ -326,7 +328,7 @@ export function resolveFinancialAvailability(
   }
   const matchingEvidence = correctionEvidence.find(
     (evidence) =>
-      evidence.tsCode === row.tsCode &&
+      canonicalStockCode(evidence.tsCode) === canonicalStockCode(row.tsCode) &&
       evidence.publishedDate === announcementDate &&
       evidence.affectedPeriods.includes(row.endDate),
   );

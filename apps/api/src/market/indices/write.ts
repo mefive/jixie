@@ -1,3 +1,4 @@
+import { mergeStockSource } from '../instruments/source-selection.js';
 import { z } from 'zod';
 import type {
   MarketPartition,
@@ -9,6 +10,7 @@ import type {
 import { collectWriteResult, emptyWriteResult, mergeRows } from '../synchronization/rows.js';
 
 const indexWeightSchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   indexCode: z.string(),
   conCode: z.string(),
   tradeDate: z.string(),
@@ -87,6 +89,7 @@ async function writeIndexWeight(
   });
   const rows = mergeRows({
     schema: indexWeightSchema,
+    merge: mergeStockSource,
     keys: ['indexCode', 'conCode', 'tradeDate'],
     records: batch.records,
     existing,
@@ -96,6 +99,21 @@ async function writeIndexWeight(
         (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
     atomic: batch.atomic,
   });
+
+  const retained = existing.filter(
+    (row) => ![...rows.updated, ...rows.deleted].some((changed) => changed.conCode === row.conCode),
+  );
+  const total = [...retained, ...rows.updated, ...rows.inserted].reduce(
+    (sum, row) => sum + (row.weight ?? 0),
+    0,
+  );
+  if (!Number.isFinite(total) || total < 95 || total > 105) {
+    result.errors.push(
+      `Invalid retained constituent total ${partition.scope}/${partition.startDate}`,
+    );
+    result.rejected += batch.records.length;
+    return;
+  }
 
   for (const row of rows.updated) {
     await transaction.indexWeight.update({

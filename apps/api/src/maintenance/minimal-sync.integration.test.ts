@@ -104,7 +104,6 @@ describe('minimal retained-data synchronization', () => {
             scope: codes[0],
             startDate: '20200101',
             endDate: '20201231',
-            policyVersion: 'sync-v2',
             status: 'complete',
           },
           {
@@ -113,7 +112,6 @@ describe('minimal retained-data synchronization', () => {
             scope: codes[0],
             startDate: '20220101',
             endDate: '20251231',
-            policyVersion: 'sync-v2',
             status: 'complete',
           },
           {
@@ -122,7 +120,6 @@ describe('minimal retained-data synchronization', () => {
             scope: codes[0],
             startDate: '20210101',
             endDate: '20211231',
-            policyVersion: 'sync-v2',
             status: 'error',
           },
         ],
@@ -151,7 +148,6 @@ describe('minimal retained-data synchronization', () => {
           startDate: '19900101',
           endDate: '20251231',
           status: 'complete',
-          policyVersion: 'sync-v2',
           checkedAt: new Date(0),
         },
       });

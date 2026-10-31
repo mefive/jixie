@@ -1,9 +1,13 @@
+import { preferStockSources } from '../instruments/source-selection.js';
 import { qualifySessionSeries } from '../calendar/coverage.js';
 import { canonicalStockCode, normalizeStockNameSpells } from '../instruments/stock-identity.js';
 import { getDatabase } from '#infra/database/prisma.js';
-import { DATASET_POLICIES } from '../synchronization/policies.js';
 import { isObservationDate } from '../synchronization/date.js';
-import type { MarketPartition, PreparedMarketPartition } from '../synchronization/partition.js';
+import type {
+  MarketPartition,
+  PreparedMarketPartition,
+  SourceRecord,
+} from '../synchronization/partition.js';
 import {
   completeResponse,
   fetchSourcePages,
@@ -80,13 +84,19 @@ export async function prepareStockPartition(
     { trade_date: partition.startDate },
     [...new Set(Object.values(definition.columns))].join(','),
   );
-  const mapped = mapSourceRecords(pages.rows, (row) => {
+  const selected = preferStockSources(
+    pages.rows,
+    (row) => `${canonicalStockCode(String(row.ts_code))}/${row.trade_date}`,
+    (row) => String(row.ts_code),
+  );
+  const mapped = mapSourceRecords(selected, (row) => {
     const values = sourceValues(row, definition.columns);
     const code = sourceString(row, 'ts_code');
     if (!/^\d{6}\.(SH|SZ|BJ)$/.test(code) || row.trade_date !== partition.startDate) {
       throw new Error(`${definition.api}: invalid stock/date ${code}/${row.trade_date}`);
     }
     values.tsCode = canonicalStockCode(code);
+    values.sourceTsCode = code;
     if (definition.table === 'Daily') {
       validateSourceBar(values);
     }
@@ -132,24 +142,40 @@ export async function prepareStockPartition(
       { trade_date: partition.startDate, suspend_type: 'S' },
       'ts_code,trade_date,suspend_type,suspend_timing',
     );
-    const suspended = mapSourceRecords(suspensions.rows, (row) => {
+    const suspensionRows = preferStockSources(
+      suspensions.rows,
+      (row) => `${canonicalStockCode(String(row.ts_code))}/${row.trade_date}`,
+      (row) => String(row.ts_code),
+    );
+    const suspended = mapSourceRecords(suspensionRows, (row) => {
       const code = sourceString(row, 'ts_code');
       if (
         !/^\d{6}\.(SH|SZ|BJ)$/.test(code) ||
         row.trade_date !== partition.startDate ||
-        row.suspend_type !== 'S'
+        row.suspend_type !== 'S' ||
+        (row.suspend_timing != null && typeof row.suspend_timing !== 'string')
       ) {
         throw new Error('Invalid daily suspension evidence');
       }
 
       return { values: { tsCode: canonicalStockCode(code), timing: row.suspend_timing ?? null } };
     });
+    const fullDay = new Set(
+      suspended.records
+        .filter((record) => !record.values.timing)
+        .map((record) => String(record.values.tsCode)),
+    );
+    const contradictory = suspended.records.some(
+      (record) => record.values.timing && fullDay.has(String(record.values.tsCode)),
+    );
+    if (contradictory) {
+      suspended.errors.push('Conflicting full-day and intraday suspension evidence');
+    }
+
     prepared.errors.push(...suspensions.errors, ...suspended.errors);
     prepared.checks.suspensionsVerified =
       suspensions.complete && !suspensions.errors.length && !suspended.errors.length;
-    prepared.checks.fullDaySuspended = suspended.records
-      .filter((record) => !record.values.timing)
-      .map((record) => String(record.values.tsCode));
+    prepared.checks.fullDaySuspended = [...fullDay];
   }
 
   await qualifySessionSeries(partition, prepared);
@@ -188,7 +214,6 @@ export async function stockPartitionCoverage(
     const priceProof = await database.datasetSyncPartition.findFirst({
       where: {
         dataset: 'stock-prices',
-        policyVersion: DATASET_POLICIES.find((entry) => entry.dataset === 'stock-prices')!.version,
         scope: 'all',
         startDate: partition.startDate,
         endDate: partition.endDate,
@@ -209,7 +234,6 @@ export async function stockPartitionCoverage(
     where: {
       dataset: 'stock-master',
       status: 'complete',
-      policyVersion: DATASET_POLICIES.find((entry) => entry.dataset === 'stock-master')!.version,
     },
     select: { scope: true },
   });
@@ -290,7 +314,8 @@ export async function prepareStockReference(
       return { values: sourceValues(row, columns), authoritativeNulls: ['delistDate'] };
     });
     // 状态迁移不是证券删除；保留从另一个状态暂时缺失的历史身份。
-    // A status transition is not a security deletion; preserve historical identities between status fetches.
+    // A status transition is not a security deletion; preserve historical identities
+    // between status fetches.
     return completeResponse({
       pages,
       table: 'StockBasic',
@@ -314,7 +339,12 @@ export async function prepareStockReference(
     { start_date: partition.startDate, end_date: partition.endDate },
     Object.values(columns).join(','),
   );
-  const mapped = mapSourceRecords(pages.rows, (row) => {
+  const selected = preferStockSources(
+    pages.rows,
+    (row) => `${canonicalStockCode(String(row.ts_code))}/${row.start_date}`,
+    (row) => String(row.ts_code),
+  );
+  const mapped = mapSourceRecords(selected, (row) => {
     const startDate = sourceString(row, 'start_date');
     if (
       !isObservationDate(startDate) ||
@@ -330,28 +360,23 @@ export async function prepareStockReference(
       values: {
         ...sourceValues(row, columns),
         tsCode: canonicalStockCode(sourceString(row, 'ts_code')),
+        sourceTsCode: sourceString(row, 'ts_code'),
       },
     };
   });
-  const spells = normalizeStockNameSpells(
-    mapped.records.map((record) => ({
-      tsCode: String(record.values.tsCode),
-      name: String(record.values.name),
-      startDate: String(record.values.startDate),
-      endDate: typeof record.values.endDate === 'string' ? record.values.endDate : null,
-    })),
-  );
-  const byKey = new Map(spells.map((spell) => [`${spell.tsCode}|${spell.startDate}`, spell]));
-  mapped.records = mapped.records
-    .filter((record) => byKey.has(`${record.values.tsCode}|${record.values.startDate}`))
-    .map((record) => ({
-      ...record,
-      authoritativeNulls: ['endDate'],
-      values: {
-        ...record.values,
-        endDate: byKey.get(`${record.values.tsCode}|${record.values.startDate}`)!.endDate,
-      },
-    }));
+  const byCode = new Map<string, SourceRecord[]>();
+  for (const record of mapped.records) {
+    const code = String(record.values.tsCode);
+    byCode.set(code, [...(byCode.get(code) ?? []), record]);
+  }
+  mapped.records = [];
+  for (const records of byCode.values()) {
+    try {
+      mapped.records.push(...normalizeNameRecords(records));
+    } catch (error) {
+      mapped.errors.push(String(error));
+    }
+  }
 
   return completeResponse({
     pages,
@@ -361,4 +386,30 @@ export async function prepareStockReference(
     ...mapped,
     allowEmpty: true,
   });
+}
+
+/**
+ * 同一证券的名称区间一起规范化，单个证券冲突不阻塞其他名称历史。
+ *
+ * Normalize one security's name intervals without blocking unrelated histories on a conflict.
+ */
+function normalizeNameRecords(records: SourceRecord[]): SourceRecord[] {
+  const spells = normalizeStockNameSpells(
+    records.map((record) => ({
+      tsCode: String(record.values.tsCode),
+      sourceTsCode: String(record.values.sourceTsCode),
+      name: String(record.values.name),
+      startDate: String(record.values.startDate),
+      endDate: typeof record.values.endDate === 'string' ? record.values.endDate : null,
+    })),
+  );
+  const byDate = new Map(spells.map((spell) => [spell.startDate, spell]));
+
+  return records
+    .filter((record) => byDate.has(String(record.values.startDate)))
+    .map((record) => ({
+      ...record,
+      authoritativeNulls: ['endDate'],
+      values: { ...record.values, endDate: byDate.get(String(record.values.startDate))!.endDate },
+    }));
 }

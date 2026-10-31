@@ -205,7 +205,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - `packages/shared` — 共享类型、公开 SDK Contract 和 HTTP 请求契约；依赖方向 `apps/* → packages/*`，反向禁止。HTTP schema 通过 `@jixie/shared/api/<业务>` 子路径导入，不进入根级运行时 barrel；前端只使用 `import type` 引用请求类型。
 - `packages/shared` 编译到 `dist`，实际运行／构建前需 `pnpm --filter @jixie/shared build`（install 时 `prepare` 也会自动构建）。根级 `pnpm typecheck` 在内存中生成最新 shared 声明再检查各应用，不运行构建、不写文件、不依赖旧 dist；各应用保持自己的 TypeScript 配置。
 
-应用 CLI 放在所属模块的 `cli/`，负责参数、配置、调用、输出、退出与进程资源收尾，允许简单同步组合和只为输出服务的查询；可复用业务不导入 CLI，不为每个命令新增转发 service。Market / Maintenance / Auth 的入口统一登记在 `apps/api/scripts/README.md`。独立备份工具 `apps/api/scripts/backup-db.mjs` 保留 Node 内置模块 + sqlite3 CLI 的零 npm 依赖契约，不要求应用构建。`upgrade-minimal-sync.mjs` 只在停服升级时导出旧分红捕获时间并在迁移后恢复；恢复失败必须保持 API 停止。已完成且超出近期修订范围的历史不自动巡检，未完成历史继续回补。
+应用 CLI 放在所属模块的 `cli/`，负责参数、配置、调用、输出、退出与进程资源收尾，允许简单同步组合和只为输出服务的查询；可复用业务不导入 CLI，不为每个命令新增转发 service。Market / Maintenance / Auth 的入口统一登记在 `apps/api/scripts/README.md`。独立备份工具 `apps/api/scripts/backup-db.mjs` 保留 Node 内置模块 + sqlite3 CLI 的零 npm 依赖契约，不要求应用构建。`upgrade-minimal-sync.mjs` 只在停服升级时导出旧分红捕获时间并在迁移后恢复；恢复失败必须保持 API 停止。已完成且超出近期修订范围的历史不自动巡检，未完成历史继续回补。同步只使用当前代码规则，不维护策略版本。旧凭证修复随升级处理；本次 `upgrade-sync-proofs.mjs` 在停服备份后、迁移删除旧列前撤销受影响资格，原始值和捕获时间保留。
 
 ## 架构阅读与边界门禁
 

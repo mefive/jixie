@@ -634,6 +634,15 @@ if [[ "$DEPLOY_API" == "1" ]]; then
     JIXIE_DB_PATH="$DB_FILE" JIXIE_BACKUP_DIR="$JIXIE_BACKUP_DIR" node "$JIXIE_DIR/apps/api/scripts/backup-db.mjs"
   fi
 
+  # 删除旧策略列前撤销受影响凭证；失败保持停服，重复执行不会再次撤销已恢复的资格。
+  # Revoke affected proofs before dropping the old column; failure keeps services stopped.
+  SYNC_PROOF_COUNT="$(node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-sync-proofs.mjs" check "$DB_FILE")"
+  [[ "$SYNC_PROOF_COUNT" =~ ^[0-9]+$ ]] || die "同步凭证升级预检返回非法数量"
+  if [[ "$SYNC_PROOF_COUNT" -gt 0 ]]; then
+    JIXIE_DB_PATH="$DB_FILE" JIXIE_BACKUP_DIR="$JIXIE_BACKUP_DIR/sync-proof-upgrade" node "$JIXIE_DIR/apps/api/scripts/backup-db.mjs"
+    node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-sync-proofs.mjs" apply "$DB_FILE"
+  fi
+
   log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
   pnpm --filter api exec prisma migrate deploy
   if [[ -n "$MINIMAL_SYNC_TRANSFER" ]]; then

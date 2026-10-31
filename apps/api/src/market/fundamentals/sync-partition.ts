@@ -1,8 +1,13 @@
+import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import { ulid } from 'ulid';
 import { getDatabase } from '#infra/database/prisma.js';
-import { canonicalStockCode } from '../instruments/stock-identity.js';
+import {
+  canonicalStockCode,
+  hasStockCodePredecessor,
+  STOCK_CODE_CHANGES,
+} from '../instruments/stock-identity.js';
 import { calendarDay, isObservationDate, localDate } from '../synchronization/date.js';
 import { fingerprint } from '../synchronization/rows.js';
 import {
@@ -23,6 +28,7 @@ import {
   sourceString,
   sourceValues,
   type SyncSource,
+  type SourcePages,
 } from '../synchronization/source.js';
 import {
   FINANCIAL_SOURCE_CONTRACT_VERSION,
@@ -149,12 +155,29 @@ async function prepareDividendPartition(
     cashDiv: 'cash_div',
     cashDivTax: 'cash_div_tax',
   };
-  const pages = await fetchSourcePages(
-    source,
-    'dividend',
-    { ts_code: partition.scope },
-    Object.values(columns).join(','),
-  );
+  const codes = [
+    partition.scope,
+    ...STOCK_CODE_CHANGES.map((change) => change.oldTsCode).filter(
+      (code) => canonicalStockCode(code) === partition.scope,
+    ),
+  ];
+  const pages: SourcePages = { rows: [], complete: true, pages: 0, errors: [] };
+  for (const code of codes) {
+    const response = await fetchSourcePages(
+      source,
+      'dividend',
+      { ts_code: code },
+      Object.values(columns).join(','),
+    );
+    pages.rows.push(...response.rows);
+    pages.errors.push(...response.errors);
+    pages.pages += response.pages;
+    pages.complete &&= response.complete;
+    pages.deferred ||= response.deferred;
+    if (response.deferred) {
+      break;
+    }
+  }
   if (
     pages.rows.some(
       (row) =>
@@ -165,8 +188,20 @@ async function prepareDividendPartition(
   ) {
     pages.errors.push('Invalid dividend identity/report period');
   }
+  const selected = preferStockSources(
+    pages.rows,
+    (row) =>
+      JSON.stringify([
+        canonicalStockCode(String(row.ts_code)),
+        row.end_date,
+        row.ann_date,
+        row.ex_date,
+        row.div_proc,
+      ]),
+    (row) => String(row.ts_code),
+  );
   const mapped = mapSourceRecords(
-    pages.rows.filter(
+    selected.filter(
       (row) =>
         typeof row.end_date === 'string' &&
         row.end_date >= partition.startDate &&
@@ -176,7 +211,11 @@ async function prepareDividendPartition(
       if (canonicalStockCode(sourceString(row, 'ts_code')) !== partition.scope) {
         throw new Error('Unexpected dividend security');
       }
-      const values = { ...sourceValues(row, columns), tsCode: partition.scope };
+      const values = {
+        ...sourceValues(row, columns),
+        tsCode: partition.scope,
+        sourceTsCode: sourceString(row, 'ts_code'),
+      };
       const id = fingerprint({
         tsCode: partition.scope,
         endDate: row.end_date,
@@ -304,9 +343,14 @@ async function loadStatementContext(identity: StatementPartitionIdentity, rows: 
     (field) => field.statementKind === statementKind,
   );
   for (const stored of existing) {
+    // 旧记录没有来源证据时，不把已规范化代码误认成新来源。
+    // Never infer a successor origin from a canonicalized legacy row.
+    if (!stored.sourceTsCode && hasStockCodePredecessor(stored.tsCode)) {
+      continue;
+    }
     const sourceRow = Object.fromEntries(
       [
-        ['ts_code', stored.tsCode],
+        ['ts_code', stored.sourceTsCode ?? stored.tsCode],
         ['ann_date', stored.annDate],
         ['f_ann_date', stored.fAnnDate],
         ['end_date', stored.endDate],
@@ -409,6 +453,7 @@ function mapStatementVersion(
     source: row.source,
     contractVersion: FINANCIAL_SOURCE_CONTRACT_VERSION,
     tsCode: canonicalStockCode(row.tsCode),
+    sourceTsCode: row.tsCode,
     annDate: row.annDate,
     fAnnDate: row.fAnnDate,
     endDate: row.endDate,

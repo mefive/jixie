@@ -1,3 +1,4 @@
+import { legacyMarketTable } from './legacy-market-tables.js';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -100,7 +101,9 @@ it('removes research gates while retaining published versions, reports, Jobs and
       },
       select: { id: true },
     });
-    await database.daily.create({ data: { tsCode: 'fixture', tradeDate: '20240102', close: 10 } });
+    await legacyMarketTable(database, 'Daily').create({
+      data: { tsCode: 'fixture', tradeDate: '20240102', close: 10 },
+    });
     await database.tushareCapabilityProbe.create({
       data: {
         id: 'probe',
@@ -145,7 +148,7 @@ it('removes research gates while retaining published versions, reports, Jobs and
         database.factorReport.findMany(),
         database.strategy.findMany(),
         database.$queryRaw`SELECT * FROM BacktestReport ORDER BY id`,
-        database.daily.findMany(),
+        legacyMarketTable(database, 'Daily').findMany(),
         database.tushareCapabilityProbe.findMany(),
         database.job.findMany({ orderBy: { id: 'asc' } }),
       ]);

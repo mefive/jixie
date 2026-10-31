@@ -43,7 +43,7 @@ it('drops only stock flow tables and preserves saved research and historical mai
     await database.$executeRaw`INSERT INTO Moneyflow (tsCode,tradeDate,netMain,netTotal) VALUES ('600000.SH','20260915',5,7)`;
     await database.$executeRaw`INSERT INTO TopList (tsCode,tradeDate,netAmount) VALUES ('600000.SH','20260915',100)`;
     await database.user.create({ data: { id: 'owner', email: 'flows-upgrade@fixture.invalid' } });
-    await database.daily.create({
+    await legacyMarketTable(database, 'Daily').create({
       data: { tsCode: '600000.SH', tradeDate: '20260915', close: 10 },
     });
     await database.factorReport.create({
@@ -117,7 +117,7 @@ it('drops only stock flow tables and preserves saved research and historical mai
         policyVersion: 'sync-v1',
       })),
     });
-    await database.datasetSyncPartition.createMany({
+    await legacyMarketTable(database, 'DatasetSyncPartition').createMany({
       data: datasets.map((dataset) => ({
         id: dataset,
         dataset,

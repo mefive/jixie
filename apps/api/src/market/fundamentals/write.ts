@@ -1,3 +1,4 @@
+import { mergeStockSource } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import { z } from 'zod';
 import type {
@@ -21,6 +22,7 @@ import {
 } from './indicator-selection.js';
 
 const financialIncomeStatementSchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   id: z.string(),
   source: z.string(),
   contractVersion: z.number().int(),
@@ -52,6 +54,7 @@ const financialIncomeStatementSchema = z.strictObject({
 });
 
 const financialBalanceSheetSchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   id: z.string(),
   source: z.string(),
   contractVersion: z.number().int(),
@@ -115,6 +118,7 @@ const financialBalanceSheetSchema = z.strictObject({
 });
 
 const financialCashFlowStatementSchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   id: z.string(),
   source: z.string(),
   contractVersion: z.number().int(),
@@ -147,6 +151,7 @@ const financialCashFlowStatementSchema = z.strictObject({
 });
 
 const dividendSchema = z.strictObject({
+  sourceTsCode: z.string().nullish(),
   id: z.string(),
   tsCode: z.string(),
   endDate: z.string(),
@@ -462,6 +467,7 @@ async function writeDividend(
   });
   const rows = mergeRows({
     schema: dividendSchema,
+    merge: mergeStockSource,
     keys: ['id'],
     records: batch.records,
     existing,
@@ -470,15 +476,20 @@ async function writeDividend(
       ((prepared.status === 'complete' && !prepared.errors.length) ||
         (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
     atomic: batch.atomic,
-    transform: (values, before) => ({
-      ...values,
-      observedAt:
+    transform: (values, before) => {
+      if (values === before) {
+        return before;
+      }
+      const unchanged =
         before?.observedAt instanceof Date &&
-        sameValues(before, values, ['observedAt', 'availabilityQuality'])
-          ? before.observedAt
-          : fetchedAt,
-      availabilityQuality: 'latest_only',
-    }),
+        sameValues(before, values, ['observedAt', 'availabilityQuality', 'sourceTsCode']);
+
+      return {
+        ...values,
+        observedAt: unchanged ? before.observedAt : fetchedAt,
+        availabilityQuality: 'latest_only',
+      };
+    },
   });
 
   for (const row of rows.updated) {

@@ -154,7 +154,6 @@ describe('unified synchronization acceptance', () => {
           scope: 'SSE',
           startDate: '20150101',
           endDate: '20260916',
-          policyVersion: 'sync-v2',
           status: 'complete',
         },
       });
@@ -181,7 +180,6 @@ describe('unified synchronization acceptance', () => {
           scope: 'all',
           startDate: '20260915',
           endDate: '20260915',
-          policyVersion: 'sync-v2',
           status: 'waiting',
         },
       });
@@ -310,7 +308,7 @@ describe('unified synchronization acceptance', () => {
       expect(await database.finaIndicatorVersion.count()).toBe(2);
     }));
 
-  it('A06 reconciles confirmed identities once and refuses conflicting lineages', async () =>
+  it('A06 reconciles confirmed identities and prefers stored successor snapshots', async () =>
     withSyncDatabase(async (database) => {
       const change = STOCK_CODE_CHANGES[0];
       await database.daily.create({
@@ -324,10 +322,10 @@ describe('unified synchronization acceptance', () => {
       await database.daily.create({
         data: { tsCode: change.oldTsCode, tradeDate: '20250102', close: 12 },
       });
-      await expect(
-        database.$transaction((transaction) => normalizeStockIdentity(transaction, change)),
-      ).rejects.toThrow('identity conflict');
-      expect(await database.daily.count()).toBe(2);
+      await database.$transaction((transaction) => normalizeStockIdentity(transaction, change));
+      expect(await database.daily.findMany()).toMatchObject([
+        { tsCode: change.newTsCode, close: 10, sourceTsCode: null },
+      ]);
     }));
 
   it(

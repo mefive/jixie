@@ -40,6 +40,9 @@ model StockCodeChange {
 /// Point-in-time stock-name spell from Tushare namechange. Risk-warning and delisting-period states
 /// are derived from the historical name that covers the evaluated date, never from today's name.
 model StockNameHistory {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode     String?
   tsCode           String
   name             String
   startDate        String
@@ -64,16 +67,19 @@ model TradeCal {
 
 /// Daily bars (unadjusted). Backtests derive backward-adjusted (hfq) prices via close × adjFactor.
 model Daily {
-  tsCode    String
-  tradeDate String
-  open      Float?
-  high      Float?
-  low       Float?
-  close     Float?
-  preClose  Float?
-  pctChg    Float?
-  vol       Float?
-  amount    Float?
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  tsCode       String
+  tradeDate    String
+  open         Float?
+  high         Float?
+  low          Float?
+  close        Float?
+  preClose     Float?
+  pctChg       Float?
+  vol          Float?
+  amount       Float?
 
   @@id([tsCode, tradeDate])
   @@index([tradeDate])
@@ -81,9 +87,12 @@ model Daily {
 
 /// Adjustment factor
 model AdjFactor {
-  tsCode    String
-  tradeDate String
-  adjFactor Float
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  tsCode       String
+  tradeDate    String
+  adjFactor    Float
 
   @@id([tsCode, tradeDate])
   @@index([tradeDate])
@@ -171,10 +180,13 @@ model EtfSyncSlice {
 /// Daily price limits (unadjusted up/down limit prices). The engine blocks buys at the up-limit open and sells at
 /// the down-limit open (covers board-specific limits: Main Board ±10 / ST ±5 / ChiNext & STAR ±20 / BSE ±30).
 model StkLimit {
-  tsCode    String
-  tradeDate String
-  upLimit   Float // up-limit price (raw)
-  downLimit Float // down-limit price (raw)
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  tsCode       String
+  tradeDate    String
+  upLimit      Float // up-limit price (raw)
+  downLimit    Float // down-limit price (raw)
 
   @@id([tsCode, tradeDate])
   @@index([tradeDate])
@@ -182,6 +194,9 @@ model StkLimit {
 
 /// Daily valuation metrics (point-in-time by construction). Unlocks value/dividend/size factors.
 model DailyBasic {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode  String?
   tsCode        String
   tradeDate     String
   pe            Float?
@@ -227,6 +242,9 @@ model FinaIndicator {
 /// Append-only Tushare income-statement versions for consolidated industrial companies. Flow
 /// values are cumulative year-to-date CNY. `availableDate` is the first strictly later SSE session.
 model FinancialIncomeStatement {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode         String?
   id                   String   @id // ULID
   source               String
   contractVersion      Int
@@ -264,6 +282,9 @@ model FinancialIncomeStatement {
 /// Append-only Tushare balance-sheet versions for consolidated industrial companies. Stock values
 /// are CNY at the reporting date, except `totalShare`, which is the issued-share count.
 model FinancialBalanceSheet {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode          String?
   id                    String   @id // ULID
   source                String
   contractVersion       Int
@@ -333,6 +354,9 @@ model FinancialBalanceSheet {
 /// Append-only Tushare cash-flow-statement versions for consolidated industrial companies. Flow
 /// values are cumulative year-to-date CNY.
 model FinancialCashFlowStatement {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode         String?
   id                   String   @id // ULID
   source               String
   contractVersion      Int
@@ -390,14 +414,19 @@ model FinancialCorrectionEvidence {
 /// Dividend distributions (raw; a period yields several rows across proposal→execution stages).
 /// Only divProc '实施' (the "implemented" stage) is an actually-paid dividend; exDate is the PIT gate for when it took effect.
 model Dividend {
-  id         String  @id // ULID — no natural unique key (multiple rows per period)
-  tsCode     String
-  endDate    String // distribution's report period
-  annDate    String? // announcement date
-  exDate     String? // ex-dividend date (PIT gate)
-  divProc    String? // distribution stage (raw Chinese values from source): '预案' | '股东大会通过' | '实施' | ...
-  cashDiv    Float? // pre-tax cash dividend per share
-  cashDivTax Float? // per-share figure incl. proposal stage
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  /// 规范证券、报告期、公告日、除权日和阶段组成的稳定事件摘要。
+  /// Stable event digest of canonical security, period, announcement, ex-date and stage.
+  id           String  @id
+  tsCode       String
+  endDate      String // distribution's report period
+  annDate      String? // announcement date
+  exDate       String? // ex-dividend date (PIT gate)
+  divProc      String? // distribution stage (raw Chinese values from source): '预案' | '股东大会通过' | '实施' | ...
+  cashDiv      Float? // pre-tax cash dividend per share
+  cashDivTax   Float? // per-share figure incl. proposal stage
 
   /// 当前值首次捕获时间；未知时不能据公告日回填。
   /// First capture of the current value; announcements cannot fill unknown capture dates.
@@ -410,10 +439,13 @@ model Dividend {
 /// Index constituents over time (monthly snapshots from index_weight). Used for point-in-time
 /// universe membership (e.g. breadth over CSI 1000 = 000852.SH as-of each date).
 model IndexWeight {
-  indexCode String
-  conCode   String
-  tradeDate String // snapshot date (month-end)
-  weight    Float?
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  indexCode    String
+  conCode      String
+  tradeDate    String // snapshot date (month-end)
+  weight       Float?
 
   @@id([indexCode, conCode, tradeDate])
   @@index([indexCode, tradeDate])
@@ -528,7 +560,6 @@ model DatasetSyncPartition {
   scope         String
   startDate     String
   endDate       String
-  policyVersion String
   status        String
   gaps          Json?
   error         String?

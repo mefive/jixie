@@ -44,7 +44,6 @@ describe('offline pending ETF cleanup', () => {
           startDate: '20260101',
           endDate: '20260911',
           status: 'pending',
-          policyVersion: 'sync-v1',
         },
       });
       await database.marketDownloadList.create({ data: { assetType: 'etf', codes: [codes[8]] } });
