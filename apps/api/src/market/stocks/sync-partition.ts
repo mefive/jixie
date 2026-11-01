@@ -1,11 +1,10 @@
+import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferStockSources } from '../instruments/source-selection.js';
-import { qualifySessionSeries } from '../calendar/coverage.js';
 import {
   STOCK_LIST_STATUSES,
   stockMarketMembership,
   stockMarketRanges,
 } from '../instruments/market-range.js';
-import { stockPartitionCoverage } from './coverage.js';
 import { selectStockLimitRows } from './limit-scope.js';
 import { canonicalStockCode, normalizeStockNameSpells } from '../instruments/stock-identity.js';
 import { getDatabase } from '#infra/database/prisma.js';
@@ -111,7 +110,7 @@ export async function prepareStockPartition(
     partition.dataset === 'stock-limits'
       ? selectStockLimitRows(pages.rows, partition, ranges, funds)
       : undefined;
-  const inScope =
+  const domainRows =
     limitScope?.rows ??
     pages.rows.filter((row) => {
       const code = String(row.ts_code);
@@ -120,6 +119,19 @@ export async function prepareStockPartition(
       }
       return stockMarketMembership(code, partition.startDate, ranges) !== 'outside';
     });
+  const inScope = domainRows.filter((row) => {
+    const code = String(row.ts_code);
+    if (
+      !partition.exchanges ||
+      !/^\d{6}\.(SH|SZ|BJ)$/.test(code) ||
+      row.trade_date !== partition.startDate
+    ) {
+      return true;
+    }
+    const exchange = ranges.get(canonicalStockCode(code))?.exchange;
+
+    return !exchange || partition.exchanges.includes(exchange);
+  });
   const selected = preferStockSources(
     inScope,
     (row) => `${canonicalStockCode(String(row.ts_code))}/${row.trade_date}`,
@@ -130,6 +142,9 @@ export async function prepareStockPartition(
     const code = sourceString(row, 'ts_code');
     if (!/^\d{6}\.(SH|SZ|BJ)$/.test(code) || row.trade_date !== partition.startDate) {
       throw new Error(`${definition.api}: invalid stock/date ${code}/${row.trade_date}`);
+    }
+    if (stockMarketMembership(code, partition.startDate, ranges) === 'unknown') {
+      throw new Error(`Unrecognized stock identity or market interval ${code}`);
     }
     values.tsCode = canonicalStockCode(code);
     values.sourceTsCode = code;
@@ -174,67 +189,30 @@ export async function prepareStockPartition(
   const prepared = completeResponse({
     pages,
     table: definition.table,
-    coverageComplete: true,
     ...mapped,
     allowEmpty: true,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
-  prepared.checks.excludedRows = limitScope?.excludedRows ?? pages.rows.length - inScope.length;
+  prepared.checks.excludedRows =
+    (limitScope?.excludedRows ?? pages.rows.length - domainRows.length) +
+    domainRows.length -
+    inScope.length +
+    inScope.length -
+    selected.length;
   if (limitScope?.gaps.length) {
+    for (const row of limitScope.unrecognizedRows) {
+      recordImportIssue({
+        category: 'record',
+        reasonCode: 'unrecognized_identity',
+        message: `Unrecognized stock identity ${row.ts_code}`,
+        payload: row,
+      });
+    }
+    prepared.checks.invalidRows += limitScope.unrecognizedRows.length;
     prepared.gaps.push(...limitScope.gaps);
     if (!prepared.errors.length && prepared.status === 'complete') {
       prepared.status = 'partial';
     }
-  }
-
-  if (partition.dataset === 'stock-prices') {
-    const suspensions = await fetchSourcePages(
-      source,
-      'suspend_d',
-      { trade_date: partition.startDate, suspend_type: 'S' },
-      'ts_code,trade_date,suspend_type,suspend_timing',
-    );
-    const suspensionRows = preferStockSources(
-      suspensions.rows,
-      (row) => `${canonicalStockCode(String(row.ts_code))}/${row.trade_date}`,
-      (row) => String(row.ts_code),
-    );
-    const suspended = mapSourceRecords(suspensionRows, (row) => {
-      const code = sourceString(row, 'ts_code');
-      if (
-        !/^\d{6}\.(SH|SZ|BJ)$/.test(code) ||
-        row.trade_date !== partition.startDate ||
-        row.suspend_type !== 'S' ||
-        (row.suspend_timing != null && typeof row.suspend_timing !== 'string')
-      ) {
-        throw new Error('Invalid daily suspension evidence');
-      }
-
-      return { values: { tsCode: canonicalStockCode(code), timing: row.suspend_timing ?? null } };
-    });
-    const fullDay = new Set(
-      suspended.records
-        .filter((record) => !record.values.timing)
-        .map((record) => String(record.values.tsCode)),
-    );
-    prepared.errors.push(...suspensions.errors, ...suspended.errors);
-    prepared.checks.suspensionsVerified =
-      suspensions.complete && !suspensions.errors.length && !suspended.errors.length;
-    prepared.checks.fullDaySuspended = [...fullDay];
-  }
-
-  await qualifySessionSeries(partition, prepared, 'SSE', true);
-  if (
-    prepared.status !== 'not_applicable' &&
-    !prepared.errors.length &&
-    prepared.checks.terminalPage
-  ) {
-    const gaps = await stockPartitionCoverage(partition, prepared, ranges);
-    prepared.gaps.push(...gaps);
-    if (gaps.length) {
-      prepared.status = 'partial';
-    }
-    prepared.tables[0].replace = prepared.status === 'complete';
   }
 
   return prepared;
@@ -287,7 +265,6 @@ export async function prepareStockReference(
     return completeResponse({
       pages,
       table: 'StockBasic',
-      coverageComplete: true,
       ...mapped,
       allowEmpty: partition.scope !== 'L',
     });
@@ -349,7 +326,6 @@ export async function prepareStockReference(
   return completeResponse({
     pages,
     table: 'StockNameHistory',
-    coverageComplete: true,
     replace: false,
     ...mapped,
     allowEmpty: true,

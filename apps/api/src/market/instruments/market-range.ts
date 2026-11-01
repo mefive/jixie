@@ -1,6 +1,11 @@
 import { canonicalStockCode, hasStockCodePredecessor } from './stock-identity.js';
 import { calendarDay, isObservationDate } from '../synchronization/date.js';
-import type { ListingInterval } from '../synchronization/catalog-coverage.js';
+interface ListingInterval {
+  startDate: string;
+  endDate?: string;
+  exchange?: string | null;
+  uncertain?: boolean;
+}
 
 export const STOCK_LIST_STATUSES = ['L', 'D', 'P'] as const;
 
@@ -164,7 +169,7 @@ export function stockCoverageIntervals(
       continue;
     }
     const admission = confirmedMarketStart(code, range.exchange);
-    const dates = ['20150101', admission?.date ?? '20150101'];
+    const dates = ['19901219', admission?.date ?? '19901219'];
     if (!range.predecessorUnknown && range.startDate) {
       dates.push(range.startDate);
     }

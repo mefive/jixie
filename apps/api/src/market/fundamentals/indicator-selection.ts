@@ -1,3 +1,4 @@
+import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { z } from 'zod';
 import { stockSourceRank, hasStockCodePredecessor } from '../instruments/stock-identity.js';
 import { hasValueConflict, mergeSourceRecord } from '../synchronization/rows.js';
@@ -80,12 +81,22 @@ export function selectIndicatorSnapshots(records: readonly SourceRecord[]) {
     selected.set(key, {
       values: equal && previous ? mergeSourceRecord(previous.values, { values }) : values,
       authoritativeRevision: revision,
+      raw: record.raw,
     });
     priorities.set(key, { source, version });
   }
 
   for (const key of conflicts) {
     selected.delete(key);
+    recordImportIssue({
+      category: 'snapshot',
+      reasonCode: 'ambiguous_indicator_snapshot',
+      message: `Ambiguous current indicator version ${key}`,
+      businessKey: key,
+      payload: records
+        .filter((record) => `${record.values.tsCode}/${record.values.endDate}` === key)
+        .map((record) => record.raw ?? record.values),
+    });
   }
 
   return {

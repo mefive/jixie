@@ -1,7 +1,4 @@
 import { z } from 'zod';
-import { changedListingIntervals } from '../synchronization/catalog-coverage.js';
-import { etfDownloadRange } from './download-range.js';
-import { isObservationDate } from '../synchronization/date.js';
 import type {
   MarketPartition,
   MarketTransaction,
@@ -68,10 +65,10 @@ export async function writeEtfPartition(
         await writeEtfBasic(transaction, batch, result);
         break;
       case 'EtfDaily':
-        await writeEtfDaily(transaction, batch, prepared, partition, result);
+        await writeEtfDaily(transaction, batch, partition, result);
         break;
       case 'EtfAdjFactor':
-        await writeEtfAdjFactor(transaction, batch, prepared, partition, result);
+        await writeEtfAdjFactor(transaction, batch, partition, result);
         break;
       default:
         throw new Error(`Unexpected etfs table ${batch.table}`);
@@ -108,40 +105,6 @@ async function writeEtfBasic(
     await transaction.etfBasic.createMany({ data: rows.inserted });
   }
   collectWriteResult(result, rows);
-
-  const downloadList = await transaction.marketDownloadList.findUnique({
-    where: { assetType: 'etf' },
-  });
-  const codes = new Set(downloadList ? z.array(z.string()).parse(downloadList.codes) : []);
-  const previous = new Map(existing.map((row) => [row.tsCode, row]));
-  result.coverageChanges = [];
-  for (const row of [...rows.inserted, ...rows.updated]) {
-    if (!codes.has(row.tsCode)) {
-      continue;
-    }
-    const [before, after] = [previous.get(row.tsCode), row].map((entry) => {
-      if (!entry) {
-        return undefined;
-      }
-      const range = etfDownloadRange(
-        { ...entry, listDate: entry.listDate ?? null, delistDate: entry.delistDate ?? null },
-        '19900101',
-      );
-
-      return {
-        startDate: isObservationDate(range.startDate) ? range.startDate : '19900101',
-        endDate: isObservationDate(range.endDate) ? range.endDate : undefined,
-        exchange: entry.exchange,
-        uncertain: Boolean(range.blockedReason) || !isObservationDate(range.startDate),
-      };
-    });
-    const changes = changedListingIntervals(before, after);
-    for (const dates of changes) {
-      for (const dataset of ['etf-prices', 'etf-adjustments']) {
-        result.coverageChanges.push({ dataset, scope: row.tsCode, ...dates });
-      }
-    }
-  }
 }
 
 /**
@@ -152,7 +115,6 @@ async function writeEtfBasic(
 async function writeEtfDaily(
   transaction: MarketTransaction,
   batch: PreparedTable,
-  prepared: PreparedMarketPartition,
   partition: MarketPartition,
   result: AcceptedMarketPartition,
 ) {
@@ -167,11 +129,7 @@ async function writeEtfDaily(
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
-    replace:
-      batch.replace &&
-      !prepared.checks.sourceAbsences &&
-      ((prepared.status === 'complete' && !prepared.errors.length) ||
-        (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
+    replace: false,
     atomic: batch.atomic,
   });
 
@@ -204,7 +162,6 @@ async function writeEtfDaily(
 async function writeEtfAdjFactor(
   transaction: MarketTransaction,
   batch: PreparedTable,
-  prepared: PreparedMarketPartition,
   partition: MarketPartition,
   result: AcceptedMarketPartition,
 ) {
@@ -219,11 +176,7 @@ async function writeEtfAdjFactor(
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
-    replace:
-      batch.replace &&
-      !prepared.checks.sourceAbsences &&
-      ((prepared.status === 'complete' && !prepared.errors.length) ||
-        (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
+    replace: false,
     atomic: batch.atomic,
   });
 

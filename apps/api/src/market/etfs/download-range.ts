@@ -16,6 +16,9 @@ export function etfDownloadRange(row: EtfLifecycle | undefined, baseline: string
   if (!row) {
     return { startDate, blockedReason: 'ETF catalog entry is missing' };
   }
+  if (!isObservationDate(row.listDate)) {
+    return { startDate, blockedReason: 'ETF listing date is missing or invalid' };
+  }
   if (row.listStatus !== 'L' && row.listStatus !== 'D') {
     return { startDate, blockedReason: `ETF listing status ${row.listStatus} is not downloadable` };
   }

@@ -1,9 +1,6 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
-import {
-  runDataQualityAudit,
-  type DataQualityAuditOptions,
-} from '#maintenance/publication/audit.js';
+import { runDataQualityAudit, type DataQualityAuditOptions } from '#market/quality/audit.js';
 import type { AuditFinding } from '#market/quality/report.js';
 
 /**

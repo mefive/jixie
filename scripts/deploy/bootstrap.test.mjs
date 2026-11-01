@@ -1,228 +1,89 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const bootstrap = await readFile(new URL('../bootstrap.sh', import.meta.url), 'utf8');
-
-test('deployment checks the gate but never starts or restarts a daily/weekly service', () => {
-  assert.doesNotMatch(bootstrap, /systemctl (?:start|restart|reset-failed) jixie-maintenance/);
-  assert.doesNotMatch(bootstrap, /retry_blocking_maintenance/);
-  assert.match(bootstrap, /check_blocking_maintenance/);
-});
-
-test('activation enables unified synchronization and upgrades the legacy retry drop-in', async () => {
-  const activation = await readFile(new URL('./activate-maintenance.sh', import.meta.url), 'utf8');
-  assert.doesNotMatch(activation, /maintenance daily|initialize-only|prisma|data sync/);
-  assert.match(activation, /dist\/src\/maintenance\/cli\/data\.js/);
-  assert.match(activation, /disable --now jixie-maintenance-weekly\.timer/);
-  assert.match(activation, /enable --now jixie-maintenance\.timer/);
-  assert.doesNotMatch(activation, /systemctl start jixie-maintenance.service/);
-  assert.match(bootstrap, /jixie-maintenance-retry.conf/);
-  assert.match(bootstrap, /jixie-maintenance.service.d\/retry.conf/);
-  const retry = await readFile(
-    new URL('../../deploy/jixie-maintenance-retry.conf', import.meta.url),
-    'utf8',
-  );
-  assert.match(retry, /StartLimitIntervalSec=0/);
-  assert.match(retry, /RestartSec=30m/);
-
-  const service = await readFile(
-    new URL('../../deploy/jixie-maintenance.service', import.meta.url),
-    'utf8',
-  );
-  assert.match(service, /^TimeoutStartSec=infinity$/m);
-  assert.doesNotMatch(service, /^RuntimeMaxSec=/m);
-});
-const cleanup = bootstrap.slice(
-  bootstrap.indexOf('cleanup_deployment_gate() {'),
-  bootstrap.indexOf('trap cleanup_deployment_gate EXIT'),
-);
 const migrationStart = bootstrap.indexOf(
-  'if [[ "$DEPLOY_API" == "1" ]]; then\n  log "prisma generate"',
+  'if [[ "$DEPLOY_API" == "1" ]]; then\n  SCHEMA_DATA_READY=0\n  log "prisma generate"',
 );
 const migration = bootstrap.slice(
   migrationStart,
-  bootstrap.indexOf('if [[ "$DEPLOY_WEB" == "1" ]]; then', migrationStart),
+  bootstrap.indexOf('if [[ "$DEPLOY_WEB" == "1" ]]; then\n  build_static_app', migrationStart),
 );
 
-function runMigrationStage(deployApi, failure) {
-  assert.ok(migrationStart > 0);
-  assert.ok(cleanup.startsWith('cleanup_deployment_gate() {'));
-  return spawnSync(
-    'bash',
-    [
-      '-c',
-      `
-set -euo pipefail
-DEPLOY_API="$1"
-FAILURE="$2"
-API_WAS_ACTIVE=1
-ACTIVE_LIVE_DIR=''
-ACTIVE_PREVIOUS_DIR=''
-STAGING_DIR=''
-DEPLOYMENT_RUN_ID=''
-JIXIE_SERVICE='fixture-api'
-DB_FILE='fixture.db'
-NODE_HEAP_OPTIONS=''
-SCHEMA_DATA_READY=1
-MINIMAL_SYNC_TRANSFER=''
-JIXIE_DIR='/fixture'
-JIXIE_BACKUP_DIR='/fixture/backups'
-log() { :; }
-warn() { printf '%s\\n' "$*" >&2; }
-die() { printf '%s\\n' "$*" >&2; exit 1; }
-systemctl() { return 1; }
-sudo() { printf 'sudo %s\\n' "$*"; }
-pnpm() {
-  printf 'pnpm %s\\n' "$*"
-  if [[ "$FAILURE" == 'build' && "$*" == *'--filter api build'* ]]; then
-    return 17
-  fi
-  if [[ "$FAILURE" == 'schema' && "$*" == *'prisma migrate deploy'* ]]; then
-    return 18
-  fi
-}
-node() {
-  case "$*" in
-    *'upgrade-minimal-sync.mjs export'*)
-      if [[ "$FAILURE" == 'export' ]]; then return 19; fi
-      if [[ "$FAILURE" != 'new' ]]; then printf '/fixture/transfer.json\\n'; fi
-      ;;
-    *'backup-db.mjs'*)
-      printf 'backup\\n'
-      if [[ "$FAILURE" == 'backup' ]]; then return 20; fi
-      if [[ "$FAILURE" == 'proof-backup' && "$JIXIE_BACKUP_DIR" == *'/sync-proof-upgrade' ]]; then
-        return 26
-      fi
-      ;;
-    *'upgrade-sync-proofs.mjs check'*)
-      if [[ "$FAILURE" == 'proof-check' ]]; then return 25; fi
-      if [[ "$FAILURE" == 'proof-invalid' ]]; then printf 'invalid\\n';
-      elif [[ "$FAILURE" == 'new' || "$FAILURE" == 'empty' ]]; then printf '0\\n';
-      else printf '2\\n'; fi
-      ;;
-    *'upgrade-sync-proofs.mjs apply'*)
-      printf 'revoke proofs\\n'
-      if [[ "$FAILURE" == 'proof-apply' ]]; then return 27; fi
-      ;;
-    *'upgrade-minimal-sync.mjs restore'*)
-      printf 'restore\\n'
-      if [[ "$FAILURE" == 'restore' ]]; then return 21; fi
-      ;;
-    *) return 99 ;;
-  esac
-}
-${cleanup}
-trap cleanup_deployment_gate EXIT
-${migration}
-printf 'deployment continued\\n'
-`,
-      'bootstrap-fixture',
-      deployApi,
-      failure,
-    ],
-    { encoding: 'utf8' },
+test('deployment enables ingestion without launching a full history download', async () => {
+  assert.doesNotMatch(bootstrap, /systemctl (?:start|restart|reset-failed) jixie-ingestion/);
+  assert.doesNotMatch(bootstrap, /upgrade-minimal-sync|upgrade-sync-proofs|deployment-gate\.mjs/);
+  assert.match(bootstrap, /check_blocking_maintenance/);
+  const activation = await readFile(new URL('./activate-ingestion.sh', import.meta.url), 'utf8');
+  assert.match(activation, /dist\/src\/ingestion\/cli\/data\.js/);
+  assert.match(activation, /enable --now jixie-ingestion\.timer/);
+  assert.match(
+    activation,
+    /disable --now jixie-maintenance\.timer jixie-maintenance-weekly\.timer/,
   );
-}
-
-test('generates, builds and migrates the schema before continuing', () => {
-  const result = runMigrationStage('1', 'none');
-  assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(result.stdout.trim().split('\n'), [
-    'pnpm --filter api exec prisma generate',
-    'pnpm --filter api build',
-    'backup',
-    'backup',
-    'revoke proofs',
-    'pnpm --filter api exec prisma migrate deploy',
-    'restore',
-    'deployment continued',
-  ]);
-});
-
-test('a failed API build stops before schema migration and restores the prior API', () => {
-  const result = runMigrationStage('1', 'build');
-  assert.equal(result.status, 17, result.stderr);
-  assert.doesNotMatch(result.stdout, /prisma migrate deploy|deployment continued/);
-  assert.match(result.stdout, /sudo systemctl start fixture-api/);
-});
-
-test('keeps the API stopped when schema migration fails', () => {
-  const result = runMigrationStage('1', 'schema');
-  assert.equal(result.status, 18, result.stderr);
-  assert.doesNotMatch(
-    result.stdout,
-    /db:migrate:factor-job-kinds|deployment continued|sudo systemctl start fixture-api|restore/,
+  assert.doesNotMatch(activation, /data\.js ingest|prisma/);
+  const service = await readFile(
+    new URL('../../deploy/jixie-ingestion.service', import.meta.url),
+    'utf8',
   );
-  assert.match(result.stderr, /API 保持停止/);
+  assert.match(service, /data\.js ingest/);
+  assert.match(service, /^TimeoutStartSec=infinity$/m);
+  assert.match(service, /JIXIE_INGESTION_TRIGGER=timer/);
 });
 
-test('does not run API build or schema migrations for an unrelated deployment', () => {
-  const result = runMigrationStage('0', 'none');
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout, 'deployment continued\n');
-});
-
-test('retired factor conversion is absent from deployment and package commands', async () => {
-  const apiPackage = JSON.parse(
-    await readFile(new URL('../../apps/api/package.json', import.meta.url), 'utf8'),
-  );
-  assert.equal(apiPackage.scripts['db:migrate:factor-job-kinds'], undefined);
-  assert.doesNotMatch(bootstrap, /db:migrate:factor-job-kinds|API_DATA_MIGRATION_INCOMPLETE/);
-});
-
-test('builds the Python image from the repository root to include business sources', () => {
-  assert.ok(
-    bootstrap.includes('--file "$JIXIE_DIR/apps/sandboxd/Dockerfile.python" \\\n    "$JIXIE_DIR"'),
-  );
-});
-
-for (const [failure, status] of [
-  ['export', 19],
-  ['backup', 20],
-  ['restore', 21],
-  ['proof-check', 25],
-  ['proof-backup', 26],
-  ['proof-apply', 27],
-  ['proof-invalid', 1],
-]) {
-  test(`keeps the API stopped when ${failure} fails`, () => {
-    const result = runMigrationStage('1', failure);
-    assert.equal(result.status, status, result.stderr);
-    assert.doesNotMatch(result.stdout, /sudo systemctl start fixture-api|deployment continued/);
-    assert.match(result.stderr, /API 保持停止/);
-    if (
-      ['export', 'backup', 'proof-check', 'proof-backup', 'proof-apply', 'proof-invalid'].includes(
-        failure,
-      )
-    ) {
-      assert.doesNotMatch(result.stdout, /prisma migrate deploy/);
+for (const failure of ['migration', 'reset', 'none']) {
+  test(`keeps one-time rebuild retryable across ${failure}`, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'jixie-ingestion-bootstrap-'));
+    try {
+      const result = spawnSync(
+        'bash',
+        [
+          '-c',
+          `
+        set -Eeuo pipefail
+        DEPLOY_API=1
+        JIXIE_DIR=/fixture
+        DB_FILE=/fixture/test.db
+        NODE_HEAP_OPTIONS=''
+        INGESTION_REBUILD_MARKER="$TEST_DIRECTORY/rebuild"
+        SCHEMA_DATA_READY=1
+        log() { :; }
+        sqlite3() { echo 1; }
+        pnpm() {
+          if [[ "$*" == *'migrate deploy'* && "$TEST_FAILURE" == migration ]]; then return 23; fi
+        }
+        node() {
+          if [[ "$*" == *'reset --apply'* ]]; then
+            [[ -f "$INGESTION_REBUILD_MARKER" ]]
+            echo reset
+            if [[ "$TEST_FAILURE" == reset ]]; then return 24; fi
+          fi
+        }
+        trap 'status=$?; if [[ "$SCHEMA_DATA_READY" == 0 ]]; then echo API_STOPPED; fi; exit "$status"' EXIT
+        ${migration}
+        echo READY
+      `,
+        ],
+        {
+          encoding: 'utf8',
+          env: { ...process.env, TEST_DIRECTORY: directory, TEST_FAILURE: failure },
+        },
+      );
+      if (failure === 'none') {
+        assert.equal(result.status, 0, result.stderr);
+        assert.match(result.stdout, /reset\nREADY/);
+      } else {
+        assert.equal(result.status, failure === 'migration' ? 23 : 24, result.stderr);
+        assert.match(result.stdout, /API_STOPPED/);
+        assert.doesNotMatch(result.stdout, /READY/);
+        assert.ok(await readFile(join(directory, 'rebuild'), 'utf8').then(() => true));
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
     }
   });
 }
-
-test('a new database migrates without capture export, backup or restoration', () => {
-  const result = runMigrationStage('1', 'new');
-  assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(result.stdout.trim().split('\n'), [
-    'pnpm --filter api exec prisma generate',
-    'pnpm --filter api build',
-    'pnpm --filter api exec prisma migrate deploy',
-    'deployment continued',
-  ]);
-});
-
-test('restores the database without a cleanup step when no old proofs need repair', () => {
-  const result = runMigrationStage('1', 'empty');
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.split('\n').filter((line) => line === 'backup').length, 1);
-  assert.doesNotMatch(result.stdout, /cleanup/);
-  assert.match(result.stdout, /restore\ndeployment continued/);
-});
-
-test('deployment never downloads or cleans market data, including first installation', () => {
-  assert.doesNotMatch(bootstrap, /cleanup-pending-etfs|PENDING_ETF_COUNT/);
-  assert.doesNotMatch(bootstrap, /dist\/src\/maintenance\/cli\/data\.js/);
-  assert.doesNotMatch(bootstrap, /commodity_etf_coverage|cross_market_proxy_coverage/);
-});

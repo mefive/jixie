@@ -1,11 +1,7 @@
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
-import {
-  acceptSource,
-  proveStockCatalog,
-  seedSessions,
-} from '../../../tests/market-contract-fixtures.js';
+import { acceptSource, seedSessions } from '../../../tests/market-contract-fixtures.js';
 import { StockNameLookup } from '../instruments/stock-identity.js';
 
 const date = '20260916';
@@ -64,6 +60,16 @@ describe('stock source selection through maintenance', () => {
     'selects the observed 2.2/2.2002 valuation, reversed=%s',
     async (reversed) =>
       withSyncDatabase(async (database) => {
+        await database.stockBasic.create({
+          data: {
+            tsCode: '001914.SZ',
+            symbol: '001914',
+            name: 'Fixture',
+            exchange: 'SZSE',
+            listDate: '19940101',
+            listStatus: 'L',
+          },
+        });
         const partition = {
           dataset: 'stock-valuations',
           scope: 'all',
@@ -89,6 +95,16 @@ describe('stock source selection through maintenance', () => {
 
   it('rejects an invalid successor without silently substituting a valid predecessor', async () =>
     withSyncDatabase(async (database) => {
+      await database.stockBasic.create({
+        data: {
+          tsCode: newCode,
+          symbol: '001872',
+          name: 'Fixture',
+          exchange: 'SZSE',
+          listDate: '19930505',
+          listStatus: 'L',
+        },
+      });
       const result = await acceptSource(
         database,
         {
@@ -106,69 +122,45 @@ describe('stock source selection through maintenance', () => {
       expect(await database.daily.count()).toBe(0);
     }));
 
-  it('prefers successor intraday suspension evidence', async () =>
+  it('accepts returned prices without a separate suspension-proof request', async () =>
     withSyncDatabase(async (database) => {
-      await seedSessions(database, date);
-      await proveStockCatalog(database);
       await database.stockBasic.create({
         data: {
           tsCode: newCode,
           symbol: '001872',
-          name: 'test',
+          name: 'Fixture',
           exchange: 'SZSE',
-          listStatus: 'L',
           listDate: '19930505',
+          listStatus: 'L',
         },
       });
-      const result = await acceptSource(
-        database,
-        {
-          call: async (api) =>
-            api === 'suspend_d'
-              ? [
-                  { ts_code: oldCode, trade_date: date, suspend_type: 'S', suspend_timing: null },
-                  {
-                    ts_code: newCode,
-                    trade_date: date,
-                    suspend_type: 'S',
-                    suspend_timing: '09:30-10:00',
-                  },
-                ]
-              : [{ ts_code: newCode, trade_date: date, ...bar }],
-        },
-        {
-          dataset: 'stock-prices',
-          scope: 'all',
-          startDate: date,
-          endDate: date,
-        },
-      );
-      expect(result.prepared.checks.fullDaySuspended).toEqual([]);
+      const source = {
+        call: vi.fn(async (_api: string) => [{ ts_code: newCode, trade_date: date, ...bar }]),
+      };
+      const result = await acceptSource(database, source, {
+        dataset: 'stock-prices',
+        scope: 'all',
+        startDate: date,
+        endDate: date,
+      });
+      expect(source.call.mock.calls.map(([api]) => api)).toEqual(['daily']);
       expect(result.prepared.status).toBe('complete');
+      expect(await database.daily.findFirst()).toMatchObject({ tsCode: newCode, close: bar.close });
     }));
 
-  it('does not treat mixed ordinary suspension timings as invalid source records', async () =>
+  it('does not infer suspension or prices from a complete empty response', async () =>
     withSyncDatabase(async (database) => {
-      const result = await acceptSource(
-        database,
-        {
-          call: async (api) =>
-            api === 'suspend_d'
-              ? [
-                  { ts_code: newCode, trade_date: date, suspend_type: 'S', suspend_timing: null },
-                  {
-                    ts_code: newCode,
-                    trade_date: date,
-                    suspend_type: 'S',
-                    suspend_timing: '09:30-10:00',
-                  },
-                ]
-              : [],
-        },
-        { dataset: 'stock-prices', scope: 'all', startDate: date, endDate: date },
-      );
-      expect(result.prepared.checks.suspensionsVerified).toBe(true);
+      const source = { call: vi.fn(async (_api: string) => []) };
+      const result = await acceptSource(database, source, {
+        dataset: 'stock-prices',
+        scope: 'all',
+        startDate: date,
+        endDate: date,
+      });
+      expect(source.call.mock.calls.map(([api]) => api)).toEqual(['daily']);
+      expect(result.prepared.status).toBe('complete');
       expect(result.prepared.errors).toEqual([]);
+      expect(await database.daily.count()).toBe(0);
     }));
 
   it('keeps independent histories when a preferred name interval conflicts', async () =>

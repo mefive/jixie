@@ -1,0 +1,10 @@
+[Unit]
+Description=Advance jixie data ingestion
+
+[Timer]
+OnCalendar=*-*-* 00/2:15:00 Asia/Shanghai
+Persistent=true
+Unit=jixie-ingestion.service
+
+[Install]
+WantedBy=timers.target

@@ -1,4 +1,4 @@
-import { calendarDay, isObservationDate } from '../synchronization/date.js';
+import { isObservationDate } from '../synchronization/date.js';
 import type { MarketPartition, PreparedMarketPartition } from '../synchronization/partition.js';
 import {
   completeResponse,
@@ -10,10 +10,9 @@ import {
 } from '../synchronization/source.js';
 
 /**
- * 日历必须覆盖每个自然日；有限前瞻仅供可得日/执行日定位。
+ * 只接纳来源实际提供的日历；历史缺失不补造、不报错。
  *
- * Calendars must cover every calendar day; bounded lookahead only resolves availability and
- * execution.
+ * Admit only provided calendar rows; missing history is never fabricated or treated as an error.
  */
 export async function prepareCalendarPartition(
   source: SyncSource,
@@ -46,18 +45,14 @@ export async function prepareCalendarPartition(
     return { values: sourceValues(row, columns) };
   });
   const dates = new Set(mapped.records.map((record) => String(record.values.calDate)));
-  for (let date = partition.startDate; date <= partition.endDate; date = calendarDay(date, 1)) {
-    if (!dates.has(date)) {
-      mapped.errors.push(`Missing ${partition.scope} calendar date ${date}`);
-    }
-  }
-
-  return completeResponse({
+  const prepared = completeResponse({
     pages,
     table: 'TradeCal',
-    coverageComplete: true,
-    replace: true,
+    replace: false,
+    allowEmpty: true,
     ...mapped,
     observedDates: [...dates],
   });
+
+  return prepared;
 }

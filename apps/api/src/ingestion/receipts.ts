@@ -1,0 +1,73 @@
+import { getDatabase } from '#infra/database/prisma.js';
+
+/**
+ * 保留最近运行明细和恢复必需的成功收据，所有问题及关联批次始终保留。
+ *
+ * Retain recent detail and successful recovery receipts; never remove issues or their batches.
+ */
+export async function compactSuccessfulReceipts(): Promise<number> {
+  const database = getDatabase();
+  const recent = await database.ingestionRun.findMany({
+    orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+    take: 20,
+    select: { id: true },
+  });
+  const protectedRuns = new Set(recent.map((run) => run.id));
+  const receipts = await database.ingestionBatch.findMany({
+    where: { status: 'succeeded' },
+    orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+    select: {
+      id: true,
+      runId: true,
+      dataset: true,
+      scope: true,
+      period: true,
+      rangeStart: true,
+      rangeEnd: true,
+      sourceStart: true,
+      _count: { select: { issues: true } },
+    },
+  });
+  const retained = new Map<string, typeof receipts>();
+  const obsolete: string[] = [];
+  for (const receipt of receipts) {
+    const key = JSON.stringify([receipt.dataset, receipt.scope, receipt.period]);
+    const newer = retained.get(key) ?? [];
+    const covered = newer.some((candidate) => {
+      if (
+        receipt.sourceStart &&
+        (!candidate.sourceStart || candidate.sourceStart > receipt.sourceStart)
+      ) {
+        return false;
+      }
+      if (receipt.period === 'snapshot' || receipt.period === 'all') {
+        return true;
+      }
+
+      return (
+        candidate.rangeStart &&
+        candidate.rangeEnd &&
+        receipt.rangeStart &&
+        receipt.rangeEnd &&
+        candidate.rangeStart <= receipt.rangeStart &&
+        candidate.rangeEnd >= receipt.rangeEnd
+      );
+    });
+    if (!protectedRuns.has(receipt.runId) && !receipt._count.issues && covered) {
+      obsolete.push(receipt.id);
+    } else {
+      newer.push(receipt);
+      retained.set(key, newer);
+    }
+  }
+  let deleted = 0;
+  for (let offset = 0; offset < obsolete.length; offset += 500) {
+    deleted += (
+      await database.ingestionBatch.deleteMany({
+        where: { id: { in: obsolete.slice(offset, offset + 500) }, issues: { none: {} } },
+      })
+    ).count;
+  }
+
+  return deleted;
+}

@@ -13,7 +13,7 @@ describe('native API imports', () => {
       import('tsx/esm/api').then(async ({ register }) => {
         register();
         const date = await import('#date');
-        const maintenance = await import('#maintenance/cli/data.js');
+        const maintenance = await import('#ingestion/cli/data.js');
         parentPort.postMessage({ date: Object.keys(date).sort(), maintenance: Object.keys(maintenance).sort() });
       });
     `;
@@ -28,7 +28,7 @@ describe('native API imports', () => {
         `
           import { Worker } from 'node:worker_threads';
           import * as date from '#date';
-          import * as maintenance from '#maintenance/cli/data.js';
+          import * as maintenance from '#ingestion/cli/data.js';
           const worker = new Worker(${JSON.stringify(workerCode)}, {
             eval: true,
             execArgv: ['--conditions=development'],
@@ -56,7 +56,7 @@ describe('native API imports', () => {
         `console.log(JSON.stringify([
           import.meta.resolve('#date'),
           import.meta.resolve('#jobs/job-service.js'),
-          import.meta.resolve('#maintenance/cli/data.js'),
+          import.meta.resolve('#ingestion/cli/data.js'),
         ]));`,
       ],
       { cwd: apiDirectory, env: { ...process.env, NODE_OPTIONS: '' }, timeout: 15_000 },
@@ -64,7 +64,7 @@ describe('native API imports', () => {
     expect(JSON.parse(stdout)).toEqual([
       new URL('../dist/src/date.js', import.meta.url).href,
       new URL('../dist/src/jobs/job-service.js', import.meta.url).href,
-      new URL('../dist/src/maintenance/cli/data.js', import.meta.url).href,
+      new URL('../dist/src/ingestion/cli/data.js', import.meta.url).href,
     ]);
   });
 

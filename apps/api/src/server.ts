@@ -1,7 +1,7 @@
 import { prisma, withDatabase, type Prisma } from '#infra/database/prisma.js';
 import { agentRoute } from '#agent/routes/index.js';
-import { maintenanceGate } from '#maintenance/middleware.js';
-import { maintenanceRoute } from '#maintenance/routes.js';
+import { ingestionGate } from '#ingestion/middleware.js';
+import { ingestionRoute } from '#ingestion/routes.js';
 import { requireAuth } from '#auth/middleware.js';
 import { authRoute } from '#auth/routes.js';
 import { factorRoute } from '#factor/routes/index.js';
@@ -28,11 +28,11 @@ export function buildApp(database: Prisma = prisma) {
 
   // Public: the auth routes handle the login state themselves
   app.route('/api/auth', authRoute);
-  app.route('/api/maintenance', maintenanceRoute);
+  app.route('/api/ingestion', ingestionRoute);
 
   // Protected prefix: apply requireAuth uniformly to this prefix before mounting business routes.
   // Handlers pass c.var.userId / c.var.user to business operations for resource authorization.
-  app.use('/api/app/*', maintenanceGate);
+  app.use('/api/app/*', ingestionGate);
   app.use('/api/app/*', requireAuth);
 
   // Each business module owns one prefix; resource paths identify its operations.

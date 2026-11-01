@@ -1,7 +1,6 @@
+import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferStockSources } from '../instruments/source-selection.js';
-import { isObservationDate, localDate } from '../synchronization/date.js';
-import { DATASET_POLICIES } from '../synchronization/policies.js';
-import { qualifySessionSeries } from '../calendar/coverage.js';
+import { isObservationDate } from '../synchronization/date.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import type {
   MarketPartition,
@@ -25,7 +24,6 @@ import {
 export async function prepareIndexPartition(
   source: SyncSource,
   partition: MarketPartition,
-  fetchedAt = new Date(),
 ): Promise<PreparedMarketPartition> {
   if (partition.dataset === 'index-weights') {
     return prepareIndexWeights(source, partition);
@@ -59,17 +57,14 @@ export async function prepareIndexPartition(
   if (!definition) {
     throw new Error(`Unknown index dataset ${partition.dataset}`);
   }
-  const baseline = DATASET_POLICIES.find(
-    (policy) => policy.dataset === partition.dataset,
-  )!.startDate;
-  const discoverStart = partition.startDate === baseline;
-  const sourceEnd = discoverStart
-    ? [partition.endDate, localDate(fetchedAt)].sort().at(-1)!
-    : partition.endDate;
   const pages = await fetchSourcePages(
     source,
     definition.api,
-    { ts_code: partition.scope, start_date: partition.startDate, end_date: sourceEnd },
+    {
+      ts_code: partition.scope,
+      ...(partition.fullHistory ? {} : { start_date: partition.startDate }),
+      end_date: partition.endDate,
+    },
     Object.values(definition.columns).join(','),
   );
   const mapped = mapSourceRecords(pages.rows, (row) => {
@@ -78,7 +73,7 @@ export async function prepareIndexPartition(
       typeof row.trade_date !== 'string' ||
       !isObservationDate(row.trade_date) ||
       row.trade_date < partition.startDate ||
-      row.trade_date > sourceEnd
+      row.trade_date > partition.endDate
     ) {
       throw new Error(`Invalid ${definition.api} identity/date`);
     }
@@ -94,17 +89,9 @@ export async function prepareIndexPartition(
     };
   });
 
-  const sourceStartDate =
-    discoverStart && pages.complete && !mapped.errors.length
-      ? mapped.records.map((record) => String(record.values.tradeDate)).sort()[0]
-      : undefined;
-  mapped.records = mapped.records.filter(
-    (record) => String(record.values.tradeDate) <= partition.endDate,
-  );
   const prepared = completeResponse({
     pages,
     table: definition.table,
-    coverageComplete: true,
     replace: true,
     allowEmpty: true,
     ...mapped,
@@ -113,17 +100,13 @@ export async function prepareIndexPartition(
     ),
   });
 
-  if (sourceStartDate && sourceStartDate > partition.startDate) {
-    prepared.sourceStartDate = sourceStartDate;
-    if (sourceStartDate > partition.endDate) {
-      prepared.status = 'not_applicable';
-      prepared.tables[0].replace = false;
-      return prepared;
-    }
-    return qualifySessionSeries({ ...partition, startDate: sourceStartDate }, prepared);
+  if (partition.fullHistory && pages.complete && !mapped.errors.length) {
+    prepared.sourceStartDate = mapped.records
+      .map((record) => String(record.values.tradeDate))
+      .sort()[0];
   }
 
-  return qualifySessionSeries(partition, prepared);
+  return prepared;
 }
 
 /**
@@ -187,7 +170,15 @@ async function prepareIndexWeights(
       sum < 95 ||
       sum > 105
     ) {
-      errors.push(`Incomplete or invalid constituent snapshot ${partition.scope}/${date}`);
+      const message = `Incomplete or invalid constituent snapshot ${partition.scope}/${date}`;
+      errors.push(message);
+      recordImportIssue({
+        category: 'snapshot',
+        reasonCode: 'snapshot_not_accepted',
+        message,
+        businessKey: { index: partition.scope, date },
+        payload: candidates,
+      });
       continue;
     }
 
@@ -198,7 +189,6 @@ async function prepareIndexWeights(
   const prepared = completeResponse({
     pages,
     table: 'IndexWeight',
-    coverageComplete: true,
     allowEmpty: true,
     records,
     errors,

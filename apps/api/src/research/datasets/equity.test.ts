@@ -155,20 +155,6 @@ async function seedFixture(database: PrismaClient): Promise<void> {
   });
   await database.marketDataState.create({ data: { key: 'global', revision: 7 } });
   await proveStockCatalog(database);
-  await database.datasetSyncPartition.createMany({
-    data: ['20240131', '20240229'].flatMap((date) =>
-      ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations', 'index-weights'].map(
-        (dataset) => ({
-          id: `${dataset}:${date}`,
-          dataset,
-          scope: dataset === 'calendar' ? 'SSE' : dataset === 'index-weights' ? '000300.SH' : 'all',
-          startDate: date,
-          endDate: date,
-          status: 'complete',
-        }),
-      ),
-    ),
-  });
 }
 
 function stock(tsCode: string, name: string) {

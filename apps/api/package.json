@@ -15,7 +15,7 @@
     "gen:invite": "tsx --conditions=development --env-file=.env src/auth/cli/gen-invite.ts",
     "data:audit": "node --conditions=development --import tsx scripts/audit/index.ts",
     "probe": "node --conditions=development --import tsx scripts/probes/index.ts",
-    "data": "node --conditions=development --import tsx src/maintenance/cli/data.ts"
+    "data": "node --conditions=development --import tsx src/ingestion/cli/data.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",
@@ -66,10 +66,6 @@
       "development": "./src/infra/*",
       "default": "./dist/src/infra/*"
     },
-    "#maintenance/*": {
-      "development": "./src/maintenance/*",
-      "default": "./dist/src/maintenance/*"
-    },
     "#market/*": {
       "development": "./src/market/*",
       "default": "./dist/src/market/*"
@@ -93,6 +89,10 @@
     "#jobs/*": {
       "development": "./src/jobs/*",
       "default": "./dist/src/jobs/*"
+    },
+    "#ingestion/*": {
+      "development": "./src/ingestion/*",
+      "default": "./dist/src/ingestion/*"
     }
   }
 }

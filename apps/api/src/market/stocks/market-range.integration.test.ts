@@ -216,9 +216,10 @@ it.each([true, false])(
       expect(prepared.errors).toEqual([]);
       expect(prepared.status).toBe('complete');
       expect(prepared.gaps).toEqual([]);
-      if (!evidence) {
-        expect(prepared.notes?.join()).toContain('Source returned no stock prices: 000002.SZ');
-      }
+      expect(prepared.tables[0].records.map((record) => record.values.tsCode)).toEqual([
+        '000001.SZ',
+      ]);
+      expect(prepared.checks.terminalPage).toBe(true);
     }),
 );
 

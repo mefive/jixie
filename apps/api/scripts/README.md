@@ -1,118 +1,33 @@
 # API 命令与脚本索引
 
-应用命令与业务实现按模块相邻放置，本文件提供统一命令索引。同步使用根级 `pnpm data sync [--to YYYYMMDD]`；ETF／指数名单使用 `pnpm data etf ...`／`pnpm data index ...`。无参数或 `--help` 显示帮助，旧任务选择器已退役。
+数据采集使用 `pnpm data ingest [--to YYYYMMDD]`，入口位于 [Ingestion](../src/ingestion/README.md)。无参数或 `--help` 显示帮助，非法参数在加载环境、数据库和来源之前拒绝。
 
-## 按任务找目录
-
-| 目录 / 文件 | 用途 | 入口数 | 主要调用方 |
-| --- | --- | --- | --- |
-| [统一数据同步](../src/maintenance/) | 按目标日期推进所有既有数据域、补缺与重查 | 1 | `pnpm data sync [--to YYYYMMDD]` |
-| [同步凭证升级](upgrade-sync-proofs.mjs) | 删除旧策略列前撤销受影响凭证 | 1 | bootstrap |
-| [升级搬移](upgrade-minimal-sync.mjs) | 停服期间分红捕获时间导出／恢复 | 1 | bootstrap |
-| [人工数据清理](../src/maintenance/clean.ts) | 五类存量清理，默认预览、执行前备份 | 1 | `pnpm data clean` |
-| [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
-| [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
-| [audit/](audit/) | 检查现有数据、查看覆盖 | 2 | 导入后的质量检查、研究核验 |
-| [probes/](probes/) | Tushare 连接与接口能力探测 | 2 | bootstrap、批量导入、手动诊断 |
-
-审计使用 [audit/index.ts](audit/index.ts)，外部探针使用 [probes/index.ts](probes/index.ts)；各目录的 `commands.ts` 是任务清单，共用 [command-entry.ts](command-entry.ts) 处理帮助与执行环境。操作系统任务配置放在仓库根级 `deploy/`。
-
-## 运行约定
-
-- `pnpm --filter api` 使用 `apps/api` 为工作目录。除 `backup` 外，业务执行均加载 API 的 `.env`；`sync`、`data:audit`、`probe` 在参数校验通过后才加载环境和业务模块，帮助、未知任务及非法参数不连接数据库；数据库连接和 Tushare 等配置沿用应用配置。
-- 下表 `start` / `end` / `date` 使用 `YYYYMMDD`；方括号表示可选参数。各入口保留原有默认值，部分仍默认 2024 年等历史区间，补数时应显式传入日期。
-- 日常数据写入只使用 `pnpm data sync [--to YYYYMMDD]`；只读审计与显式探针保留。人工存量清理使用 `data clean`；部署只保留 schema 必需的升级搬移。
-- `maintenance`、`import:data`、`sync <任务>` 和代码归一 CLI 均已退役，不设置兼容转发。
-
-## 已退役的数据转换
-
-生产已完成旧 `factor` Job 到 `factor-analysis` / `factor-correlation` 的转换，`db:migrate:factor-job-kinds`、转换脚本及 bootstrap 调用已移除。新安装和当前数据库不需要此步骤；Prisma 历史 schema migrations 保留。
-当前只保留 `factor-analysis`；`factor-correlation` 已退役，旧任务不会启动 Worker。恢复转换前的旧备份或升级尚未转换的开发库时，需要先完成旧数据转换，再启动当前 API，见 [旧库恢复说明](../../../docs/backend-runtime-entries.md#factor-job-kind-旧库恢复)。
-
-## 数据同步
-
-日常同步流程是 `pnpm data sync [--to YYYYMMDD]`，由 `src/maintenance/cli/data.ts` 进入协调器；生产使用相同编译入口。无参数或 `--help` 显示帮助，未知参数、额外选择器和不存在的日期在环境/数据库加载前失败。退出码：完整/合法 partial 为 0，实际错误为 1，参数错误为 2，写锁争用为 75。
-
-旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs 和 fundamentals 领域；宏观、利率、FX 和跨市场来源已退役；日常补齐与首次回补使用同一有界循环，只记录实际尝试窗口，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [裁剪设计第 5 节](../../../docs/design/system-simplification-plan.md#5-数据维护重新设计)。
-
-## 人工数据清理
-
-`data clean` 不由 timer 或 bootstrap 调用，不下载数据。统一检查以下五类，按类别输出汇总及明细：
-
-| 项目 | 范围 |
+| 命令 | 用途 |
 | --- | --- |
-| `pending-etfs` | 删除无关联依赖的旧 P 目录；有历史、名单或状态引用的保留并报告 |
-| `pending-stocks` | 删除无历史、来源身份及同步引用的 G/UN 目录；带上市日期或引用的保留待核实 |
-| `retired-data` | 已退役数据集的维护记录和明确退役的交易日历 |
-| `stock-identities` | 已确认证券代码接续的存量归并；同源冲突拒绝，保留来源及捕获时间 |
-| `market-range` | 依据已确认市场进入日期清理四类股票日数据；另清理误入 StkLimit 的已确认 ETF／B 股，未知身份保留 |
+| `pnpm data ingest --to YYYYMMDD` | 从自然起点补齐到目标日期；省略日期取启动时上海自然日 |
+| `pnpm data runs` | 最近 20 轮运行 |
+| `pnpm data issues RUN_ID` | 请求错误、受阻原因和未接纳原始记录 |
+| `pnpm data etf list` | ETF 名单、生命周期和实际行情范围 |
+| `pnpm data etf select-top --limit 100` | 用完整同日规模快照显式重选上市 ETF |
+| `pnpm data etf add CODE` / `remove CODE` | 修改名单，移出不删除历史 |
+| `pnpm data index list` / `add CODE` / `remove CODE` | 管理指数名单 |
+| `pnpm data reset [--database /absolute/path.db]` | 预览业务重建，仅保留四张认证表 |
+| `pnpm data reset [--database /absolute/path.db] --apply` | 在写者锁内验证备份，再原子清空业务数据 |
 
-```bash
-pnpm data clean
-pnpm data clean --apply
-pnpm data clean --database /absolute/path/database.db --apply
-```
+旧 `data sync`、`data clean`、daily／weekly／repair 与历史搬移入口退役。成功批次只记录本次响应的接纳，不充当研究准入证明；目录、分红、历史名称和财务数据每轮重取，历史行情按日期补缺。整批下载结束后再事务入库。
 
-默认预览不修改业务数据；`--apply` 才执行。默认数据库沿用 API 环境，也可用绝对路径 `--database` 指定已有库；不创建新库，不要求 Tushare 配置。不提供类别、证券或日期筛选；一次检查全部适用规则，类别只用于组织结果。
+退出码：完整完成为 0，有问题、失败或中断为 1，参数错误为 2，写者锁争用为 75。`runs`、`issues` 和名单查询不加载 Tushare 配置。重置备份保存在数据库旁的 `ingestion-backups`，备份失败不清空；实际重置前停止业务使用。
 
-有命中项时持维护锁，用既有 SQLite 备份工具生成并检查独立恢复点，路径在结果 `backup` 中返回。目录为 `JIXIE_BACKUP_DIR`（未配置时 `~/jixie-backups`）下的独立 `data-clean-*`，不轮换其他清理的备份。备份失败不执行清理。一个发布事务按类别顺序重新检查并修改原值、撤销受影响的旧资格、更新连续覆盖与 revision，失败回滚；未知或有依赖的记录列入 retained。无命中项不备份、不推进 revision。
+生产 timer 为 `deploy/jixie-ingestion.timer`，每两小时上海时间 :15 调用；这只是外部执行安排，不是数据集刷新策略。部署启用 timer，不执行全历史下载；首次切换的业务重建失败时保持停服，并保留重建标记供重试。
 
-items 的 count 表示候选记录数；changed 表示实际写入／删除操作数，身份合并可能同时删除旧行、更新新行及身份记录。输出覆盖影响范围；清理不会生成来源完整凭证，之后用 data sync 重新核验。身份归并保守撤销涉及数据集的旧资格，市场范围清理只撤销命中日期区间及股票日数据依赖。
+## 其他管理员工具
 
-市场边界唯一来源为 `market/instruments/market-range.ts`，同步入库过滤及覆盖检查复用；当前上市日期本身不是清理依据。当前覆盖北交所开市前历史及已有公告证实的个别上市边界；其他越界候选明确保留，不宣称已经修复全部历史上市／暂停上市问题。
-
-## 最小同步的旧库升级
-
-现有库升级应通过 `scripts/bootstrap.sh` 完成。该脚本持 M/P/R、排空并停服后导出 `${DB_FILE}.minimal-sync.json`，预检并备份、撤销受影响同步凭证，然后执行工具生成迁移并恢复，成功后再启动服务。恢复文件权限为 0600，绑定数据库真实路径与设备／inode；已有未恢复文件不会覆盖。失败保持 API 停止并保留文件，再次部署继续恢复。新空库无需导出。
-
-管理员隔离演练时的顺序如下（数据库路径必须显式指定，脚本不读开发库默认值）：
-
-```sh
-node apps/api/scripts/upgrade-minimal-sync.mjs export /absolute/path/isolated.db
-# 使用 backup-db.mjs 备份，再预检／应用凭证升级。
-node apps/api/scripts/upgrade-sync-proofs.mjs check /absolute/path/isolated.db
-node apps/api/scripts/upgrade-sync-proofs.mjs apply /absolute/path/isolated.db
-# 随后在同一隔离库执行 prisma migrate deploy。
-# restore 需要已构建的 shared/API 和最新生成 Prisma Client。
-node apps/api/scripts/upgrade-minimal-sync.mjs restore /absolute/path/isolated.db
-```
-
-`upgrade-sync-proofs.mjs` 不加载应用或 Prisma Client，只对显式旧库离线执行。`check` 返回将修改的凭证与覆盖记录总数；`apply` 在同一事务撤销资格、清空连续覆盖并在有变化时推进 revision，保留业务值、捕获时间与失败证据。bootstrap 使用独立 `sync-proof-upgrade/` 备份目录；失败不得继续迁移或启动 API。旧列删除后此步骤自动跳过，重复部署不会撤销重新获得的资格。普通同步没有策略版本或版本对账。
-
-恢复会核对迁移已完成及分红身份集合，恢复必要时间／质量和 revision，重算覆盖并逐值复核后才删除文件。丢失恢复文件时不能从公告日或除权日推测捕获时间；应保留停服状态，从升级前备份恢复并重做。旧库不能跳过搬移直接裸迁移后开放服务。
-
-旧候选／输入副本目录不由程序自动扫描；管理员核对归属后清理。正常 Job／Agent owner 锁仍按现行协议回收。
-
-## 审计与查看
-
-本组只读数据库，不调用行情同步。根目录使用 `pnpm data:audit <任务>`，或使用 `pnpm --filter api data:audit <任务>`。无参数、`--list` 和 `<任务> --help` 仅显示说明；`pnpm audit` 保留 pnpm 自带的依赖漏洞检查。
-
-| 命令 | 文件 | 参数 | 用途与输出 |
-| --- | --- | --- | --- |
-| `data:audit data` | [audit-data.ts](audit/audit-data.ts) | `[start] [end] [--window=60] [--points=5] [--json] [--strict]` | 整体质量与覆盖检查，终端输出 |
-
-## 接口探针
-
-本组使用 `pnpm probe <任务>`（或 `pnpm --filter api probe <任务>`）。无参数、`--list` 和 `<任务> --help` 不访问外部接口；显式执行任务时才访问。旧 `smoke` 对应 `probe tushare`，`probe:asset-allocation` 对应 `probe asset-allocation`。
-
-| 命令 | 文件 | 参数 | 用途与副作用 |
-| --- | --- | --- | --- |
-| `probe tushare` | [smoke.ts](probes/smoke.ts) | 无 | Tushare 连接与权限检查，不写数据库 |
-| `probe asset-allocation` | [probe-asset-allocation.ts](probes/probe-asset-allocation.ts) | `[--date date] [--json] [--persist] [--persist-if-stale] [--max-age-days days]` | 接口能力探测；`--persist` 或 `--persist-if-stale` 写能力观察记录，bootstrap 使用后者 |
-
-M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundamentals`、`probe:main-business` 及其辅助实现和专属测试已移除。研究结论及原始证据继续保留在历史报告，旧代码可从 Git 历史查阅。财报版本样本迁至 [业务测试 fixture](../src/market/fundamentals/fixtures/financial-source-versions.json)，继续支持来源契约测试；正式同步、PIT 规则和 SDK 未改变。
-
-## 维护与管理
-
-### 财报来源探针清理验证（2026-09-15）
-
-提交信息：`chore(market): remove completed fundamental source probes`。删除范围与代码已通过人工审查。API 类型、后端边界（0 违规）、格式、ESLint、引用及 diff 检查通过；审查后来源契约测试 7 项全部通过，API 编译到独立临时目录通过。迁移的财报版本 fixture 与原文件逐字节一致。未调用外部数据源、运行数据库写入流程或启动常驻服务。
-
-| 命令 | 文件 | 参数 | 用途与副作用 |
-| --- | --- | --- | --- |
-| `data sync [--to YYYYMMDD]` | [data.ts](../src/maintenance/cli/data.ts) | 统一目标日期；无数据集/模式选择器 | 分区覆盖与有限批次，自动继续未完成工作 |
-
-生产 timer 为 `deploy/jixie-maintenance.timer`，每两小时上海时间 :15 执行；旧 weekly timer 升级时停用。备份继续使用 `deploy/jixie-backup.*` 和零 npm 依赖 `scripts/backup-db.mjs`。
+| 入口 | 用途 |
+| --- | --- |
+| [Auth CLI](../src/auth/cli/) | 邀请码生成 |
+| [backup-db.mjs](backup-db.mjs) | 零 npm 依赖的 SQLite 一致备份 |
+| [audit/](audit/) | 显式只读诊断，不由 Ingestion 调用 |
+| [probes/](probes/) | 显式来源能力探测，不属于普通数据查询 |
 
 ## 已移除的研究脚本
 

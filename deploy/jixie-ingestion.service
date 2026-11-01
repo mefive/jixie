@@ -1,0 +1,26 @@
+[Unit]
+Description=jixie date-targeted data ingestion
+After=network-online.target jixie-api.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+Restart=on-failure
+RestartSec=30m
+User=jixie
+Group=jixie
+WorkingDirectory=/opt/jixie/apps/api
+Environment=JIXIE_INGESTION_TRIGGER=timer
+EnvironmentFile=/opt/jixie/apps/api/.env.production
+ExecStart=/usr/bin/node /opt/jixie/apps/api/dist/src/ingestion/cli/data.js ingest
+TimeoutStartSec=infinity
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/jixie
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jixie-ingestion

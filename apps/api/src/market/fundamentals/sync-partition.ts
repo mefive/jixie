@@ -1,3 +1,4 @@
+import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
@@ -70,7 +71,7 @@ async function prepareStatementPartition(
   partition: MarketPartition,
   fetchedAt: Date,
 ): Promise<PreparedMarketPartition> {
-  const [kind, reportType] = partition.scope.split('|');
+  const [kind, reportType, historyCode] = partition.scope.split('|');
   if (
     !['income', 'balance_sheet', 'cash_flow'].includes(kind) ||
     !['1', '4', '5'].includes(reportType)
@@ -88,53 +89,74 @@ async function prepareStatementPartition(
     balance_sheet: 'FinancialBalanceSheet',
     cash_flow: 'FinancialCashFlowStatement',
   }[statementKind];
-  const pages = await fetchSourcePages(
-    source,
-    api,
-    { period: partition.startDate, report_type: reportType },
-    financialStatementSourceFields(statementKind).join(','),
-    5000,
+  const fields = financialStatementSourceFields(statementKind).join(',');
+  const pages = historyCode
+    ? await fetchFinancialHistory(source, api, historyCode, fields, { report_type: reportType })
+    : await fetchSourcePages(
+        source,
+        api,
+        { period: partition.startDate, report_type: reportType },
+        fields,
+        5000,
+      );
+  const rejected = pages.rows.filter(
+    (row) =>
+      typeof row.comp_type !== 'string' ||
+      !['1', '2', '3', '4', '7'].includes(row.comp_type) ||
+      !isObservationDate(row.end_date) ||
+      (!historyCode && row.end_date !== partition.startDate) ||
+      (historyCode && canonicalStockCode(String(row.ts_code)) !== historyCode) ||
+      row.report_type !== reportType,
   );
-  if (
-    pages.rows.some(
-      (row) =>
-        typeof row.comp_type !== 'string' ||
-        !['1', '2', '3', '4', '7'].includes(row.comp_type) ||
-        row.end_date !== partition.startDate ||
-        row.report_type !== reportType,
-    )
-  ) {
-    pages.errors.push('Invalid financial report period/type/company classification');
+  for (const row of rejected) {
+    recordImportIssue({
+      category: 'record',
+      reasonCode: 'invalid_report_identity',
+      message: 'Invalid financial report period/type/company classification',
+      payload: row,
+    });
   }
 
-  const identity: StatementPartitionIdentity = {
-    statementKind,
-    table,
-    api,
-    reportType,
-    period: partition.startDate,
-    fetchedAt,
-  };
-  const context = await loadStatementContext(identity, pages.rows);
-  const mapped = mapSourceRecords(
-    pages.rows.filter((row) => row.comp_type === '1'),
-    (sourceRow) => mapStatementVersion(identity, context, sourceRow),
+  const mapped: { records: SourceRecord[]; errors: string[] } = { records: [], errors: [] };
+  let calendarIncomplete = false;
+  const candidates = pages.rows.filter(
+    (row) =>
+      row.comp_type === '1' && !rejected.includes(row) && String(row.end_date) <= partition.endDate,
+  );
+  const periods = [...new Set(candidates.map((row) => String(row.end_date)))];
+  for (const period of periods) {
+    const rows = candidates.filter((row) => row.end_date === period);
+    const identity: StatementPartitionIdentity = {
+      statementKind,
+      table,
+      api,
+      reportType,
+      period,
+      fetchedAt,
+      tsCode: historyCode,
+    };
+    const context = await loadStatementContext(identity, rows);
+    const accepted = mapSourceRecords(rows, (row) => mapStatementVersion(identity, context, row));
+    mapped.records.push(...accepted.records);
+    mapped.errors.push(...accepted.errors);
+    calendarIncomplete ||= accepted.records.some(
+      (record) =>
+        !context.dates.some((entry) => entry.calDate > String(record.values.announcementDate)),
+    );
+  }
+
+  mapped.errors.push(
+    ...rejected.map(() => 'Invalid financial report period/type/company classification'),
   );
 
   const result = completeResponse({
     pages,
     table,
-    coverageComplete: true,
     ...mapped,
     allowEmpty: true,
-    observedDates: mapped.records.length ? [partition.startDate] : [],
+    observedDates: [...new Set(mapped.records.map((record) => String(record.values.endDate)))],
   });
-  if (
-    mapped.records.some(
-      (record) =>
-        !context.dates.some((entry) => entry.calDate > String(record.values.announcementDate)),
-    )
-  ) {
+  if (calendarIncomplete) {
     result.status = result.errors.length ? 'error' : 'partial';
     result.gaps.push('Statement values retained; availability calendar is incomplete');
   }
@@ -178,18 +200,23 @@ async function prepareDividendPartition(
       break;
     }
   }
-  if (
-    pages.rows.some(
-      (row) =>
-        typeof row.end_date !== 'string' ||
-        !isObservationDate(row.end_date) ||
-        canonicalStockCode(String(row.ts_code)) !== partition.scope,
-    )
-  ) {
-    pages.errors.push('Invalid dividend identity/report period');
+  const rejected = pages.rows.filter(
+    (row) =>
+      typeof row.end_date !== 'string' ||
+      !isObservationDate(row.end_date) ||
+      canonicalStockCode(String(row.ts_code)) !== partition.scope,
+  );
+  for (const row of rejected) {
+    recordImportIssue({
+      category: 'record',
+      reasonCode: 'invalid_dividend_identity',
+      message: 'Invalid dividend identity/report period',
+      payload: row,
+    });
   }
+
   const selected = preferStockSources(
-    pages.rows,
+    pages.rows.filter((row) => !rejected.includes(row)),
     (row) =>
       JSON.stringify([
         canonicalStockCode(String(row.ts_code)),
@@ -201,12 +228,7 @@ async function prepareDividendPartition(
     (row) => String(row.ts_code),
   );
   const mapped = mapSourceRecords(
-    selected.filter(
-      (row) =>
-        typeof row.end_date === 'string' &&
-        row.end_date >= partition.startDate &&
-        row.end_date <= partition.endDate,
-    ),
+    selected.filter((row) => typeof row.end_date === 'string' && row.end_date <= partition.endDate),
     (row) => {
       if (canonicalStockCode(sourceString(row, 'ts_code')) !== partition.scope) {
         throw new Error('Unexpected dividend security');
@@ -230,10 +252,11 @@ async function prepareDividendPartition(
     },
   );
 
+  mapped.errors.push(...rejected.map(() => 'Invalid dividend identity/report period'));
+
   return completeResponse({
     pages,
     table: 'Dividend',
-    coverageComplete: true,
     replace: true,
     ...mapped,
     allowEmpty: true,
@@ -260,53 +283,65 @@ async function prepareIndicatorPartition(
     netprofitYoy: 'netprofit_yoy',
     ocfToProfit: 'ocf_to_profit',
   };
-  const pages = await fetchSourcePages(
-    source,
-    'fina_indicator_vip',
-    { period: partition.startDate },
-    `${Object.values(columns).join(',')},update_flag`,
-    10000,
-  );
+  const historyCode = partition.fullHistory ? partition.scope : undefined;
+  const fields = `${Object.values(columns).join(',')},update_flag`;
+  const pages = historyCode
+    ? await fetchFinancialHistory(source, 'fina_indicator_vip', historyCode, fields)
+    : await fetchSourcePages(
+        source,
+        'fina_indicator_vip',
+        { period: partition.startDate },
+        fields,
+        10000,
+      );
   const captureDate = localDate(fetchedAt);
   const nextSession = await nextVerifiedSession(captureDate);
-  const mapped = mapSourceRecords(pages.rows, (row) => {
-    if (row.end_date !== partition.startDate) {
-      throw new Error('Unexpected financial indicator period');
-    }
-    const sourceTsCode = sourceString(row, 'ts_code');
-    const values = finaIndicatorSchema.parse({
-      ...sourceValues(row, columns),
-      tsCode: canonicalStockCode(sourceTsCode),
-      sourceTsCode,
-    });
-    const updateFlag = row.update_flag ?? null;
-    const businessFingerprint = fingerprint({ ...values, updateFlag });
-    const firstKnownDate = nextSession ?? calendarDay(captureDate, 1);
-    const quality = nextSession ? 'latest_only' : 'unknown';
-    const version: SourceRecord = {
-      values: finaIndicatorVersionSchema.parse({
-        ...values,
-        updateFlag,
-        id: ulid(),
-        availableDate: firstKnownDate,
-        availabilityQuality: quality,
-        observedAt: fetchedAt,
-        sourceFingerprint: businessFingerprint,
-      }),
-    };
+  const mapped = mapSourceRecords(
+    pages.rows.filter(
+      (row) => !isObservationDate(row.end_date) || row.end_date <= partition.endDate,
+    ),
+    (row) => {
+      if (
+        !isObservationDate(row.end_date) ||
+        (!historyCode && row.end_date !== partition.startDate) ||
+        (historyCode && canonicalStockCode(String(row.ts_code)) !== historyCode)
+      ) {
+        throw new Error('Unexpected financial indicator period');
+      }
+      const sourceTsCode = sourceString(row, 'ts_code');
+      const values = finaIndicatorSchema.parse({
+        ...sourceValues(row, columns),
+        tsCode: canonicalStockCode(sourceTsCode),
+        sourceTsCode,
+      });
+      const updateFlag = row.update_flag ?? null;
+      const businessFingerprint = fingerprint({ ...values, updateFlag });
+      const firstKnownDate = nextSession ?? calendarDay(captureDate, 1);
+      const quality = nextSession ? 'latest_only' : 'unknown';
+      const version: SourceRecord = {
+        values: finaIndicatorVersionSchema.parse({
+          ...values,
+          updateFlag,
+          id: ulid(),
+          availableDate: firstKnownDate,
+          availabilityQuality: quality,
+          observedAt: fetchedAt,
+          sourceFingerprint: businessFingerprint,
+        }),
+      };
 
-    return version;
-  });
+      return version;
+    },
+  );
   const snapshots = selectIndicatorSnapshots(mapped.records);
   mapped.errors.push(...snapshots.errors);
 
   const result = completeResponse({
     pages,
     table: 'FinaIndicatorVersion',
-    coverageComplete: true,
     ...mapped,
     allowEmpty: true,
-    observedDates: mapped.records.length ? [partition.startDate] : [],
+    observedDates: [...new Set(mapped.records.map((record) => String(record.values.endDate)))],
   });
   result.tables.push({ table: 'FinaIndicator', records: snapshots.records });
   if (!nextSession && mapped.records.length) {
@@ -326,6 +361,7 @@ interface StatementPartitionIdentity {
   reportType: string;
   period: string;
   fetchedAt: Date;
+  tsCode?: string;
 }
 
 async function loadStatementContext(identity: StatementPartitionIdentity, rows: TushareRow[]) {
@@ -337,7 +373,11 @@ async function loadStatementContext(identity: StatementPartitionIdentity, rows: 
   });
   const siblings: FinancialStatementSourceRow[] = [];
   const database = getDatabase();
-  const where = { endDate: period, reportType };
+  const where = {
+    endDate: period,
+    reportType,
+    ...(identity.tsCode ? { tsCode: identity.tsCode } : {}),
+  };
   const existing = await loadStoredStatements(database, statementKind, where);
   const fields = FINANCIAL_STATEMENT_FIELDS.filter(
     (field) => field.statementKind === statementKind,
@@ -489,7 +529,7 @@ function mapStatementVersion(
 async function loadStoredStatements(
   database: ReturnType<typeof getDatabase>,
   kind: FinancialStatementKind,
-  where: { endDate: string; reportType: string },
+  where: { endDate: string; reportType: string; tsCode?: string },
 ) {
   switch (kind) {
     case 'income':
@@ -499,4 +539,45 @@ async function loadStoredStatements(
     case 'cash_flow':
       return database.financialCashFlowStatement.findMany({ where });
   }
+}
+
+/**
+ * 单证券完整历史确定来源起点，旧代码一并查询；不猜上市前财务起点。
+ *
+ * Discover natural financial history per security, including aliases, without guessing a pre-IPO cutoff.
+ * Source parameters: https://tushare.pro/document/2?doc_id=33 and doc_id=79.
+ */
+async function fetchFinancialHistory(
+  source: SyncSource,
+  api: string,
+  code: string,
+  fields: string,
+  extra: Record<string, unknown> = {},
+): Promise<SourcePages> {
+  const codes = [
+    code,
+    ...STOCK_CODE_CHANGES.filter((change) => canonicalStockCode(change.oldTsCode) === code).map(
+      (change) => change.oldTsCode,
+    ),
+  ];
+  const pages: SourcePages = { rows: [], complete: true, pages: 0, errors: [] };
+  for (const tsCode of codes) {
+    const response = await fetchSourcePages(
+      source,
+      api,
+      { ts_code: tsCode, ...extra },
+      fields,
+      100,
+    );
+    pages.rows.push(...response.rows);
+    pages.errors.push(...response.errors);
+    pages.pages += response.pages;
+    pages.complete &&= response.complete;
+    pages.deferred ||= response.deferred;
+    if (response.deferred) {
+      break;
+    }
+  }
+
+  return pages;
 }

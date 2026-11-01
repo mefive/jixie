@@ -99,7 +99,10 @@ describe('stock maintenance through the formal domain path', () => {
         partition,
       );
       expect(first.prepared.status).toBe('complete');
-      expect(first.prepared.notes?.join()).toContain('600000.SH');
+      expect(first.prepared.tables[0].records.map((record) => record.values.tsCode)).not.toContain(
+        '600000.SH',
+      );
+      expect(first.prepared.checks.terminalPage).toBe(true);
       expect(first.accepted.deleted).toBe(0);
       expect(await database.daily.count()).toBe(2);
       const wrongDate = await acceptSource(

@@ -103,16 +103,25 @@ describe('shared SSE calendar and signal dates', () => {
     expect(await getOpenDates('20260911', '20260915', 'SZSE')).toEqual(['20260913']);
   });
 
-  it('rolls back the range deletion when replacement rows cannot be inserted', async () => {
+  it('rolls back earlier updates when a later calendar row cannot be written', async () => {
     const client = new TushareClient({ token: 'fixture' });
-    const row = { exchange: 'SSE', cal_date: '20260914', is_open: 0, pretrade_date: '20260911' };
-    vi.spyOn(client, 'call').mockResolvedValue([row, row]);
+    vi.spyOn(client, 'call').mockResolvedValue([
+      { exchange: 'SSE', cal_date: '20260911', is_open: 0, pretrade_date: null },
+      { exchange: 'SSE', cal_date: '20260914', is_open: 0, pretrade_date: '20260911' },
+    ]);
     const before = await prisma.tradeCal.findMany({
       orderBy: [{ exchange: 'asc' }, { calDate: 'asc' }],
     });
-    await expect(syncTradeCal(client, '20260914', '20260915')).rejects.toThrow();
-    expect(
-      await prisma.tradeCal.findMany({ orderBy: [{ exchange: 'asc' }, { calDate: 'asc' }] }),
-    ).toEqual(before);
+    await prisma.$executeRawUnsafe(
+      `CREATE TRIGGER refuse_calendar_update BEFORE UPDATE ON "TradeCal" WHEN NEW.exchange='SSE' AND NEW.calDate='20260914' BEGIN SELECT RAISE(ABORT, 'controlled calendar write failure'); END`,
+    );
+    try {
+      await expect(syncTradeCal(client, '20260911', '20260915')).rejects.toThrow();
+      expect(
+        await prisma.tradeCal.findMany({ orderBy: [{ exchange: 'asc' }, { calDate: 'asc' }] }),
+      ).toEqual(before);
+    } finally {
+      await prisma.$executeRawUnsafe('DROP TRIGGER refuse_calendar_update');
+    }
   });
 });

@@ -9,6 +9,8 @@ export type MarketRow = Record<string, MarketValue>;
  * Partition boundaries stay fixed when a later target is requested.
  */
 export interface MarketPartition {
+  fullHistory?: boolean;
+  exchanges?: readonly string[];
   dataset: string;
   scope: string;
   startDate: string;
@@ -21,6 +23,7 @@ export interface MarketPartition {
  * Distinguish unknown nulls from explicit clearing.
  */
 export interface SourceRecord {
+  raw?: unknown;
   values: MarketRow;
   authoritativeNulls?: readonly string[];
   /**

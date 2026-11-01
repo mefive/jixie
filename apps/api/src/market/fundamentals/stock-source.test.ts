@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
-import {
-  acceptSource,
-  seedSessions,
-  currentPolicy,
-} from '../../../tests/market-contract-fixtures.js';
-import { datasetScopes } from '../synchronization/scopes.js';
+import { acceptSource, seedSessions } from '../../../tests/market-contract-fixtures.js';
+import { planIngestion } from '#ingestion/plan.js';
 import { FINANCIAL_STATEMENT_FIELDS } from './source-contract.js';
 import { resolveFinancialState } from './resolver.js';
 
@@ -162,9 +158,10 @@ describe('financial stock source succession', () => {
           { tsCode: newCode, symbol: '001872', listDate: '20181226' },
         ].map((row) => ({ ...row, name: 'test', listStatus: 'L' }));
         await database.stockBasic.createMany({ data: reversed ? rows.reverse() : rows });
-        expect(await datasetScopes(currentPolicy('dividends'))).toEqual([
-          { scope: newCode, startDate: '19930505' },
-        ]);
+        const plan = await planIngestion('20260915', new Date('2026-09-16T10:00:00Z'));
+        expect(
+          plan.units.filter((unit) => unit.dataset === 'dividends').map((unit) => unit.scope),
+        ).toEqual([newCode]);
       }),
   );
 });

@@ -1,5 +1,4 @@
 import { isObservationDate } from '../synchronization/date.js';
-import { qualifySessionSeries } from '../calendar/coverage.js';
 import type { MarketPartition, PreparedMarketPartition } from '../synchronization/partition.js';
 import {
   completeResponse,
@@ -85,14 +84,13 @@ export async function prepareEtfPartition(
   const prepared = completeResponse({
     pages,
     table: definition.table,
-    coverageComplete: true,
     replace: true,
     allowEmpty: true,
     ...mapped,
     observedDates: mapped.records.map((record) => String(record.values.tradeDate)),
   });
 
-  return qualifySessionSeries(partition, prepared, 'SSE', true);
+  return prepared;
 }
 
 /**
@@ -175,6 +173,5 @@ async function prepareEtfCatalog(source: SyncSource): Promise<PreparedMarketPart
     pages,
     table: 'EtfBasic',
     ...mapped,
-    coverageComplete: true,
   });
 }

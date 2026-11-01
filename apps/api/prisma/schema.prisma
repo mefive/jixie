@@ -153,34 +153,6 @@ model EtfAdjFactor {
   @@index([tradeDate])
 }
 
-/// 管理员保存的下载代码；空数组仍代表已初始化，不自动恢复默认名单。
-/// Administrator download codes; an empty array remains initialized and is never reset implicitly.
-model MarketDownloadList {
-  assetType String   @id
-  codes     Json
-  updatedAt DateTime @updatedAt
-}
-
-/// 仅保留最近一次完整规模快照，不能作为历史规模或份额研究数据。
-/// Keep only the latest complete size snapshot, never a historical size or unit research series.
-model EtfLatestSize {
-  tsCode      String   @id
-  tradeDate   String
-  totalSize   Float?
-  retrievedAt DateTime @default(now())
-}
-
-/// Completion marker for an atomically refreshed ETF code/year slice. This makes long backfills
-/// resumable without guessing completeness from sparse trading rows.
-model EtfSyncSlice {
-  tsCode      String
-  startDate   String
-  endDate     String
-  completedAt DateTime @default(now())
-
-  @@id([tsCode, startDate, endDate])
-}
-
 /// Daily price limits (unadjusted up/down limit prices). The engine blocks buys at the up-limit open and sells at
 /// the down-limit open (covers board-specific limits: Main Board ±10 / ST ±5 / ChiNext & STAR ±20 / BSE ±30).
 model StkLimit {
@@ -498,86 +470,86 @@ model IndexBenchmark {
 }
 
 // ============================================================================
-// Production maintenance coordination. The operating-system flock is the strong cross-process lock;
-// these rows provide durable progress, retry semantics, publication watermarks, and the App gate.
-// 这些运行元数据不属于研究数据接口。
-// Operational metadata is not exposed through research data interfaces.
+// 采集记录只描述实际执行；进程互斥与读取一致性由基础设施负责。
+// Ingestion records describe actual work; infrastructure owns exclusion and read consistency.
 // ============================================================================
 
-/// One idempotent daily, weekly, repair, or deployment maintenance run.
-model MaintenanceRun {
-  id          String    @id // ULID
-  kind        String // 'daily' | 'weekly' | 'repair' | 'deploy'
-  targetKey   String
-  startDate   String?
-  endDate     String?
-  trigger     String // 'timer' | 'manual'
-  status      String // 'running' | 'done' | 'error' | 'waiting' (read-only daily source preflight)
-  stage       String
-  attempts    Int       @default(1)
-  summary     Json?
-  error       String?
-  heartbeatAt DateTime  @default(now())
-  startedAt   DateTime  @default(now())
-  finishedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([kind, targetKey])
-  @@index([status, updatedAt])
-}
-
-/// 一次固定目标的有限同步尝试；不是覆盖完整性证明。
-/// One bounded synchronization attempt with a frozen target, not proof of complete coverage.
-model DataSyncRun {
-  id          String    @id
-  targetDate  String
-  status      String
-  stage       String
-  summary     Json?
-  error       String?
-  startedAt   DateTime  @default(now())
-  heartbeatAt DateTime  @default(now())
-  finishedAt  DateTime?
+/// 一轮固定目标的数据采集；摘要不承担恢复游标。
+/// One ingestion run with a fixed target; summaries never act as recovery cursors.
+model IngestionRun {
+  id            String           @id
+  trigger       String
+  targetDate    String
+  scopeSnapshot Json
+  status        String
+  summary       Json?
+  startedAt     DateTime         @default(now())
+  finishedAt    DateTime?
+  batches       IngestionBatch[]
+  issues        IngestionIssue[]
 
   @@index([startedAt])
 }
 
-/// 数据集计划与巡检游标；最大观察日期与连续核验范围分开。
-/// Dataset planning and recheck cursors separate maximum observations from verified coverage.
-model DatasetSyncState {
-  dataset         String
-  scope           String
-  maxObservedDate String?
-  verifiedThrough String?
-  lastCheckedAt   DateTime?
-  lastBackfillAt  DateTime?
+/// 一个稳定采集单元的一次实际尝试；成功记录与业务数据共同提交。
+/// One actual attempt of a stable ingestion unit, committed atomically with business data.
+model IngestionBatch {
+  id               String           @id
+  runId            String
+  run              IngestionRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  dataset          String
+  scope            String
+  period           String
+  api              String
+  request          Json
+  rangeStart       String?
+  rangeEnd         String?
+  sourceStart      String?
+  status           String
+  responseComplete Boolean          @default(false)
+  receivedCount    Int              @default(0)
+  acceptedCount    Int              @default(0)
+  filteredCount    Int              @default(0)
+  rejectedCount    Int              @default(0)
+  startedAt        DateTime         @default(now())
+  finishedAt       DateTime?
+  issues           IngestionIssue[]
 
-  @@id([dataset, scope])
+  @@unique([runId, dataset, scope, period])
+  @@index([dataset, scope, period, startedAt])
+  @@index([status])
 }
 
-/// 固定边界的来源分区及未完成工作，不按原始记录创建任务。
-/// A fixed source partition and its unfinished work, never a job per raw record.
-model DatasetSyncPartition {
-  id            String    @id
-  dataset       String
-  scope         String
-  startDate     String
-  endDate       String
-  status        String
-  gaps          Json?
-  error         String?
-  lastRunId     String?
-  lastAttemptAt DateTime?
-  checkedAt     DateTime?
+/// 来源请求、未接纳记录及受阻原因；原始内容不包含凭证。
+/// Source-request failures, rejected records and blocked work; payloads never contain credentials.
+model IngestionIssue {
+  id          String          @id
+  runId       String
+  run         IngestionRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  batchId     String?
+  batch       IngestionBatch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  category    String
+  reasonCode  String
+  message     String
+  businessKey Json?
+  field       String?
+  payload     Json?
+  createdAt   DateTime        @default(now())
 
-  @@unique([dataset, scope, startDate, endDate])
-  @@index([status, lastAttemptAt])
-  @@index([dataset, scope, startDate])
+  @@index([runId, createdAt])
+  @@index([batchId])
 }
 
-/// 可见输入修订号不是所有来源共同的完成日期。
-/// The visible input revision is not a common completion date for all sources.
+/// 管理员保存的下载名单；存在的空名单不会被默认值覆盖。
+/// Administrator download selections; an existing empty list is never reset to defaults.
+model IngestionSelection {
+  assetType String   @id
+  codes     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// 市场业务数据修订号，用于消费者失效，不代表采集完成范围。
+/// Market-data revision for consumer invalidation, never ingestion coverage.
 model MarketDataState {
   key       String   @id
   revision  Int      @default(0)

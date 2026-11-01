@@ -1,4 +1,5 @@
-import { synchronizeData } from '#maintenance/sync.js';
+import { ingest } from '#ingestion/ingest.js';
+import { planIngestion } from '#ingestion/plan.js';
 import { describe, expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
 import { selectTopEtfs } from './select-etfs.js';
@@ -8,11 +9,8 @@ import {
   listDownloads,
   initializeIndexDownloads,
 } from './lists.js';
-import { datasetScopes } from '#market/synchronization/scopes.js';
-import { selectFixtureWindows as planSyncPartitions } from '../../../tests/sync-fixtures.js';
 import { withMaintenanceLock } from '#infra/coordination/market-access.js';
 import type { SyncSource } from '../synchronization/source.js';
-import { DATASET_POLICIES } from '../synchronization/policies.js';
 
 function fixtureSource(
   options: {
@@ -107,7 +105,13 @@ function fixtureSource(
   return { source, calls };
 }
 
-const policy = (dataset: string) => DATASET_POLICIES.find((row) => row.dataset === dataset)!;
+const policy = (dataset: string) => dataset;
+async function datasetScopes(dataset: string) {
+  const plan = await planIngestion('20261027', new Date('2026-10-28T10:00:00Z'));
+  return [
+    ...new Set(plan.units.filter((unit) => unit.dataset === dataset).map((unit) => unit.scope)),
+  ].map((scope) => ({ scope }));
+}
 
 describe('administrator download lists', () => {
   it('ignores incomplete pending records, retains listed/delisted funds and initializes the top 100', async () =>
@@ -124,7 +128,6 @@ describe('administrator download lists', () => {
       expect(await database.etfBasic.findUnique({ where: { tsCode: '500124.SH' } })).toMatchObject({
         listStatus: 'D',
       });
-      expect(await database.etfLatestSize.findMany()).toHaveLength(125);
       expect(await readDownloadCodes('etf')).toEqual(selected.selectedCodes);
       expect(calls.some((call) => ['fund_daily', 'fund_adj'].includes(call.api))).toBe(false);
       expect(calls.find((call) => call.api === 'etf_share_size')?.params).toMatchObject({
@@ -139,22 +142,20 @@ describe('administrator download lists', () => {
     'keeps a saved empty list during daily sync and never repeats size selection',
     async () =>
       withSyncDatabase(async (database) => {
-        await database.marketDownloadList.createMany({
+        await database.ingestionSelection.createMany({
           data: [
             { assetType: 'etf', codes: [] },
             { assetType: 'index', codes: [] },
           ],
         });
         const calls: string[] = [];
-        await synchronizeData({
-          targetDate: '20261027',
-          startedAt: new Date('2026-10-28T10:00:00Z'),
-          providers: {
-            source: {
-              async call(api) {
-                calls.push(api);
-                return [];
-              },
+        await ingest({
+          targetDate: '19901220',
+          clock: () => new Date('1990-12-21T10:00:00Z'),
+          source: {
+            async call(api) {
+              calls.push(api);
+              return [];
             },
           },
           onLog: () => {},
@@ -172,14 +173,12 @@ describe('administrator download lists', () => {
     async (options) =>
       withSyncDatabase(async (database) => {
         await selectTopEtfs({ source: fixtureSource().source, today: '20261028', limit: 2 });
-        const beforeList = await database.marketDownloadList.findMany();
-        const beforeSizes = await database.etfLatestSize.findMany();
+        const beforeList = await database.ingestionSelection.findMany();
 
         await expect(
           selectTopEtfs({ source: fixtureSource(options).source, today: '20261028', limit: 3 }),
         ).rejects.toThrow();
-        expect(await database.marketDownloadList.findMany()).toEqual(beforeList);
-        expect(await database.etfLatestSize.findMany()).toEqual(beforeSizes);
+        expect(await database.ingestionSelection.findMany()).toEqual(beforeList);
       }),
   );
 
@@ -197,34 +196,23 @@ describe('administrator download lists', () => {
       expect(await datasetScopes(policy('etf-prices'))).toEqual([]);
       expect(await listDownloads('etf')).toMatchObject({ initialized: true, rows: [] });
       expect(await database.etfDaily.count()).toBe(1);
-      expect(await database.marketDownloadList.count()).toBe(1);
+      expect(await database.ingestionSelection.count()).toBe(1);
     }));
 
   it('does not schedule existing pending partitions for a removed ETF', async () =>
     withSyncDatabase(async (database) => {
-      await database.marketDownloadList.createMany({
+      await database.ingestionSelection.createMany({
         data: [
           { assetType: 'etf', codes: [] },
           { assetType: 'index', codes: [] },
         ],
       });
-      await database.datasetSyncPartition.create({
-        data: {
-          id: 'old-removed',
-          dataset: 'etf-prices',
-          scope: '500000.SH',
-          startDate: '20200101',
-          endDate: '20201231',
-          status: 'pending',
-        },
-      });
-      const planned = await planSyncPartitions({
-        targetDate: '20261027',
-        startedAt: new Date('2026-10-28T10:00:00Z'),
-      });
+      const planned = await planIngestion('20261027', new Date('2026-10-28T10:00:00Z'));
 
-      expect(planned.partitions.some((row) => row.scope === '500000.SH')).toBe(false);
-      expect(planned.gaps.some((gap) => /etf-prices|index-prices/.test(gap))).toBe(false);
+      expect(planned.units.some((row) => row.scope === '500000.SH')).toBe(false);
+      expect(planned.blocked.some((entry) => /etf-prices|index-prices/.test(entry.dataset))).toBe(
+        false,
+      );
     }));
 
   it('initializes five indices once, retains manual edits and separates official valuation support', async () =>

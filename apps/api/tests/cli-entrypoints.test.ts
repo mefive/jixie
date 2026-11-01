@@ -33,7 +33,7 @@ describe('unified data executable boundary', () => {
     await expect(
       executeFile(
         process.execPath,
-        ['--conditions=development', '--import', 'tsx', 'src/maintenance/cli/data.ts', ...args],
+        ['--conditions=development', '--import', 'tsx', 'src/ingestion/cli/data.ts', ...args],
         {
           cwd: apiDirectory,
           timeout: 10_000,
@@ -48,7 +48,7 @@ describe('unified data executable boundary', () => {
     async (...args) => {
       const result = await executeFile(
         process.execPath,
-        ['--conditions=development', '--import', 'tsx', 'src/maintenance/cli/data.ts', ...args],
+        ['--conditions=development', '--import', 'tsx', 'src/ingestion/cli/data.ts', ...args],
         {
           cwd: apiDirectory,
           timeout: 10_000,

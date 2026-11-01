@@ -429,22 +429,19 @@ test('permits module route exports while retaining the HTTP boundary for consume
   assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)), ['http-direction']);
 });
 
-test('treats maintenance middleware as HTTP without widening the business boundary', (context) => {
+test('treats ingestion middleware as HTTP without widening the business boundary', (context) => {
   const root = fixture(context, {
-    [src + 'server.ts']: "import './maintenance/middleware.js';",
-    [src + 'maintenance/middleware.ts']:
+    [src + 'server.ts']: "import './ingestion/middleware.js';",
+    [src + 'ingestion/middleware.ts']:
       "import type { MiddlewareHandler } from 'hono'; import './runs/state.js';",
-    [src + 'maintenance/runs/state.ts']: "import { prisma } from '../../infra/database/prisma.js';",
+    [src + 'ingestion/runs/state.ts']: "import { prisma } from '../../infra/database/prisma.js';",
     [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 
-  fs.writeFileSync(
-    path.join(root, src + 'maintenance/runs/state.ts'),
-    "import '../middleware.js';",
-  );
+  fs.writeFileSync(path.join(root, src + 'ingestion/runs/state.ts'), "import '../middleware.js';");
   fs.appendFileSync(
-    path.join(root, src + 'maintenance/middleware.ts'),
+    path.join(root, src + 'ingestion/middleware.ts'),
     "import { prisma } from '../infra/database/prisma.js';",
   );
   assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)).sort(), [

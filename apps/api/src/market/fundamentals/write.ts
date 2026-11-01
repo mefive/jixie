@@ -189,7 +189,7 @@ export async function writeFinancialPartition(
         await writeFinancialCashFlowStatement(transaction, batch, result);
         break;
       case 'FinaIndicator':
-        await writeFinaIndicator(transaction, batch, partition, result);
+        await writeFinaIndicator(transaction, batch, result);
         break;
       case 'FinaIndicatorVersion':
         await writeFinaIndicatorVersion(transaction, batch, result);
@@ -348,17 +348,25 @@ async function writeFinancialCashFlowStatement(
 async function writeFinaIndicator(
   transaction: MarketTransaction,
   batch: PreparedTable,
-  partition: MarketPartition,
   result: AcceptedMarketPartition,
 ) {
   const existing = await transaction.finaIndicator.findMany({
-    where: { endDate: partition.startDate },
+    where: {
+      tsCode: { in: [...new Set(batch.records.map((record) => String(record.values.tsCode)))] },
+      endDate: { in: [...new Set(batch.records.map((record) => String(record.values.endDate)))] },
+    },
   });
-  const records = new Map(batch.records.map((record) => [record.values.tsCode, record]));
+  const records = new Map(
+    batch.records.map((record) => [
+      JSON.stringify([record.values.tsCode, record.values.endDate]),
+      record,
+    ]),
+  );
   const rows = mergeRows({
     schema: finaIndicatorSchema,
     keys: ['tsCode', 'endDate'],
-    transform: (values, before) => mergeIndicatorSnapshot(before, records.get(values.tsCode)!),
+    transform: (values, before) =>
+      mergeIndicatorSnapshot(before, records.get(JSON.stringify([values.tsCode, values.endDate]))!),
     records: batch.records,
     existing,
     replace: false,

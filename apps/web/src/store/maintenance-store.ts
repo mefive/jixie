@@ -1,13 +1,13 @@
 import { action, makeObservable, observable, runInAction } from 'mobx';
-import { fetchMaintenanceStatus, type MaintenanceStatus } from '@src/api/maintenance';
+import { fetchIngestionStatus, type IngestionStatus } from '@src/api/maintenance';
 import { LoaderModel, PollingModel } from '@src/lib';
 
 class MaintenanceStore {
-  public loader = new LoaderModel<MaintenanceStatus>();
+  public loader = new LoaderModel<IngestionStatus>();
 
   public polling = new PollingModel();
 
-  public status: MaintenanceStatus | null = null;
+  public status: IngestionStatus | null = null;
 
   public serviceUnavailable = false;
 
@@ -18,12 +18,12 @@ class MaintenanceStore {
       acceptStatus: action,
       acceptServiceUnavailable: action,
     });
-    this.loader.setup({ request: () => fetchMaintenanceStatus() });
+    this.loader.setup({ request: () => fetchIngestionStatus() });
     this.polling.setup({
       interval: 5_000,
       request: async () => {
         try {
-          const status = await fetchMaintenanceStatus();
+          const status = await fetchIngestionStatus();
           this.acceptStatus(status);
           return undefined;
         } catch {
@@ -50,7 +50,7 @@ class MaintenanceStore {
    *
    * Accept maintenance state and detect deployment changes for availability gating and refresh prompts.
    */
-  public acceptStatus(status: MaintenanceStatus): void {
+  public acceptStatus(status: IngestionStatus): void {
     const wasBlocking = this.status?.active === true || this.serviceUnavailable;
     this.status = status;
     this.serviceUnavailable = false;
@@ -70,7 +70,7 @@ class MaintenanceStore {
   }
 
   private readonly onMaintenance = (event: Event): void => {
-    const status = (event as CustomEvent<MaintenanceStatus>).detail;
+    const status = (event as CustomEvent<IngestionStatus>).detail;
     if (status) {
       this.acceptStatus(status);
     }

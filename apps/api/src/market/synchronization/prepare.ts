@@ -39,7 +39,7 @@ export async function prepareMarketPartition(
     case 'index-prices':
     case 'index-valuations':
     case 'index-weights':
-      return prepareIndexPartition(providers.source, partition, fetchedAt);
+      return prepareIndexPartition(providers.source, partition);
     case 'etf-master':
     case 'etf-prices':
     case 'etf-adjustments':

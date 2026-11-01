@@ -1,3 +1,4 @@
+import { recordImportIssue } from './diagnostics.js';
 import { createHash } from 'node:crypto';
 import type { z } from 'zod';
 import type { AcceptedMarketPartition, MarketRow, SourceRecord } from './partition.js';
@@ -133,13 +134,28 @@ export function mergeRows<Schema extends z.ZodType<object>>(input: MergeRowsInpu
         unique.delete(identity);
         conflicts.add(identity);
         rejected += 2;
-        errors.push(`Duplicate or conflicting business key ${identity}`);
+        const message = `Duplicate or conflicting business key ${identity}`;
+        errors.push(message);
+        recordImportIssue({
+          category: 'record',
+          reasonCode: 'conflicting_business_key',
+          message,
+          businessKey: identity,
+          payload: [duplicate.raw ?? duplicate.values, record.raw ?? record.values],
+        });
         continue;
       }
       unique.set(identity, record);
     } catch (error) {
       rejected++;
-      errors.push(String(error));
+      const message = String(error);
+      errors.push(message);
+      recordImportIssue({
+        category: 'record',
+        reasonCode: 'record_not_accepted',
+        message,
+        payload: record.raw ?? record.values,
+      });
     }
   }
 
@@ -168,7 +184,14 @@ export function mergeRows<Schema extends z.ZodType<object>>(input: MergeRowsInpu
       }
     } catch (error) {
       rejected++;
-      errors.push(String(error));
+      const message = String(error);
+      errors.push(message);
+      recordImportIssue({
+        category: 'record',
+        reasonCode: 'record_not_accepted',
+        message,
+        payload: record.raw ?? record.values,
+      });
     }
   }
 

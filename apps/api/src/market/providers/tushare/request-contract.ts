@@ -3,7 +3,7 @@
  *
  * Parameters and transport modes used by maintenance; field semantics belong to domains.
  */
-export const MAINTENANCE_SOURCE_REQUESTS: Readonly<
+export const INGESTION_SOURCE_REQUESTS: Readonly<
   Record<string, { parameters: readonly string[]; snapshotLimit?: number }>
 > = {
   trade_cal: { parameters: ['exchange', 'start_date', 'end_date'], snapshotLimit: 6000 },
@@ -22,9 +22,9 @@ export const MAINTENANCE_SOURCE_REQUESTS: Readonly<
   index_daily: { parameters: ['ts_code', 'start_date', 'end_date'] },
   index_dailybasic: { parameters: ['ts_code', 'start_date', 'end_date'] },
   index_weight: { parameters: ['index_code', 'start_date', 'end_date'] },
-  income_vip: { parameters: ['period', 'report_type'] },
-  balancesheet_vip: { parameters: ['period', 'report_type'] },
-  cashflow_vip: { parameters: ['period', 'report_type'] },
-  fina_indicator_vip: { parameters: ['period'] },
+  income_vip: { parameters: ['period', 'report_type', 'ts_code'] },
+  balancesheet_vip: { parameters: ['period', 'report_type', 'ts_code'] },
+  cashflow_vip: { parameters: ['period', 'report_type', 'ts_code'] },
+  fina_indicator_vip: { parameters: ['period', 'ts_code'] },
   dividend: { parameters: ['ts_code'], snapshotLimit: 2000 },
 };

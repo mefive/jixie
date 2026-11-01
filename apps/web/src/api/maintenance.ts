@@ -1,10 +1,10 @@
 import { request } from './client';
 
-import type { MaintenanceStatus } from '@jixie/shared/api/maintenance';
-export type { MaintenanceStatus } from '@jixie/shared/api/maintenance';
+import type { IngestionStatus } from '@jixie/shared/api/ingestion';
+export type { IngestionStatus } from '@jixie/shared/api/ingestion';
 
-export function fetchMaintenanceStatus(): Promise<MaintenanceStatus> {
-  return request('/api/maintenance/status');
+export function fetchIngestionStatus(): Promise<IngestionStatus> {
+  return request('/api/ingestion/status');
 }
 
 /**
@@ -17,5 +17,5 @@ export interface DeploymentVersion {
 }
 
 export function fetchDeploymentVersion(signal: AbortSignal): Promise<DeploymentVersion> {
-  return request('/api/maintenance/version', { cache: 'no-store', signal });
+  return request('/api/ingestion/version', { cache: 'no-store', signal });
 }

@@ -56,10 +56,10 @@ export async function writeIndexPartition(
         await writeIndexWeight(transaction, batch, prepared, partition, result);
         break;
       case 'IndexDaily':
-        await writeIndexDaily(transaction, batch, prepared, partition, result);
+        await writeIndexDaily(transaction, batch, partition, result);
         break;
       case 'IndexDailyBasic':
-        await writeIndexDailyBasic(transaction, batch, prepared, partition, result);
+        await writeIndexDailyBasic(transaction, batch, partition, result);
         break;
       default:
         throw new Error(`Unexpected indices table ${batch.table}`);
@@ -152,7 +152,6 @@ async function writeIndexWeight(
 async function writeIndexDaily(
   transaction: MarketTransaction,
   batch: PreparedTable,
-  prepared: PreparedMarketPartition,
   partition: MarketPartition,
   result: AcceptedMarketPartition,
 ) {
@@ -167,10 +166,7 @@ async function writeIndexDaily(
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
-    replace:
-      batch.replace &&
-      ((prepared.status === 'complete' && !prepared.errors.length) ||
-        (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
+    replace: false,
     atomic: batch.atomic,
   });
 
@@ -203,7 +199,6 @@ async function writeIndexDaily(
 async function writeIndexDailyBasic(
   transaction: MarketTransaction,
   batch: PreparedTable,
-  prepared: PreparedMarketPartition,
   partition: MarketPartition,
   result: AcceptedMarketPartition,
 ) {
@@ -218,10 +213,7 @@ async function writeIndexDailyBasic(
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
-    replace:
-      batch.replace &&
-      ((prepared.status === 'complete' && !prepared.errors.length) ||
-        (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
+    replace: false,
     atomic: batch.atomic,
   });
 

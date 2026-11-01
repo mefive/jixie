@@ -21,7 +21,7 @@ async function createFixture(directory: string, compiled: boolean): Promise<stri
       imports: {
         '#infra/*': './' + (compiled ? 'dist/' : '') + 'src/infra/*',
         '#market/*': './' + (compiled ? 'dist/' : '') + 'src/market/*',
-        '#maintenance/*': './' + (compiled ? 'dist/' : '') + 'src/maintenance/*',
+        '#ingestion/*': './' + (compiled ? 'dist/' : '') + 'src/ingestion/*',
       },
     }),
   );

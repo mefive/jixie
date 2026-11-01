@@ -1,5 +1,3 @@
-import { DATASET_POLICIES } from '#market/synchronization/policies.js';
-import { selectSyncWindow } from '#maintenance/partitions.js';
 import { writeMarketPartition } from '#market/synchronization/prepare.js';
 import type {
   MarketPartition,
@@ -32,33 +30,4 @@ export async function writeFixture(
     window ?? { dataset, scope, startDate: date, endDate: date },
     fetchedAt,
   );
-}
-
-/** 仅汇总一次直接选择结果供夹具断言。 / Collect one selection pass for fixture assertions. */
-export async function selectFixtureWindows(input: {
-  targetDate: string;
-  startedAt: Date;
-  budget?: number;
-  excludeIds?: ReadonlySet<string>;
-}) {
-  const attempted = new Set(input.excludeIds);
-  const partitions = [];
-  for (const policy of DATASET_POLICIES) {
-    for (const history of [false, true]) {
-      const selected = await selectSyncWindow({
-        policy,
-        targetDate: input.targetDate,
-        startedAt: input.startedAt,
-        history,
-        attempted,
-        deadline: Date.now() + 30_000,
-      });
-      if (selected) {
-        partitions.push(selected);
-        attempted.add(selected.id);
-      }
-    }
-  }
-
-  return { partitions, gaps: [] as string[] };
 }

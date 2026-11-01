@@ -1,11 +1,6 @@
-import { STOCK_LIST_STATUSES } from '../instruments/market-range.js';
-import { etfDownloadRange } from '../etfs/download-range.js';
 import type { Prisma } from '@prisma/client';
-import { MarketError } from '../errors.js';
-import { DATASET_POLICIES } from './policies.js';
-import { calendarDay } from './date.js';
-import { contiguousCoverage } from './coverage.js';
 import { getDatabase } from '#infra/database/prisma.js';
+import { MarketError } from '../errors.js';
 
 export interface InputRequirement {
   dataset: string;
@@ -19,150 +14,104 @@ export interface InputReadiness {
 }
 
 /**
- * 覆盖必须来自连续分区证据，最大观察日或非零行数都不够。
+ * 读取实际业务数据判断指定输入是否存在，不查询采集控制表或全市场完成资格。
  *
- * Coverage requires contiguous partition evidence, never a max date or nonzero row count.
+ * Inspect requested business inputs directly, without ingestion receipts or market-wide eligibility.
  */
+type InputDatabase = Pick<
+  Prisma.TransactionClient,
+  | 'daily'
+  | 'adjFactor'
+  | 'dailyBasic'
+  | 'stkLimit'
+  | 'etfDaily'
+  | 'etfAdjFactor'
+  | 'indexDaily'
+  | 'indexDailyBasic'
+  | 'indexWeight'
+  | 'tradeCal'
+  | 'stockBasic'
+  | 'etfBasic'
+>;
+
 export async function datasetInputReadiness(
   requirements: InputRequirement[],
-  database: Pick<Prisma.TransactionClient, 'datasetSyncPartition' | 'tradeCal'> = getDatabase(),
+  database: InputDatabase = getDatabase(),
 ): Promise<InputReadiness> {
   const gaps: string[] = [];
-  const dependencies = requirements
-    .filter((entry) =>
-      ['stock-adjustments', 'stock-valuations', 'stock-limits'].includes(entry.dataset),
-    )
-    .map((entry) => ({ ...entry, dataset: 'stock-prices' }));
-  for (const requirement of [...requirements, ...dependencies]) {
-    const label = `${requirement.dataset}/${requirement.scope ?? 'all'}`;
-    const policy = DATASET_POLICIES.find((entry) => entry.dataset === requirement.dataset);
-    if (!policy) {
-      gaps.push(`${label}: unknown dataset`);
-      continue;
+  for (const requirement of requirements) {
+    const tradeDate = { gte: requirement.startDate, lte: requirement.endDate };
+    const tsCode = requirement.scope && requirement.scope !== 'all' ? requirement.scope : undefined;
+    const where = { tradeDate, ...(tsCode ? { tsCode } : {}) };
+    let found: unknown;
+    switch (requirement.dataset) {
+      case 'stock-prices':
+        found = await database.daily.findFirst({ where });
+        break;
+      case 'stock-adjustments':
+        found = await database.adjFactor.findFirst({ where });
+        break;
+      case 'stock-valuations':
+        found = await database.dailyBasic.findFirst({ where });
+        break;
+      case 'stock-limits':
+        found = await database.stkLimit.findFirst({ where });
+        break;
+      case 'etf-prices':
+        found = await database.etfDaily.findFirst({ where });
+        break;
+      case 'etf-adjustments':
+        found = await database.etfAdjFactor.findFirst({ where });
+        break;
+      case 'index-prices':
+        found = await database.indexDaily.findFirst({ where });
+        break;
+      case 'index-valuations':
+        found = await database.indexDailyBasic.findFirst({ where });
+        break;
+      case 'index-weights':
+        found = await database.indexWeight.findFirst({
+          where: { tradeDate, ...(tsCode ? { indexCode: tsCode } : {}) },
+        });
+        break;
+      case 'calendar':
+        found = await database.tradeCal.findFirst({
+          where: { calDate: tradeDate, exchange: requirement.scope ?? 'SSE' },
+        });
+        break;
+      case 'stock-master':
+        found = await database.stockBasic.findFirst();
+        break;
+      case 'etf-master':
+        found = await database.etfBasic.findFirst();
+        break;
+      default:
+        found = null;
     }
-
-    const master =
-      requirement.dataset === 'stock-prices'
-        ? { dataset: 'stock-master', scopes: STOCK_LIST_STATUSES }
-        : ['etf-prices', 'etf-adjustments'].includes(requirement.dataset)
-          ? { dataset: 'etf-master', scopes: ['all'] }
-          : null;
-    if (master) {
-      const catalogs = await database.datasetSyncPartition.findMany({
-        where: {
-          dataset: master.dataset,
-          status: 'complete',
-        },
-      });
-      if (master.scopes.some((scope) => !catalogs.some((entry) => entry.scope === scope))) {
-        gaps.push(`${master.dataset}: listing-status inventories are not verified`);
-      }
-    }
-    const unavailable = await database.datasetSyncPartition.findMany({
-      where: {
-        dataset: requirement.dataset,
-        scope: requirement.scope ?? 'all',
-        status: 'unavailable',
-        startDate: { lte: requirement.endDate },
-        endDate: { gte: requirement.startDate },
-      },
-    });
-    if (unavailable.length) {
+    if (!found) {
       gaps.push(
-        `${requirement.dataset}/${requirement.scope}: requested history precedes the source`,
+        `${requirement.dataset}/${requirement.scope ?? 'all'}: no saved input in ${requirement.startDate}..${requirement.endDate}`,
       );
     }
-    const partitions = await database.datasetSyncPartition.findMany({
-      where: {
-        dataset: requirement.dataset,
-        scope: requirement.scope ?? 'all',
-        startDate: { lte: requirement.endDate },
-        endDate: { gte: requirement.startDate },
-        status: { in: ['complete', 'not_applicable'] },
-      },
-      orderBy: { startDate: 'asc' },
-    });
-    if (policy.completion === 'sessions') {
-      const calendarProof = await database.datasetSyncPartition.findMany({
-        where: {
-          dataset: 'calendar',
-          scope: 'SSE',
-          status: 'complete',
-          startDate: { lte: requirement.endDate },
-          endDate: { gte: requirement.startDate },
-        },
-      });
-      if ((contiguousCoverage(requirement.startDate, calendarProof) ?? '') < requirement.endDate) {
-        gaps.push(`${requirement.dataset}: calendar coverage is unverified`);
-      }
-      const sessions = await database.tradeCal.findMany({
-        where: {
-          exchange: 'SSE',
-          isOpen: 1,
-          calDate: { gte: requirement.startDate, lte: requirement.endDate },
-        },
-        select: { calDate: true },
-      });
-      for (const session of sessions) {
-        if (
-          !partitions.some(
-            (partition) =>
-              partition.startDate <= session.calDate && partition.endDate >= session.calDate,
-          )
-        ) {
-          gaps.push(`${label}: unverified session ${session.calDate}`);
-        }
-      }
-      continue;
-    }
-    let cursor = requirement.startDate;
-    for (const partition of partitions) {
-      if (partition.startDate > cursor) {
-        break;
-      }
-      if (partition.endDate >= cursor) {
-        cursor = calendarDay(partition.endDate, 1);
-      }
-    }
-    if (cursor <= requirement.endDate) {
-      const range = `${cursor}..${requirement.endDate}`;
-      gaps.push(`${label}: unverified coverage ${range}`);
-    }
   }
 
-  return { ready: gaps.length === 0, gaps };
+  return { ready: !gaps.length, gaps };
 }
 
-export async function marketRevision(): Promise<number> {
-  return (
-    (
-      await getDatabase().marketDataState.findUnique({
-        where: { key: 'global' },
-        select: { revision: true },
-      })
-    )?.revision ?? 0
-  );
-}
-
-/**
- * 正式消费者在自己的范围内拒绝缺输入，不把全产品关闭。
- *
- * Formal consumers reject missing inputs in their own scope without closing the product.
- */
 export async function assertDatasetInputReadiness(
   requirements: InputRequirement[],
-  database: Pick<Prisma.TransactionClient, 'datasetSyncPartition' | 'tradeCal'> = getDatabase(),
+  database?: InputDatabase,
 ): Promise<void> {
-  const status = await datasetInputReadiness(requirements, database);
-  if (!status.ready) {
-    throw new MarketError('inputs_not_ready', { details: { gaps: status.gaps } });
+  const result = await datasetInputReadiness(requirements, database);
+  if (!result.ready) {
+    throw new MarketError('inputs_not_ready', { details: { gaps: result.gaps } });
   }
 }
 
 /**
- * Research 和因子序列共用有效生命周期及价格／复权资格。
+ * 稀疏价格保持稀疏；实际返回的每条价格必须有对应复权因子。
  *
- * Research and factor series share lifecycle and price/adjustment eligibility.
+ * Preserve sparse prices; require an adjustment only for each actual returned price.
  */
 export async function assertPriceSeriesReadiness(
   assetType: 'stock' | 'etf' | 'index',
@@ -170,27 +119,34 @@ export async function assertPriceSeriesReadiness(
   startDate: string,
   endDate: string,
 ): Promise<void> {
-  if (assetType === 'etf') {
-    const row = await getDatabase().etfBasic.findUnique({ where: { tsCode: code } });
-    const range = etfDownloadRange(row ?? undefined, '20150101');
-    if (range.blockedReason) {
-      throw new MarketError('inputs_not_ready', { details: { gaps: [range.blockedReason] } });
-    }
-    startDate = [startDate, range.startDate].sort().at(-1)!;
-    endDate = [endDate, range.endDate ?? endDate].sort()[0];
-  }
-  if (startDate > endDate) {
+  if (assetType === 'index' || startDate > endDate) {
     return;
   }
+  const database = getDatabase();
+  const where = { tsCode: code, tradeDate: { gte: startDate, lte: endDate } };
+  const [prices, adjustments] =
+    assetType === 'stock'
+      ? await Promise.all([
+          database.daily.findMany({ where, select: { tradeDate: true } }),
+          database.adjFactor.findMany({ where, select: { tradeDate: true, adjFactor: true } }),
+        ])
+      : await Promise.all([
+          database.etfDaily.findMany({ where, select: { tradeDate: true } }),
+          database.etfAdjFactor.findMany({ where, select: { tradeDate: true, adjFactor: true } }),
+        ]);
+  const adjusted = new Set(
+    adjustments.filter((row) => row.adjFactor > 0).map((row) => row.tradeDate),
+  );
+  const missing = prices.filter((row) => !adjusted.has(row.tradeDate)).map((row) => row.tradeDate);
+  if (missing.length) {
+    throw new MarketError('inputs_not_ready', {
+      details: { gaps: [`${code}: missing adjustments on ${missing.join(', ')}`] },
+    });
+  }
+}
 
-  const datasets =
-    assetType === 'index' ? ['index-prices'] : [`${assetType}-prices`, `${assetType}-adjustments`];
-  await assertDatasetInputReadiness(
-    datasets.map((dataset) => ({
-      dataset,
-      scope: assetType === 'stock' ? 'all' : code,
-      startDate,
-      endDate,
-    })),
+export async function marketRevision(): Promise<number> {
+  return (
+    (await getDatabase().marketDataState.findUnique({ where: { key: 'global' } }))?.revision ?? 0
   );
 }

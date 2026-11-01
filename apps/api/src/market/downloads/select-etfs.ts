@@ -21,7 +21,7 @@ export interface SelectEtfsInput {
  *
  * Fetch the latest fully paginated single-date snapshot without mixing dates or ranking units as size.
  */
-async function fetchLatestSizes(source: SyncSource, today: string) {
+export async function fetchLatestSizes(source: SyncSource, today: string) {
   const calendar = await fetchSourcePages(
     source,
     'trade_cal',
@@ -106,7 +106,7 @@ export async function selectEtfsUnderMaintenance(input: SelectEtfsInput) {
   const prepared = await prepareEtfPartition(input.source, {
     dataset: 'etf-master',
     scope: 'all',
-    startDate: '20150101',
+    startDate: '19901219',
     endDate: today,
   });
   if (prepared.status !== 'complete' || prepared.errors.length) {
@@ -145,15 +145,13 @@ export async function selectEtfsUnderMaintenance(input: SelectEtfsInput) {
         const accepted = await writeEtfPartition(transaction, prepared, {
           dataset: 'etf-master',
           scope: 'all',
-          startDate: '20150101',
+          startDate: '19901219',
           endDate: today,
         });
         if (accepted.errors.length) {
           throw new Error(`ETF catalog rejected: ${accepted.errors.join('; ')}`);
         }
-        await transaction.etfLatestSize.deleteMany({});
-        await transaction.etfLatestSize.createMany({ data: snapshot.rows });
-        await transaction.marketDownloadList.upsert({
+        await transaction.ingestionSelection.upsert({
           where: { assetType: 'etf' },
           create: { assetType: 'etf', codes },
           update: { codes },

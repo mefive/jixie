@@ -1,8 +1,4 @@
 import { mergeStockSource } from '../instruments/source-selection.js';
-import { changedListingIntervals } from '../synchronization/catalog-coverage.js';
-import { stockCoverageIntervals } from '../instruments/market-range.js';
-import { canonicalStockCode } from '../instruments/stock-identity.js';
-import { isOutsideStockLimitScope } from './limit-scope.js';
 import { z } from 'zod';
 import type {
   MarketPartition,
@@ -105,16 +101,16 @@ export async function writeStockPartition(
         await writeStockNameHistory(transaction, batch, partition, result);
         break;
       case 'Daily':
-        await writeDaily(transaction, batch, prepared, partition, result);
+        await writeDaily(transaction, batch, partition, result);
         break;
       case 'AdjFactor':
-        await writeAdjFactor(transaction, batch, prepared, partition, result);
+        await writeAdjFactor(transaction, batch, partition, result);
         break;
       case 'DailyBasic':
-        await writeDailyBasic(transaction, batch, prepared, partition, result);
+        await writeDailyBasic(transaction, batch, partition, result);
         break;
       case 'StkLimit':
-        await writeStkLimit(transaction, batch, prepared, partition, result);
+        await writeStkLimit(transaction, batch, partition, result);
         break;
       default:
         throw new Error(`Unexpected stocks table ${batch.table}`);
@@ -151,27 +147,6 @@ async function writeStockBasic(
     await transaction.stockBasic.createMany({ data: rows.inserted });
   }
   collectWriteResult(result, rows);
-
-  const replacements = new Map([...rows.inserted, ...rows.updated].map((row) => [row.tsCode, row]));
-  const before = stockCoverageIntervals(existing);
-  const after = stockCoverageIntervals([
-    ...existing.map((row) => replacements.get(row.tsCode) ?? row),
-    ...rows.inserted,
-  ]);
-  result.coverageChanges = [];
-  for (const code of new Set([...before.keys(), ...after.keys()])) {
-    const changes = changedListingIntervals(before.get(code), after.get(code));
-    for (const dates of changes) {
-      for (const dataset of [
-        'stock-prices',
-        'stock-adjustments',
-        'stock-valuations',
-        'stock-limits',
-      ]) {
-        result.coverageChanges.push({ dataset, scope: 'all', ...dates });
-      }
-    }
-  }
 }
 
 /**
@@ -249,7 +224,6 @@ async function writeStockNameHistory(
 async function writeDaily(
   transaction: MarketTransaction,
   batch: PreparedTable,
-  prepared: PreparedMarketPartition,
   partition: MarketPartition,
   result: AcceptedMarketPartition,
 ) {
@@ -262,11 +236,7 @@ async function writeDaily(
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
-    replace:
-      batch.replace &&
-      !prepared.checks.sourceAbsences &&
-      ((prepared.status === 'complete' && !prepared.errors.length) ||
-        (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
+    replace: false,
     atomic: batch.atomic,
   });
 
@@ -299,7 +269,6 @@ async function writeDaily(
 async function writeAdjFactor(
   transaction: MarketTransaction,
   batch: PreparedTable,
-  prepared: PreparedMarketPartition,
   partition: MarketPartition,
   result: AcceptedMarketPartition,
 ) {
@@ -312,11 +281,7 @@ async function writeAdjFactor(
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
-    replace:
-      batch.replace &&
-      !prepared.checks.sourceAbsences &&
-      ((prepared.status === 'complete' && !prepared.errors.length) ||
-        (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
+    replace: false,
     atomic: batch.atomic,
   });
 
@@ -349,7 +314,6 @@ async function writeAdjFactor(
 async function writeDailyBasic(
   transaction: MarketTransaction,
   batch: PreparedTable,
-  prepared: PreparedMarketPartition,
   partition: MarketPartition,
   result: AcceptedMarketPartition,
 ) {
@@ -362,11 +326,7 @@ async function writeDailyBasic(
     keys: ['tsCode', 'tradeDate'],
     records: batch.records,
     existing,
-    replace:
-      batch.replace &&
-      !prepared.checks.sourceAbsences &&
-      ((prepared.status === 'complete' && !prepared.errors.length) ||
-        (batch.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed)),
+    replace: false,
     atomic: batch.atomic,
   });
 
@@ -399,7 +359,6 @@ async function writeDailyBasic(
 async function writeStkLimit(
   transaction: MarketTransaction,
   batch: PreparedTable,
-  prepared: PreparedMarketPartition,
   partition: MarketPartition,
   result: AcceptedMarketPartition,
 ) {
@@ -426,41 +385,4 @@ async function writeStkLimit(
     await transaction.stkLimit.createMany({ data: rows.inserted });
   }
   collectWriteResult(result, rows);
-
-  // 只在本次窗口完整核验后删除已确认范围外的旧限价；未知身份与缺席股票保留。
-  // Remove only proven out-of-scope limits after this window verifies.
-  // Retain unknown identities and absent stocks.
-  if (
-    !batch.replace ||
-    prepared.status !== 'complete' ||
-    !prepared.checks.terminalPage ||
-    prepared.checks.sourceFailed ||
-    prepared.errors.length ||
-    rows.errors.length
-  ) {
-    return;
-  }
-  const [stockRows, fundRows] = await Promise.all([
-    transaction.stockBasic.findMany({ select: { tsCode: true } }),
-    transaction.etfBasic.findMany({ select: { tsCode: true } }),
-  ]);
-  const stocks = new Set(stockRows.map((row) => canonicalStockCode(row.tsCode)));
-  const funds = new Set(fundRows.map((row) => row.tsCode));
-  const outside = existing.filter((row) => isOutsideStockLimitScope(row.tsCode, stocks, funds));
-
-  for (let offset = 0; offset < outside.length; offset += 200) {
-    const removed = await transaction.stkLimit.deleteMany({
-      where: {
-        tradeDate: partition.startDate,
-        tsCode: { in: outside.slice(offset, offset + 200).map((row) => row.tsCode) },
-      },
-    });
-    result.deleted += removed.count;
-    result.changed ||= removed.count > 0;
-  }
-  if (outside.length) {
-    result.maxObservedDate = (
-      await transaction.stkLimit.aggregate({ _max: { tradeDate: true } })
-    )._max.tradeDate;
-  }
 }

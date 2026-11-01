@@ -29,7 +29,7 @@ Worker 仍负责消息与进程收尾；因子天气和相关性任务已退役�
 
 ## API 命令分派
 
-唯一市场写入口为 `pnpm data sync [--to YYYYMMDD]`，源码 `apps/api/src/maintenance/cli/data.ts`，生产 `apps/api/dist/src/maintenance/cli/data.js`。纯参数路径先完成校验，再动态加载环境、数据库、供应商和协调器；帮助和非法参数无业务副作用。
+唯一市场写入口为 `pnpm data ingest [--to YYYYMMDD]`，源码 `apps/api/src/ingestion/cli/data.ts`，生产 `apps/api/dist/src/ingestion/cli/data.js`。纯参数路径先完成校验，再动态加载环境、数据库、供应商和协调器；帮助和非法参数无业务副作用。
 
 只读审计 `pnpm data:audit` 与显式探针 `pnpm probe` 继续使用 `scripts/{audit,probes}/index.ts` 和对应干净编译入口。它们的动态入口清单及资源收尾继续由源码/编译隔离测试约束。旧 sync 子任务、maintenance/import 与候选财务子进程入口已退役。
 
@@ -85,7 +85,7 @@ Worker 仍负责消息与进程收尾；因子天气和相关性任务已退役�
 | Research 宿主协议 | `research/sandbox/host/` 拥有参数/帧校验与分派；所有取数均查询当前可用数据，不留存输入回放；`sandbox/research-sandbox.ts` 调用它，SDK Python 不反向导入宿主 |
 | 公开 Python stub | `apps/sandboxd/python/jixie_research_sdk.pyi`、`jixie_factor_sdk.pyi` 由 shared Contract 生成；路径移动不得手工改生成结果 |
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
-| API CLI | `maintenance/cli/data.ts` / `dist/src/maintenance/cli/data.js` 为唯一市场写入口；邀请、审计、探针和零 npm 依赖备份分别保留自身入口与资源收尾，见 [脚本索引](../apps/api/scripts/README.md) |
+| API CLI | `ingestion/cli/data.ts` / `dist/src/ingestion/cli/data.js` 为唯一市场写入口；邀请、审计、探针和零 npm 依赖备份分别保留自身入口与资源收尾，见 [脚本索引](../apps/api/scripts/README.md) |
 
 统一协调器调用各 Market 领域的 `sync-partition.ts`，有限分区准备结果在短事务中与覆盖和失效一起提交；财报以完整版本行接纳。私有派生计算文件仅复制明确市场输入，不包含用户表，finally 关闭 Prisma 并删除文件。业务仍通过 `getDatabase()` 使用显式执行绑定。
 

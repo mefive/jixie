@@ -62,8 +62,8 @@ test('deployment infrastructure selects every application', () => {
   for (const changedPath of [
     '.dockerignore',
     'scripts/bootstrap.sh',
-    'scripts/deploy/deployment-gate.mjs',
-    'deploy/jixie-maintenance.timer',
+    'scripts/deploy/activate-ingestion.sh',
+    'deploy/jixie-ingestion.timer',
     'scripts/sandbox/setup.ts',
     'scripts/e2e/run.mjs',
     'scripts/e2e/commands.mjs',
@@ -227,12 +227,19 @@ test('unknown paths fail safe to a full deployment', () => {
   assert.match(result.reasons[0], /^unknown:/);
 });
 
-test('offline maintenance upgrade changes require the complete deployment path', () => {
-  for (const filename of ['upgrade-minimal-sync.mjs', 'upgrade-sync-proofs.mjs']) {
-    const plan = classifyChangedPaths([`apps/api/scripts/${filename}`], manifest);
+test('ingestion rebuild changes require the complete deployment path', () => {
+  for (const filename of ['apps/api/src/ingestion/reset.ts', 'scripts/bootstrap.sh']) {
+    const plan = classifyChangedPaths([filename], manifest);
     assert.equal(plan.fullDeploy, true);
     for (const component of manifest.allComponents) {
       assert.equal(plan[component], true);
     }
   }
+});
+
+test('ingestion data rebuild selects all deployment components', () => {
+  assert.equal(
+    classifyChangedPaths(['apps/api/src/ingestion/reset.ts'], manifest).fullDeploy,
+    true,
+  );
 });

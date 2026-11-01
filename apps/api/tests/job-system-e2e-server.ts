@@ -239,16 +239,6 @@ async function seedMarket() {
     ),
   });
 
-  await prisma.datasetSyncPartition.createMany({
-    data: ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations'].map((dataset) => ({
-      id: `fixture:${dataset}`,
-      dataset,
-      scope: dataset === 'calendar' ? 'SSE' : 'all',
-      startDate: dates[0]!,
-      endDate: dates.at(-1)!,
-      status: 'complete',
-    })),
-  });
   // Each short batch keeps fixture memory bounded. Later single-asset observations establish a
   // coverage for recent analyses and historical backtest dates.
   for (let offset = 0; offset < dates.length; offset += 20) {

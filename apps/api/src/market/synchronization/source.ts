@@ -1,5 +1,6 @@
-import { MAINTENANCE_SOURCE_REQUESTS } from '../providers/tushare/request-contract.js';
-import { MarketSyncBudgetError } from '../errors.js';
+import { recordImportIssue, recordImportRequest } from './diagnostics.js';
+import { INGESTION_SOURCE_REQUESTS } from '../providers/tushare/request-contract.js';
+import { MarketSyncBudgetError, TushareError } from '../errors.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import type { MarketRow, PreparedMarketPartition, SourceRecord } from './partition.js';
 
@@ -16,9 +17,9 @@ export interface SourcePages {
 }
 
 /**
- * 分页失败保留已经收到的独立合法记录，永不返回虚假完成。
+ * 分页完整性独立报告；调度器只提交整批下载完成的数据。
  *
- * Keep independent received records after page failures without claiming completion.
+ * Report pagination completeness separately; the orchestrator commits only complete downloads.
  */
 export async function fetchSourcePages(
   source: SyncSource,
@@ -28,13 +29,15 @@ export async function fetchSourcePages(
   pageSize = 1000,
   maximumPages = 20,
 ): Promise<SourcePages> {
-  const contract = MAINTENANCE_SOURCE_REQUESTS[api];
+  const contract = INGESTION_SOURCE_REQUESTS[api];
   if (
     !contract ||
     Object.keys(params).some((parameter) => !contract.parameters.includes(parameter))
   ) {
-    throw new Error(`${api}: undeclared maintenance request parameter`);
+    throw new Error(`${api}: undeclared ingestion request parameter`);
   }
+  recordImportRequest(api, params, fields);
+
   const snapshotLimit = contract.snapshotLimit;
   const result: SourcePages = { rows: [], complete: false, pages: 0, errors: [] };
   const signatures = new Set<string>();
@@ -64,12 +67,21 @@ export async function fetchSourcePages(
         result.deferred = true;
         break;
       }
-      result.errors.push(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      result.errors.push(message);
+      recordImportIssue({
+        category: 'request',
+        reasonCode:
+          error instanceof TushareError ? 'source_rejected_request' : 'source_request_failed',
+        message,
+      });
       break;
     }
   }
   if (!result.complete && !result.deferred && !result.errors.length) {
-    result.errors.push(`${api}: finite pagination limit reached`);
+    const message = `${api}: finite pagination limit reached`;
+    result.errors.push(message);
+    recordImportIssue({ category: 'request', reasonCode: 'incomplete_pagination', message });
   }
 
   return result;
@@ -110,7 +122,6 @@ export function completeResponse(input: {
   pages: SourcePages;
   table: string;
   records: SourceRecord[];
-  coverageComplete: boolean;
   replace?: boolean;
   observedDates?: string[];
   allowEmpty?: boolean;
@@ -120,7 +131,7 @@ export function completeResponse(input: {
   if (!input.records.length && !input.allowEmpty && !errors.length && !input.pages.deferred) {
     errors.push(`${input.table}: unexplained empty source response`);
   }
-  const complete = input.pages.complete && !errors.length && input.coverageComplete;
+  const complete = input.pages.complete && !errors.length;
 
   return {
     tables: [
@@ -148,6 +159,10 @@ export function completeResponse(input: {
       invalidRows: input.errors?.length ?? 0,
       pages: input.pages.pages,
       sourceRows: input.pages.rows.length,
+      excludedRows: Math.max(
+        0,
+        input.pages.rows.length - input.records.length - (input.errors?.length ?? 0),
+      ),
     },
     observedDates: input.observedDates ?? [],
     gaps: complete ? [] : [`${input.table}: source extent is unfinished`],
@@ -168,9 +183,17 @@ export function mapSourceRecords(
   const errors: string[] = [];
   for (const row of rows) {
     try {
-      records.push(map(row));
+      records.push({ ...map(row), raw: row });
     } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push(message);
+      recordImportIssue({
+        category:
+          error instanceof TypeError || error instanceof ReferenceError ? 'internal' : 'record',
+        reasonCode: 'record_not_accepted',
+        message,
+        payload: row,
+      });
     }
   }
 

@@ -42,13 +42,10 @@ describe('bounded source evidence', () => {
 
   it('A05/A06 distinguishes authoritative sparse empty responses from unexplained dense emptiness', () => {
     const pages = { rows: [], complete: true, pages: 1, errors: [] };
-    expect(
-      completeResponse({ pages, table: 'Daily', records: [], coverageComplete: false }).status,
-    ).toBe('error');
+    expect(completeResponse({ pages, table: 'Daily', records: [] }).status).toBe('error');
     const empty = completeResponse({
       pages,
       table: 'Dividend',
-      coverageComplete: true,
       replace: true,
       records: [],
       allowEmpty: true,

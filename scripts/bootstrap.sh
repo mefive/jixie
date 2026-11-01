@@ -438,24 +438,14 @@ grep -qE '^TUSHARE_TOKEN=""?$'   "$ENV_PROD" 2>/dev/null && warn "TUSHARE_TOKEN 
 grep -qE '^RESEND_API_KEY=""?$'  "$ENV_PROD" 2>/dev/null && warn "RESEND_API_KEY 为空 —— 生产无 console 兜底,没人能登录。"
 grep -qE '^DEEPSEEK_API_KEY=""?$' "$ENV_PROD" 2>/dev/null && warn "DEEPSEEK_API_KEY 为空 —— NL→代码 / Agent 不可用(其余功能正常)。"
 
-DEPLOYMENT_RUN_ID=""
 API_WAS_ACTIVE=0
 SCHEMA_DATA_READY=1
-MINIMAL_SYNC_TRANSFER=""
-
-finish_deployment_gate() {
-  local outcome="$1"
-  [[ -n "$DEPLOYMENT_RUN_ID" ]] || return 0
-
-  node --no-warnings "$JIXIE_DIR/scripts/deploy/deployment-gate.mjs" \
-    finish "$DB_FILE" "$DEPLOYMENT_RUN_ID" "$outcome"
-  DEPLOYMENT_RUN_ID=""
-}
+INGESTION_REBUILD_MARKER="$JIXIE_DATA_DIR/ingestion-rebuild.required"
 
 check_blocking_maintenance() {
   local maintenance_status
   local maintenance_active
-  maintenance_status="$(curl -fsS "localhost:$JIXIE_PORT/api/maintenance/status")" ||
+  maintenance_status="$(curl -fsS "localhost:$JIXIE_PORT/api/ingestion/status")" ||
     die "无法读取 maintenance status"
   maintenance_active="$(
     STATUS_JSON="$maintenance_status" node -e '
@@ -478,9 +468,6 @@ cleanup_deployment_gate() {
   if [[ -n "$STAGING_DIR" && -d "$STAGING_DIR" ]]; then
     rm -rf -- "$STAGING_DIR"
   fi
-  if [[ -n "$DEPLOYMENT_RUN_ID" ]]; then
-    finish_deployment_gate error || true
-  fi
   if [[ "$exit_code" -ne 0 && "$API_WAS_ACTIVE" == "1" && "$SCHEMA_DATA_READY" == "1" ]] &&
     ! systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
     warn "部署失败,恢复部署前运行的 $JIXIE_SERVICE"
@@ -496,13 +483,6 @@ cleanup_deployment_gate() {
 trap cleanup_deployment_gate EXIT
 
 if [[ "$DEPLOY_API" == "1" ]]; then
-  # 老版本没有共享读锁，升级时保留一次旧计数排空；新版只认真实句柄。
-  # Older APIs lack shared admission; use their legacy drain only for the upgrade transition.
-  export JIXIE_DEPLOY_LEGACY_DRAIN=1
-  existing_maintenance_status="$(curl -fsS "localhost:$JIXIE_PORT/api/maintenance/status" 2>/dev/null || true)"
-  if STATUS_JSON="$existing_maintenance_status" node -e 'try { process.exit(JSON.parse(process.env.STATUS_JSON).phase ? 0 : 1); } catch { process.exit(1); }'; then
-    export JIXIE_DEPLOY_LEGACY_DRAIN=0
-  fi
   # 先关闭共享准入，再排空完整业务范围，queued 不持读锁。
   # Close shared admission before draining complete business scopes; queued jobs hold no reader lock.
   exec 10>>"$JIXIE_DATA_DIR/market-publish-intent.lock"
@@ -515,23 +495,6 @@ fi
 
 if [[ "$DEPLOY_API" == "1" ]] && systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
   API_WAS_ACTIVE=1
-  MAINTENANCE_TABLE_EXISTS="$(
-    sqlite3 "$DB_FILE" \
-      "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'MaintenanceRun';" \
-      2>/dev/null ||
-      echo 0
-  )"
-  if [[ "$MAINTENANCE_TABLE_EXISTS" -gt 0 ]]; then
-    log "进入部署维护模式并等待后台任务结束"
-    DEPLOYMENT_RUN_ID="$(
-      node --no-warnings "$JIXIE_DIR/scripts/deploy/deployment-gate.mjs" \
-        begin "$DB_FILE" "$CURRENT_REVISION"
-    )"
-    [[ -n "$DEPLOYMENT_RUN_ID" ]] || die "无法创建部署维护状态"
-  else
-    warn "旧数据库尚无维护状态表,直接停止 API 完成首次 schema 升级"
-  fi
-
   log "停止 $JIXIE_SERVICE,避免部署期间混用新旧代码并释放 SQLite 连接"
   sudo systemctl stop "$JIXIE_SERVICE"
 fi
@@ -550,33 +513,27 @@ if [[ "$DEPLOY_API" == "1" || "$DEPLOY_WEB" == "1" || "$DEPLOY_DOCS" == "1" ]]; 
 fi
 
 if [[ "$DEPLOY_API" == "1" ]]; then
+  SCHEMA_DATA_READY=0
   log "prisma generate"
   pnpm --filter api exec prisma generate
 
   log "构建 API"
   NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter api build
 
-  # 旧分红捕获时间须先搬移；失败时保持停服，不能由 EXIT trap 自动启动 API。
-  # Transfer legacy dividend capture dates first; failures must keep the API stopped.
+  # 旧采集状态仅用于识别一次性重建，业务历史不迁移；标记保证失败重试仍先重建。
+  # Detect a one-time rebuild without migrating business history; retain the marker across retries.
   SCHEMA_DATA_READY=0
-  MINIMAL_SYNC_TRANSFER="$(node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-minimal-sync.mjs" export "$DB_FILE")"
-  if [[ -n "$MINIMAL_SYNC_TRANSFER" ]]; then
-    JIXIE_DB_PATH="$DB_FILE" JIXIE_BACKUP_DIR="$JIXIE_BACKUP_DIR" node "$JIXIE_DIR/apps/api/scripts/backup-db.mjs"
-  fi
-
-  # 删除旧策略列前撤销受影响凭证；失败保持停服，重复执行不会再次撤销已恢复的资格。
-  # Revoke affected proofs before dropping the old column; failure keeps services stopped.
-  SYNC_PROOF_COUNT="$(node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-sync-proofs.mjs" check "$DB_FILE")"
-  [[ "$SYNC_PROOF_COUNT" =~ ^[0-9]+$ ]] || die "同步凭证升级预检返回非法数量"
-  if [[ "$SYNC_PROOF_COUNT" -gt 0 ]]; then
-    JIXIE_DB_PATH="$DB_FILE" JIXIE_BACKUP_DIR="$JIXIE_BACKUP_DIR/sync-proof-upgrade" node "$JIXIE_DIR/apps/api/scripts/backup-db.mjs"
-    node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-sync-proofs.mjs" apply "$DB_FILE"
+  OLD_INGESTION_TABLES="$(sqlite3 "$DB_FILE" "SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('DataSyncRun','DatasetSyncPartition');" 2>/dev/null || echo 0)"
+  if [[ "$OLD_INGESTION_TABLES" -gt 0 ]]; then
+    : > "$INGESTION_REBUILD_MARKER"
   fi
 
   log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
   pnpm --filter api exec prisma migrate deploy
-  if [[ -n "$MINIMAL_SYNC_TRANSFER" ]]; then
-    node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-minimal-sync.mjs" restore "$DB_FILE"
+  if [[ -f "$INGESTION_REBUILD_MARKER" ]]; then
+    log "备份并重建业务数据，仅保留用户登录数据"
+    DATABASE_URL="file:$DB_FILE" node --conditions=production "$JIXIE_DIR/apps/api/dist/src/ingestion/cli/data.js" reset --apply
+    rm -- "$INGESTION_REBUILD_MARKER"
   fi
 
   SCHEMA_DATA_READY=1
@@ -649,15 +606,14 @@ if [[ "$DEPLOY_API" == "1" ]] || ! systemctl is-active --quiet "$JIXIE_SERVICE";
   sudo systemctl restart "$JIXIE_SERVICE"
   systemctl is-active --quiet "$JIXIE_SERVICE" ||
     die "$JIXIE_SERVICE 启动失败,查日志: journalctl -u $JIXIE_SERVICE -e"
-  finish_deployment_gate done
 else
   log "API 未受本次变更影响,保持运行"
 fi
 
 log "安装统一同步和备份 timers"
 for unit in \
-  jixie-maintenance.service \
-  jixie-maintenance.timer \
+  jixie-ingestion.service \
+  jixie-ingestion.timer \
   jixie-backup.service \
   jixie-backup.timer; do
   sed -e "s#/opt/jixie#$JIXIE_DIR#g" \
@@ -668,15 +624,15 @@ for unit in \
       -e "s#^Group=jixie#Group=$JIXIE_DEPLOY_USER#" \
       "$JIXIE_DIR/deploy/$unit" | sudo tee "/etc/systemd/system/$unit" >/dev/null
 done
-sudo install -d /etc/systemd/system/jixie-maintenance.service.d
-sudo install -m 644 "$JIXIE_DIR/deploy/jixie-maintenance-retry.conf" \
-  /etc/systemd/system/jixie-maintenance.service.d/retry.conf
+sudo install -d /etc/systemd/system/jixie-ingestion.service.d
+sudo install -m 644 "$JIXIE_DIR/deploy/jixie-ingestion-retry.conf" \
+  /etc/systemd/system/jixie-ingestion.service.d/retry.conf
 sudo systemctl daemon-reload
 sudo systemctl enable --now jixie-backup.timer
 # 升级时停用旧周任务；旧 unit 即便仍在系统目录也不会再启动。
 # Disable retired weekly units during upgrades even if installed files remain.
-sudo systemctl disable --now jixie-maintenance-weekly.timer 2>/dev/null || true
-sudo systemctl enable --now jixie-maintenance.timer
+sudo systemctl disable --now jixie-maintenance.timer jixie-maintenance-weekly.timer 2>/dev/null || true
+sudo systemctl enable --now jixie-ingestion.timer
 
 # ─────────────────────────────── 7. nginx vhost ───────────────────────────────
 NGINX_DST="/etc/nginx/sites-available/$JIXIE_DOMAIN"

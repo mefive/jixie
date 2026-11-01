@@ -57,6 +57,10 @@ const MESSAGES = {
   },
   unsupportedInstrumentType: { zh: '不支持的证券类型', en: 'Unsupported instrument type.' },
   invalidInput: { zh: '入参不合法', en: 'Invalid input' },
+  ingestionInvalidTargetDate: {
+    zh: '采集目标日期无效，请使用 YYYYMMDD 格式的有效日期。',
+    en: 'Invalid ingestion target date. Use a valid date in YYYYMMDD format.',
+  },
   maintenanceInProgress: {
     zh: '市场数据正在维护，请稍后再试',
     en: 'Market data maintenance is in progress; try again shortly',

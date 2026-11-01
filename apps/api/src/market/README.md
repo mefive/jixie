@@ -2,7 +2,7 @@
 
 业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
 
-Market 拥有行情与领域数据的身份、获取、同步、查询和基础质量。Research 数据集、Factor 观察值、Strategy/Engine 数据加载消费这些能力；日期窗口选择与发布编排归 [Maintenance](../maintenance/README.md)。
+Market 拥有行情与领域数据的身份、获取、同步、查询和基础质量。Research 数据集、Factor 观察值、Strategy/Engine 数据加载消费这些能力；日期窗口选择与发布编排归 [Ingestion](../ingestion/README.md)。
 
 ## 按业务问题进入
 
@@ -22,7 +22,7 @@ Market 拥有行情与领域数据的身份、获取、同步、查询和基础�
 
 ## 主要协作流程
 
-CLI 或 Maintenance 调用各数据域同步：通过 provider 取候选，使用 registry/instruments 统一身份，按该数据集规则校验、计算可得日并持久化。原始质量、派生指标和整体发布的组合由 Maintenance 控制，单函数成功不代表整轮已发布。
+CLI 或 Ingestion 调用各数据域同步：通过 provider 取候选，使用 registry/instruments 统一身份，按该数据集规则校验、计算可得日并持久化。原始质量、派生指标和整体发布的组合由 Ingestion 控制，单函数成功不代表整轮已发布。
 
 HTTP 从查询能力读取已有数据；Research 再做 SDK 字段与 PIT 投影，Factor/Strategy 在自己的流程中决定研究或运行准入。Market 提供境内日历和基础质量事实，消费者判断自己的数据要求。
 
@@ -30,15 +30,15 @@ HTTP 从查询能力读取已有数据；Research 再做 SDK 字段与 PIT 投�
 
 [routes/index.ts](routes/index.ts) 导出 `marketRoute`，组合 instrument / valuation，挂载 `/api/app/market`；[共享请求契约](../../../../packages/shared/src/api/market.ts) 校验查询输入。HTTP 映射数据／null／空序列，业务查询不依赖 Hono 或用户会话。完整路径及精简指数响应区别见 [路由设计](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11) 和相应能力文档。
 
-[Maintenance CLI](../maintenance/cli/) 负责参数、配置、输出、退出与 Prisma 收尾，命令用法统一维护在 [API 命令索引](../../scripts/README.md)。providers 只是组织目录，fundamentals/fixtures 由其父能力说明；不为纯目录层新增入口或导出。
+[Ingestion CLI](../ingestion/cli/) 负责参数、配置、输出、退出与 Prisma 收尾，命令用法统一维护在 [API 命令索引](../../scripts/README.md)。providers 只是组织目录，fundamentals/fixtures 由其父能力说明；不为纯目录层新增入口或导出。
 
-同步、只读查询、纯计算须按实际函数区别；不同数据集保持不同的空响应、覆盖和事务规则。availableDate、观测日、公告日、抓取版本不可混用，缺失不等于零。共享身份不包含供应商解析／写库。Market 不反向调用 Strategy、Agent、Research 或 Maintenance。
+同步、只读查询、纯计算须按实际函数区别；不同数据集保持不同的空响应、覆盖和事务规则。availableDate、观测日、公告日、抓取版本不可混用，缺失不等于零。共享身份不包含供应商解析／写库。Market 不反向调用 Strategy、Agent、Research 或 Ingestion。
 
 整体 HTTP 用例在 [routes/index.test.ts](routes/index.test.ts)，各数据域测试就近链接。架构与约束见 [后端架构](../../../../docs/backend-architecture.md)、[依赖边界](../../../../docs/backend-boundaries.md)；目录及共享身份整理的历史结果见 [架构重构记录](../../../../docs/design/backend-architecture-refactor.md)、[服务边界设计](../../../../docs/design/core-business-service-boundaries.md)。
 
-当前日常市场写流程是 `pnpm data sync [--to YYYYMMDD]`。各领域 `sync-partition.ts` 准备来源批次，各领域 `write.ts` 用显式 Prisma 写入，`synchronization/rows.ts` 只做纯内存缺值合并，`coverage.ts` 从实际窗口推导连续覆盖；旧任务选择式 CLI、整轮候选和隐式 Signals 下载已退役。分区覆盖、计算资格与统计/模型门槛分别报告。
+市场采集入口为 `pnpm data ingest [--to YYYYMMDD]`。领域准备和显式 Prisma 写入保留业务映射，Ingestion 只在完整下载后事务接纳。来源记录、未接纳问题、批次结果和数据 revision 共同提交；不使用旧分区资格或连续水位封锁消费者。
 
-存量清理通过 `pnpm data clean` 人工发起。领域只提供预检／修改规则，Maintenance 负责备份、锁和原子发布；入库规则与清理共用已核实市场边界，不在每轮 sync 重复处理历史。
+业务重建由 `pnpm data reset --apply` 备份后执行，仅保留登录数据。日常采集不运行历史清理或入库后审计。
 
 股票目录的内部交易所字段 `StockBasic.exchange` 对应 Tushare `stock_basic.exchange`，存储 SSE/SZSE/BSE；旧行 null 不按后缀猜测，目录刷新后写入。市场范围读取该字段，公开 Research SDK 返回列不变。股票目录维护 L/D/P，G/UN 仅作为人工存量清理对象。
 

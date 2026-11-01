@@ -73,6 +73,7 @@ export function selectStockLimitRows(
   return {
     rows: selected,
     excludedRows,
+    unrecognizedRows: rows.filter((row) => unknown.has(String(row.ts_code))),
     gaps: unknown.size
       ? [`Unverified stock identities or market intervals: ${[...unknown].join(', ')}`]
       : [],

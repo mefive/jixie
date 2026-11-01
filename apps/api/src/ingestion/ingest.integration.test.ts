@@ -1,0 +1,351 @@
+import { expect, it } from 'vitest';
+import { withSyncDatabase } from '../../tests/sync-database.js';
+import { emptySelections, ingestionSource, ingestionTime } from '../../tests/ingestion-source.js';
+import { ingest } from './ingest.js';
+
+it(
+  'uses the real planner, completes auxiliaries without price eligibility, and skips completed history',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      const calls: string[] = [];
+      const input = {
+        targetDate: '19910104',
+        source: ingestionSource({ onCall: (api) => calls.push(api) }),
+        clock: () => ingestionTime,
+        onLog: () => {},
+      };
+      const first = await ingest(input);
+      expect(first.status).toBe('completed');
+      expect(await database.daily.count()).toBeGreaterThan(0);
+      expect(
+        await database.ingestionBatch.count({
+          where: { runId: first.runId, status: { not: 'succeeded' } },
+        }),
+      ).toBe(0);
+      const revision = (
+        await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })
+      ).revision;
+      const rows = await database.daily.count();
+      calls.length = 0;
+      const second = await ingest(input);
+      expect(second.status).toBe('completed');
+      expect(calls).not.toContain('daily');
+      expect(calls).not.toContain('adj_factor');
+      expect(calls).toContain('stock_basic');
+      expect(calls).toContain('dividend');
+      expect(calls).toContain('income_vip');
+      expect(await database.daily.count()).toBe(rows);
+      expect(
+        (await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })).revision,
+      ).toBe(revision);
+    }),
+  60_000,
+);
+
+it(
+  'fetches late-disclosed financial rows again and preserves the first capture on duplicates',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      let available = false;
+      const input = {
+        targetDate: '19910104',
+        source: ingestionSource({ incomeAvailable: () => available }),
+        clock: () => ingestionTime,
+        onLog: () => {},
+      };
+      await ingest(input);
+      expect(await database.financialIncomeStatement.count()).toBe(0);
+      available = true;
+      await ingest(input);
+      const saved = await database.financialIncomeStatement.findFirstOrThrow();
+      await ingest({ ...input, clock: () => new Date('1991-01-06T10:00:00Z') });
+      expect(await database.financialIncomeStatement.count()).toBe(1);
+      expect((await database.financialIncomeStatement.findFirstOrThrow()).observedAt).toEqual(
+        saved.observedAt,
+      );
+    }),
+  60_000,
+);
+
+it(
+  'does not publish a received first page when the next page fails',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      const source = ingestionSource({
+        prices: (date, offset) => {
+          if (offset) {
+            throw new Error('Controlled second-page failure');
+          }
+          return Array.from({ length: 1000 }, () => ({
+            ts_code: '600000.SH',
+            trade_date: date,
+            open: 10,
+            high: 11,
+            low: 9,
+            close: 10,
+          }));
+        },
+      });
+      const failed = await ingest({
+        targetDate: '19901219',
+        source,
+        clock: () => ingestionTime,
+        onLog: () => {},
+      });
+      expect(failed.status).toBe('completed_with_issues');
+      expect(await database.daily.count()).toBe(0);
+      expect(await database.adjFactor.count()).toBe(1);
+      expect(
+        await database.ingestionIssue.findFirst({
+          where: { runId: failed.runId, category: 'request' },
+        }),
+      ).not.toBeNull();
+      await ingest({
+        targetDate: '19901219',
+        source: ingestionSource(),
+        clock: () => ingestionTime,
+        onLog: () => {},
+      });
+      expect(await database.daily.count()).toBe(1);
+    }),
+  60_000,
+);
+
+it(
+  'publishes independent valid rows together with the exact rejected source row',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      const result = await ingest({
+        targetDate: '19901219',
+        clock: () => ingestionTime,
+        onLog: () => {},
+        source: ingestionSource({
+          prices: (date) => [
+            { ts_code: '600000.SH', trade_date: date, open: 10, high: 11, low: 9, close: 10 },
+            { ts_code: '999999.SH', trade_date: date, open: 10, high: 11, low: 9, close: 10 },
+          ],
+        }),
+      });
+      expect(result.status).toBe('completed_with_issues');
+      expect(await database.daily.count()).toBe(1);
+      expect(
+        await database.ingestionBatch.findFirst({
+          where: { runId: result.runId, dataset: 'stock-prices' },
+        }),
+      ).toMatchObject({
+        status: 'partial',
+        responseComplete: true,
+        receivedCount: 2,
+        acceptedCount: 1,
+        rejectedCount: 1,
+      });
+      const issues = await database.ingestionIssue.findMany({ where: { runId: result.runId } });
+      expect(issues).toContainEqual(
+        expect.objectContaining({ payload: expect.objectContaining({ ts_code: '999999.SH' }) }),
+      );
+    }),
+  60_000,
+);
+
+it(
+  'rolls business rows back when receipt publication fails, then recovers the interrupted batch',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      await database.$executeRawUnsafe(
+        `CREATE TRIGGER refuse_price_receipt BEFORE UPDATE ON "IngestionBatch" WHEN NEW.dataset='stock-prices' AND NEW.status='succeeded' BEGIN SELECT RAISE(ABORT, 'controlled receipt failure'); END`,
+      );
+      const input = {
+        targetDate: '19901219',
+        source: ingestionSource(),
+        clock: () => ingestionTime,
+        onLog: () => {},
+      };
+      expect((await ingest(input)).status).toBe('failed');
+      expect(await database.daily.count()).toBe(0);
+      const interrupted = await database.ingestionBatch.findFirstOrThrow({
+        where: { dataset: 'stock-prices' },
+      });
+      expect(interrupted.status).toBe('running');
+      await database.$executeRawUnsafe('DROP TRIGGER refuse_price_receipt');
+      expect((await ingest(input)).status).toBe('completed');
+      expect(
+        await database.ingestionBatch.findUniqueOrThrow({ where: { id: interrupted.id } }),
+      ).toMatchObject({ status: 'interrupted' });
+      expect(await database.daily.count()).toBe(1);
+    }),
+  60_000,
+);
+
+it(
+  'resumes after cancellation without discarding previous successful commits',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      const controller = new AbortController();
+      const first = await ingest({
+        targetDate: '19901220',
+        clock: () => ingestionTime,
+        onLog: () => {},
+        signal: controller.signal,
+        source: ingestionSource({
+          onCall: (api) => {
+            if (api === 'daily_basic') {
+              controller.abort();
+            }
+          },
+        }),
+      });
+      expect(first.status).toBe('interrupted');
+      const saved = await database.daily.findMany();
+      expect(saved.length).toBeGreaterThan(0);
+      expect(
+        (
+          await ingest({
+            targetDate: '19901220',
+            clock: () => ingestionTime,
+            onLog: () => {},
+            source: ingestionSource(),
+          })
+        ).status,
+      ).toBe('completed');
+      expect(await database.daily.findMany()).toEqual(expect.arrayContaining(saved));
+    }),
+  60_000,
+);
+
+it(
+  'retains known ETF observations after a complete empty source response',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await database.ingestionSelection.createMany({
+        data: [
+          { assetType: 'etf', codes: ['510000.SH'] },
+          { assetType: 'index', codes: [] },
+        ],
+      });
+      await database.etfDaily.create({
+        data: { tsCode: '510000.SH', tradeDate: '19901219', close: 10 },
+      });
+      await database.etfAdjFactor.create({
+        data: { tsCode: '510000.SH', tradeDate: '19901219', adjFactor: 1 },
+      });
+      const result = await ingest({
+        targetDate: '19901219',
+        clock: () => ingestionTime,
+        source: ingestionSource(),
+        onLog: () => {},
+      });
+      expect(result.status).toBe('completed');
+      expect(await database.etfDaily.count()).toBe(1);
+      expect(await database.etfAdjFactor.count()).toBe(1);
+      expect(
+        await database.ingestionBatch.findFirst({
+          where: { runId: result.runId, dataset: 'etf-prices' },
+        }),
+      ).toMatchObject({ status: 'succeeded', receivedCount: 0 });
+    }),
+  60_000,
+);
+
+it(
+  'fetches complete pre-market financial history every run without date parameters',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      const requests: Record<string, unknown>[] = [];
+      const source = ingestionSource({
+        incomeAvailable: () => true,
+        incomePeriod: '19881231',
+        onCall: (api, params) => {
+          if (api === 'income_vip') {
+            requests.push(params);
+          }
+        },
+      });
+      const input = { targetDate: '19910104', clock: () => ingestionTime, source, onLog: () => {} };
+      await ingest(input);
+      expect((await database.financialIncomeStatement.findFirstOrThrow()).endDate).toBe('19881231');
+      requests.length = 0;
+      await ingest(input);
+      expect(requests.length).toBeGreaterThan(0);
+      for (const request of requests) {
+        expect(request).not.toHaveProperty('start_date');
+        expect(request).not.toHaveProperty('end_date');
+        expect(request).not.toHaveProperty('period');
+      }
+      expect(await database.financialIncomeStatement.count()).toBe(1);
+    }),
+  60_000,
+);
+
+it(
+  'discovers index history without an invented start parameter and reuses its receipt',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await database.ingestionSelection.createMany({
+        data: [
+          { assetType: 'etf', codes: [] },
+          { assetType: 'index', codes: ['000300.SH'] },
+        ],
+      });
+      const requests: Record<string, unknown>[] = [];
+      const source = ingestionSource({
+        onCall: (api, params) => {
+          if (api === 'index_daily') {
+            requests.push(params);
+          }
+        },
+      });
+      const input = { targetDate: '19910104', clock: () => ingestionTime, source, onLog: () => {} };
+      await ingest(input);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]).not.toHaveProperty('start_date');
+      expect(
+        await database.ingestionBatch.findFirst({
+          where: { dataset: 'index-prices', scope: '000300.SH', period: 'history' },
+        }),
+      ).toMatchObject({ sourceStart: '19901219' });
+      requests.length = 0;
+      await ingest(input);
+      expect(requests).toHaveLength(0);
+    }),
+  60_000,
+);
+
+it(
+  'does not seal an empty current-session market response before publication',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      const clock = () => new Date('1990-12-19T10:00:00Z');
+      const first = await ingest({
+        targetDate: '19901219',
+        clock,
+        source: ingestionSource({ prices: () => [] }),
+        onLog: () => {},
+      });
+      expect(first.status).toBe('completed_with_issues');
+      expect(
+        await database.ingestionIssue.findFirst({
+          where: { runId: first.runId, reasonCode: 'current_session_not_published' },
+        }),
+      ).not.toBeNull();
+      expect(
+        (
+          await ingest({
+            targetDate: '19901219',
+            clock,
+            source: ingestionSource(),
+            onLog: () => {},
+          })
+        ).status,
+      ).toBe('completed');
+      expect(await database.daily.count()).toBe(1);
+    }),
+  60_000,
+);

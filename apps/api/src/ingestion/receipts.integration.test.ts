@@ -1,0 +1,85 @@
+import { expect, it } from 'vitest';
+import { withSyncDatabase } from '../../tests/sync-database.js';
+import { compactSuccessfulReceipts } from './receipts.js';
+
+it('compacts superseded success detail while retaining issues and wider successful ranges', async () =>
+  withSyncDatabase(async (database) => {
+    for (let index = 0; index < 23; index++) {
+      const runId = `run-${index}`;
+      await database.ingestionRun.create({
+        data: {
+          id: runId,
+          trigger: 'manual',
+          targetDate: '20261030',
+          status: 'completed',
+          scopeSnapshot: {},
+          startedAt: new Date(index * 1000),
+        },
+      });
+      await database.ingestionBatch.create({
+        data: {
+          id: `batch-${index}`,
+          runId,
+          dataset: 'financial-statements',
+          scope: 'income|1',
+          period: '20260630',
+          api: 'income_vip',
+          request: {},
+          status: 'succeeded',
+          rangeStart: '20260630',
+          rangeEnd: '20260630',
+          startedAt: new Date(index * 1000),
+        },
+      });
+    }
+    await database.ingestionIssue.create({
+      data: {
+        id: 'retained-issue',
+        runId: 'run-0',
+        batchId: 'batch-0',
+        category: 'record',
+        reasonCode: 'fixture',
+        message: 'Keep source row',
+        payload: { raw: 1 },
+      },
+    });
+    await database.ingestionBatch.create({
+      data: {
+        id: 'wide-history',
+        runId: 'run-0',
+        dataset: 'index-prices',
+        scope: '000300.SH',
+        period: '2026',
+        api: 'index_daily',
+        request: {},
+        status: 'succeeded',
+        rangeStart: '20260101',
+        rangeEnd: '20261030',
+        startedAt: new Date(0),
+      },
+    });
+    await database.ingestionBatch.create({
+      data: {
+        id: 'narrow-recheck',
+        runId: 'run-22',
+        dataset: 'index-prices',
+        scope: '000300.SH',
+        period: '2026',
+        api: 'index_daily',
+        request: {},
+        status: 'succeeded',
+        rangeStart: '20260101',
+        rangeEnd: '20260930',
+        startedAt: new Date(22000),
+      },
+    });
+    expect(await compactSuccessfulReceipts()).toBe(2);
+    expect(await database.ingestionBatch.findUnique({ where: { id: 'batch-0' } })).not.toBeNull();
+    expect(await database.ingestionBatch.findUnique({ where: { id: 'batch-1' } })).toBeNull();
+    expect(
+      await database.ingestionBatch.findUnique({ where: { id: 'wide-history' } }),
+    ).not.toBeNull();
+    expect(
+      await database.ingestionIssue.findUnique({ where: { id: 'retained-issue' } }),
+    ).toMatchObject({ payload: { raw: 1 } });
+  }));

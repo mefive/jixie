@@ -1,7 +1,7 @@
 # jixie 部署手记(VPS)
 
 jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 `scripts/bootstrap.sh`：新机器安装
-缺失资源，已有机器更新代码和 schema，空库自动执行可续传的全量行情导入。
+缺失资源，已有机器更新代码和 schema，安装采集定时器，空库的全历史下载由 Ingestion 独立执行。
 
 > **一键从零**:`ssh` 登录 VPS → `cd /opt/jixie && ./scripts/bootstrap.sh`(首次没代码时先把脚本 scp 上去单独跑,它会自己 clone)。配置全走 env var,密钥可注入:
 > ```bash
@@ -19,7 +19,7 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 ## 1. 服务器规格建议(jixie 比一般 web 吃资源)
 
 - **内存**:回测/因子分析加载全市场面板 + 紧循环,单次可吃 1GB+;`vite build` 也偏吃内存。**建议 ≥2GB,推荐 4GB**,并配 **≥4GB swap**(<2GB 机器 `vite build` 易 OOM,可改为本机构建后 `rsync apps/web/dist`)。
-- **磁盘**:行情库满配 **~6GB**;加备份轮转(每份=全库大小)很快吃满小盘。**建议 ≥40GB**；生产默认保留
+- **磁盘**:行情库体积随全历史采集范围增长;加备份轮转(每份=全库大小)很快吃满小盘。**建议 ≥40GB**；生产默认保留
   2 份，并应推离本机(见 §5)。
 - **CPU**:回测是纯 CPU 计算,跑在 worker 线程里(不阻塞 HTTP);多核更好,单核也能跑,只是回测慢。
 - **系统**:Ubuntu 22.04/24.04 或 CentOS/RHEL 8+;需普通 sudo 用户(服务以非 root 跑)。Python
@@ -90,7 +90,7 @@ bootstrap 会执行 `loginctl enable-linger`，使用户管理器和 sandboxd �
 commit 构建。仅更新 API 或 Web 均会推进该记录；同一 commit 重跑不会产生新版本号。
 
 bootstrap 将记录文件的绝对路径写入 API 环境变量 `JIXIE_DEPLOYED_REVISION_FILE`，支持自定义
-`JIXIE_DATA_DIR`。公开只读接口 `GET /api/maintenance/version` 返回 `{ revision: string | null }`，
+`JIXIE_DATA_DIR`。公开只读接口 `GET /api/ingestion/version` 返回 `{ revision: string | null }`，
 每次请求重新读取文件并设置 `Cache-Control: no-store`，因此纯 Web 部署无需重启 API。
 前端打开或刷新时异步读取，不等待版本请求才渲染页面，也不定时轮询。
 文件未配置、不存在、无法读取或不是完整 Git SHA 时返回 `null`，界面显示“尚无部署记录”；
@@ -149,29 +149,13 @@ sudo nginx -t && sudo systemctl reload nginx
 > 曾启用这些选项并出现 `invalid internal status` / `cannot clone`，移除选项后停止 sandboxd，执行
 > `podman system migrate`，再启动 sandboxd。
 
-## 4. 统一数据同步
+## 4. 数据采集
 
-配置 API 环境并应用 Prisma migration 后执行：
+使用 `pnpm data ingest [--to YYYYMMDD]` 从自然起点推进到目标日期；目录、分红及财务数据每轮获取，历史行情通过成功批次补缺。`pnpm data runs` 查看运行，`pnpm data issues RUN_ID` 查看未接纳记录。完整分页下载后才事务提交，强杀后整批恢复，不依赖旧水位。
 
-```bash
-pnpm data sync
-pnpm data sync --to 20260915
-```
+生产安装 `jixie-ingestion.timer`，每两小时上海时间 :15 调用；oneshot 不重叠执行，不设整轮启动时限。部署启用 timer，不主动发起全历史下载。
 
-首次初始化、增量、回补、重查使用同一命令；没有模式或数据集选择器。省略目标时固定进程启动时的上海自然日。较早目标不会截断已有更晚数据，也不会忽略其后受影响的派生输出。
-
-一轮有分区、请求和时间预算。合法部分数据会保存，缺少某一来源只让依赖它的指标等待；运行成功不代表长历史全部补齐。查看 `GET /api/maintenance/status` 的逐数据集覆盖、待办与错误，不能把最大观察日期当作连续覆盖。
-
-`jixie-maintenance.timer` 按上海时间每两小时 :15 调用 `dist/src/maintenance/cli/data.js sync`；升级时停用旧 weekly timer。运行锁争用退出 75，实际错误退出 1，非法参数退出 2，完整或合法 partial 退出 0。systemd 在失败后退避 30 分钟；`TimeoutStartSec=infinity` 不截断历史回补，运行中不会叠加启动同一 oneshot 服务。取消用 `systemctl stop jixie-maintenance.service`，下一次按已保存的窗口进度继续。
-
-```bash
-sudo systemctl start jixie-maintenance.service
-journalctl -u jixie-maintenance.service -n 200 --no-pager
-```
-
-网络获取不持部署发布锁。M 串行化市场写者，P/R 只在局部提交时短暂阻止新业务计算；既有业务全程保留共享 R。旧 running 记录、来源待更新和空库均不作为封站理由。旧控制表保留历史及部署用途，不能据其旧日水位推断新系统覆盖。
-
-人工存量修复使用 `pnpm data clean`，默认预览，`--apply` 执行前自动备份；支持 `--database /absolute/path/database.db`，完整项目与范围见 [命令索引](../apps/api/scripts/README.md#人工数据清理)。此命令不接入 timer，也不由部署调用。
+首次由旧 Maintenance 切换时，bootstrap 停服后设置持久重建标记，迁移后通过 `data reset --apply` 备份并清空业务数据，仅保留四张认证表；失败保留标记与停服状态。普通后续部署不重复重建。手动重建先用 `pnpm data reset` 预览，备份在数据库旁 `ingestion-backups`。
 
 ## 5. 数据库备份
 
@@ -199,7 +183,7 @@ cd /opt/jixie
 ./scripts/bootstrap.sh
 ```
 
-脚本检查已有资源、拉取代码、按影响组件构建和迁移、收敛 systemd/nginx、释放部署发布锁，再推进一轮有限同步和健康检查。历史缺口、ETF 待更新和某个来源的失败不会使部署回退为全历史导入。若 bootstrap 自身在 pull 中更新，会重新执行新版本脚本。
+脚本检查已有资源、拉取代码、按影响组件构建和迁移、收敛 systemd/nginx、释放部署发布锁，只执行健康检查。历史缺口、ETF 待更新和某个来源的失败不会使部署回退为全历史导入。若 bootstrap 自身在 pull 中更新，会重新执行新版本脚本。
 
 ## 7. 排障
 
@@ -215,7 +199,7 @@ cd /opt/jixie
 - 端口:`ss -tlnp | grep 3001`
 - 健康:`curl -s localhost:3001/api/health` → `{"ok":true}`
 - nginx:`sudo nginx -t`、`/var/log/nginx/error.log`
-- 维护进度：`journalctl -u jixie-maintenance.service -f`；库行数：
+- 维护进度：`journalctl -u jixie-ingestion.service -f`；库行数：
   `sqlite3 /var/lib/jixie/prod.db 'SELECT count(*) FROM "Daily";'`
 
 ## 8. 注意事项

@@ -22,7 +22,7 @@ const codesSchema = z.array(z.string()).refine((codes) => new Set(codes).size ==
  * Persist codes without research roles, proxy classes or admission requirements.
  */
 export async function readDownloadCodes(assetType: DownloadAssetType): Promise<string[]> {
-  const row = await getDatabase().marketDownloadList.findUnique({ where: { assetType } });
+  const row = await getDatabase().ingestionSelection.findUnique({ where: { assetType } });
 
   const codes = row ? codesSchema.parse(row.codes) : [];
   if (codes.some((code) => !validDownloadCode(assetType, code))) {
@@ -38,12 +38,12 @@ export async function initializeIndexDownloads(): Promise<void> {
   const database = getDatabase();
   await withMarketPublication(() =>
     database.$transaction(async (transaction) => {
-      await transaction.marketDownloadList.upsert({
+      await transaction.ingestionSelection.upsert({
         where: { assetType: 'index' },
         create: { assetType: 'index', codes: DEFAULT_INDEX_DOWNLOADS.map((row) => row.tsCode) },
         update: {},
       });
-      const codes = await transaction.marketDownloadList.findUniqueOrThrow({
+      const codes = await transaction.ingestionSelection.findUniqueOrThrow({
         where: { assetType: 'index' },
       });
       for (const tsCode of codesSchema.parse(codes.codes)) {
@@ -98,7 +98,7 @@ export async function changeDownloadList(
         : current.filter((value) => value !== code);
     await withMarketPublication(() =>
       database.$transaction(async (transaction) => {
-        await transaction.marketDownloadList.upsert({
+        await transaction.ingestionSelection.upsert({
           where: { assetType },
           create: { assetType, codes },
           update: { codes },
@@ -121,9 +121,8 @@ export async function changeDownloadList(
  * Return saved codes, size dates and actual prices, never treating metadata as price coverage. */
 export async function listDownloads(assetType: DownloadAssetType) {
   const database = getDatabase();
-  const setting = await database.marketDownloadList.findUnique({ where: { assetType } });
+  const setting = await database.ingestionSelection.findUnique({ where: { assetType } });
   const codes = await readDownloadCodes(assetType);
-  const sizes = assetType === 'etf' ? await database.etfLatestSize.findMany() : [];
   const etfMetadata =
     assetType === 'etf'
       ? await database.etfBasic.findMany({
@@ -188,7 +187,7 @@ export async function listDownloads(assetType: DownloadAssetType) {
             lifecycle: etfMetadata.find((row) => row.tsCode === tsCode) ?? null,
             download: etfDownloadRange(
               etfMetadata.find((row) => row.tsCode === tsCode),
-              '20150101',
+              '19901219',
             ),
           }
         : {}),
@@ -204,7 +203,6 @@ export async function listDownloads(assetType: DownloadAssetType) {
             },
           }
         : {}),
-      size: sizes.find((row) => row.tsCode === tsCode) ?? null,
       coverage: coverage.find((row) => row.tsCode === tsCode) ?? null,
     })),
   };

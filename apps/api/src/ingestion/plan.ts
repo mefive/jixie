@@ -1,0 +1,339 @@
+import { getDatabase } from '#infra/database/prisma.js';
+import { calendarDay, localDate, localHour } from '#market/synchronization/date.js';
+import {
+  STOCK_LIST_STATUSES,
+  stockMarketRanges,
+  confirmedMarketStart,
+} from '#market/instruments/market-range.js';
+import { canonicalStockCode } from '#market/instruments/stock-identity.js';
+import { etfDownloadRange } from '#market/etfs/download-range.js';
+import { readDownloadCodes } from '#market/downloads/lists.js';
+import { INDEX_VALUATION_SUPPORTED_CODES } from '#market/registry/index-presets.js';
+import type { IngestionUnit } from './schema.js';
+
+/**
+ * 使用来源可提供的交易所日历范围；不为历史缺失补造日期。
+ *
+ * Use available exchange-calendar history without fabricating dates for missing history.
+ */
+export const CALENDAR_ORIGINS = { SSE: '19901219', SZSE: '19910703', BSE: '20211115' } as const;
+
+export interface IngestionPlan {
+  units: IngestionUnit[];
+  blocked: Array<{ dataset: string; scope: string; message: string }>;
+}
+
+export function referenceUnits(targetDate: string, startedAt: Date): IngestionUnit[] {
+  const capturedDate = localDate(startedAt);
+  const calendarEnd = calendarDay([targetDate, capturedDate].sort().at(-1)!, 31);
+  const units: IngestionUnit[] = [];
+  for (const [scope, origin] of Object.entries(CALENDAR_ORIGINS)) {
+    for (const range of yearRanges(origin, calendarEnd)) {
+      units.push({
+        dataset: 'calendar',
+        scope,
+        ...range,
+        api: 'trade_cal',
+        refresh: range.period >= capturedDate.slice(0, 4),
+      });
+    }
+  }
+  for (const scope of STOCK_LIST_STATUSES) {
+    units.push({
+      dataset: 'stock-master',
+      scope,
+      period: 'snapshot',
+      startDate: capturedDate,
+      endDate: capturedDate,
+      api: 'stock_basic',
+      refresh: true,
+    });
+  }
+  units.push({
+    dataset: 'etf-master',
+    scope: 'all',
+    period: 'snapshot',
+    startDate: capturedDate,
+    endDate: capturedDate,
+    api: 'etf_basic',
+    refresh: true,
+  });
+
+  return units;
+}
+
+/**
+ * 按自然范围生成稳定单元；执行记录才持久化，不预写任务队列。
+ *
+ * Build stable units from natural ranges; persist actual attempts, never a planned queue.
+ */
+export async function planIngestion(targetDate: string, startedAt: Date): Promise<IngestionPlan> {
+  const database = getDatabase();
+  const today = localDate(startedAt);
+  const closed = localHour(startedAt, 'Asia/Shanghai') >= 16 ? today : calendarDay(today, -1);
+  const end = [targetDate, closed].sort()[0];
+  const stocks = await database.stockBasic.findMany();
+  const ranges = stockMarketRanges(stocks);
+  const blocked: IngestionPlan['blocked'] = [];
+  const streams: IngestionUnit[][] = [];
+  const marketStarts = new Map<string, string>();
+  const stockStarts = [...ranges.entries()].flatMap(([code, range]) => {
+    if (
+      !range.startDate ||
+      range.uncertain ||
+      !['SSE', 'SZSE', 'BSE'].includes(range.exchange ?? '')
+    ) {
+      blocked.push({
+        dataset: 'stock-prices',
+        scope: code,
+        message: 'Stock market-entry dates are not known',
+      });
+      return [];
+    }
+    const admission = confirmedMarketStart(code, range.exchange)?.date;
+
+    const startDate = [range.startDate, admission ?? range.startDate].sort().at(-1)!;
+    const exchange = range.exchange!;
+    const previous = marketStarts.get(exchange);
+    marketStarts.set(exchange, previous && previous < startDate ? previous : startDate);
+
+    return [startDate];
+  });
+  const stockStart = stockStarts.sort()[0];
+  const calendarRows = stockStart
+    ? await database.tradeCal.findMany({
+        where: {
+          exchange: { in: [...marketStarts.keys()] },
+          isOpen: 1,
+          calDate: { gte: stockStart, lte: end },
+        },
+        orderBy: [{ calDate: 'asc' }, { exchange: 'asc' }],
+        select: { exchange: true, calDate: true },
+      })
+    : [];
+  const sessions = new Map<string, string[]>();
+  for (const row of calendarRows) {
+    if (row.calDate < marketStarts.get(row.exchange)!) {
+      continue;
+    }
+    const exchanges = sessions.get(row.calDate) ?? [];
+    exchanges.push(row.exchange);
+    sessions.set(row.calDate, exchanges);
+  }
+  for (const [dataset, api] of Object.entries({
+    'stock-prices': 'daily',
+    'stock-adjustments': 'adj_factor',
+    'stock-valuations': 'daily_basic',
+    'stock-limits': 'stk_limit',
+  })) {
+    streams.push(
+      alternate(
+        [...sessions].map(([calDate, exchanges]) => ({
+          dataset,
+          scope: exchanges.join(','),
+          exchanges,
+          period: calDate,
+          startDate: calDate,
+          endDate: calDate,
+          api,
+          refresh: false,
+        })),
+      ),
+    );
+  }
+  const etfs = await readDownloadCodes('etf');
+  for (const code of etfs) {
+    const row = await database.etfBasic.findUnique({ where: { tsCode: code } });
+    const range = etfDownloadRange(row ?? undefined, CALENDAR_ORIGINS.SSE);
+    if (range.blockedReason) {
+      blocked.push({ dataset: 'etf-prices', scope: code, message: range.blockedReason });
+      continue;
+    }
+    const through = [end, range.endDate ?? end].sort()[0];
+    for (const [dataset, api] of Object.entries({
+      'etf-prices': 'fund_daily',
+      'etf-adjustments': 'fund_adj',
+    })) {
+      streams.push(
+        alternate(
+          yearRanges(range.startDate, through).map((dates) => ({
+            dataset,
+            scope: code,
+            ...dates,
+            api,
+            refresh: false,
+          })),
+        ),
+      );
+    }
+  }
+  for (const code of await readDownloadCodes('index')) {
+    const datasets = [{ dataset: 'index-prices', api: 'index_daily' }];
+    if (INDEX_VALUATION_SUPPORTED_CODES.includes(code)) {
+      datasets.push({ dataset: 'index-valuations', api: 'index_dailybasic' });
+    }
+    for (const entry of datasets) {
+      const earliest = await database.ingestionBatch.findFirst({
+        where: {
+          dataset: entry.dataset,
+          scope: code,
+          period: 'history',
+          status: 'succeeded',
+          sourceStart: { not: null },
+        },
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+        select: { sourceStart: true },
+      });
+      if (earliest?.sourceStart) {
+        streams.push(
+          alternate(
+            yearRanges(earliest.sourceStart, end).map((dates) => ({
+              ...entry,
+              scope: code,
+              ...dates,
+              refresh: false,
+            })),
+          ),
+        );
+      } else {
+        streams.push([
+          {
+            ...entry,
+            scope: code,
+            period: 'history',
+            fullHistory: true,
+            startDate: '',
+            endDate: end,
+            refresh: false,
+          },
+        ]);
+      }
+    }
+    if (code !== 'H00300.CSI') {
+      streams.push(
+        alternate(
+          monthRanges(CALENDAR_ORIGINS.SSE, end).map((dates) => ({
+            dataset: 'index-weights',
+            scope: code,
+            ...dates,
+            api: 'index_weight',
+            refresh: false,
+          })),
+        ),
+      );
+    }
+  }
+  streams.push(
+    alternate(
+      yearRanges(CALENDAR_ORIGINS.SSE, targetDate).map((dates) => ({
+        dataset: 'stock-names',
+        scope: 'all',
+        ...dates,
+        api: 'namechange',
+        refresh: true,
+      })),
+    ),
+  );
+  const financialEnd = [targetDate, calendarDay(today, -1)].sort()[0];
+  const codes = [...new Set(stocks.map((row) => canonicalStockCode(row.tsCode)))].sort();
+  for (const [kind, api] of Object.entries({
+    income: 'income_vip',
+    balance_sheet: 'balancesheet_vip',
+    cash_flow: 'cashflow_vip',
+  })) {
+    for (const reportType of ['1', '4', '5']) {
+      streams.push(
+        codes.map((code) => ({
+          dataset: 'financial-statements',
+          scope: `${kind}|${reportType}|${code}`,
+          period: 'all',
+          fullHistory: true,
+          startDate: '',
+          endDate: financialEnd,
+          api,
+          refresh: true,
+        })),
+      );
+    }
+  }
+  streams.push(
+    codes.map((scope) => ({
+      dataset: 'financial-indicators',
+      scope,
+      period: 'all',
+      fullHistory: true,
+      startDate: '',
+      endDate: financialEnd,
+      api: 'fina_indicator_vip',
+      refresh: true,
+    })),
+  );
+  streams.push(
+    [...new Set(stocks.map((row) => canonicalStockCode(row.tsCode)))].sort().map((scope) => ({
+      dataset: 'dividends',
+      scope,
+      period: 'all',
+      fullHistory: true,
+      startDate: '',
+      endDate: targetDate,
+      api: 'dividend',
+      refresh: true,
+    })),
+  );
+  const units: IngestionUnit[] = [];
+  const maximum = Math.max(0, ...streams.map((stream) => stream.length));
+  for (let index = 0; index < maximum; index++) {
+    for (const stream of streams) {
+      if (stream[index]) {
+        units.push(stream[index]);
+      }
+    }
+  }
+
+  return { units, blocked };
+}
+
+function alternate<Value>(values: Value[]): Value[] {
+  const ordered: Value[] = [];
+  for (let left = 0, right = values.length - 1; left <= right; left++, right--) {
+    ordered.push(values[right]);
+    if (left < right) {
+      ordered.push(values[left]);
+    }
+  }
+
+  return ordered;
+}
+
+function yearRanges(start: string, end: string) {
+  if (start > end) {
+    return [];
+  }
+  const ranges: Array<{ period: string; startDate: string; endDate: string }> = [];
+  for (let year = Number(start.slice(0, 4)); year <= Number(end.slice(0, 4)); year++) {
+    ranges.push({
+      period: String(year),
+      startDate: [start, `${year}0101`].sort().at(-1)!,
+      endDate: [end, `${year}1231`].sort()[0],
+    });
+  }
+
+  return ranges;
+}
+
+function monthRanges(start: string, end: string) {
+  const ranges: Array<{ period: string; startDate: string; endDate: string }> = [];
+  for (let cursor = `${start.slice(0, 6)}01`; cursor <= end; ) {
+    const year = Number(cursor.slice(0, 4));
+    const month = Number(cursor.slice(4, 6));
+    const last = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10).replaceAll('-', '');
+    ranges.push({
+      period: cursor.slice(0, 6),
+      startDate: [cursor, start].sort().at(-1)!,
+      endDate: [last, end].sort()[0],
+    });
+    cursor = calendarDay(last, 1);
+  }
+
+  return ranges;
+}

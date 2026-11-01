@@ -23,18 +23,6 @@ describe('forward observation maturity', () => {
         }
         await database.tradeCal.createMany({ data: dates });
         await proveStockCatalog(database);
-        await database.datasetSyncPartition.createMany({
-          data: ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations'].map(
-            (dataset) => ({
-              id: dataset,
-              dataset,
-              scope: dataset === 'calendar' ? 'SSE' : 'all',
-              startDate: '20240801',
-              endDate: dataset === 'calendar' ? '20241031' : through,
-              status: 'complete',
-            }),
-          ),
-        });
         const stocks = Array.from({ length: 200 }, (_, index) => ({
           tsCode: `${600000 + index}.SH`,
           symbol: String(600000 + index),

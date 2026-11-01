@@ -253,8 +253,24 @@ it('replaces historical ETF shares with download lists while preserving user dat
 
     expect(await snapshot()).toEqual(before);
     expect(await database.indexBenchmark.findMany()).toEqual(oldIndices);
-    expect(await database.marketDownloadList.count()).toBe(0);
-    expect(await database.etfLatestSize.count()).toBe(0);
+    expect(
+      Number(
+        (
+          await database.$queryRawUnsafe<Array<{ count: number }>>(
+            'SELECT COUNT(*) AS count FROM "MarketDownloadList"',
+          )
+        )[0].count,
+      ),
+    ).toBe(0);
+    expect(
+      Number(
+        (
+          await database.$queryRawUnsafe<Array<{ count: number }>>(
+            'SELECT COUNT(*) AS count FROM "EtfLatestSize"',
+          )
+        )[0].count,
+      ),
+    ).toBe(0);
     const indexColumns = await database.$queryRawUnsafe<Array<{ name: string; notnull: number }>>(
       'PRAGMA table_info("IndexBenchmark")',
     );

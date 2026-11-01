@@ -143,7 +143,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 
 ### 3. 维护市场数据
 
-Maintenance 使用统一 `pnpm data sync` 入口准备并接纳 Market 分区；期货发布和商品连续收益派生链已退役。
+Ingestion 使用 `pnpm data ingest` 入口下载并接纳 Market 批次；期货发布和商品连续收益派生链已退役。
 Signals 的策略部署、每日任务、通知和账户结算已移除；数据同步不再触发这些业务。
 当前维护边界见 [Maintenance](../apps/api/src/maintenance/README.md)。
 
@@ -195,12 +195,11 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 
 正式报告与 Job 的生命周期归评估模块，计算层不拥有这些对象。入口及协作流程维护在 [Factor 总览](../apps/api/src/factor/README.md)，具体契约见 [evaluations](../apps/api/src/factor/evaluations/README.md) 和 [analysis](../apps/api/src/factor/analysis/README.md)。旧 Job kind 的部署转换与查询规则见 [jobs](../apps/api/src/factor/jobs/README.md)，背景和历史验证见 [内部结构整理](design/core-business-internal-structure.md)。
 
-## Maintenance 与 Market 数据业务边界
+## Ingestion 与 Market 数据业务边界
 
-数据的同步、修复、质量阈值和 PIT 检查由 Market 对应子域实现；Maintenance 组合各业务能力，拥有运行恢复、更新顺序、发布门禁和水位。
-`maintenance/publication/audit.ts` 汇总报告，具体审计位于 stocks、instruments、indices、fundamentals 和 etfs；共享结果契约和覆盖摘要在 market/quality，不依赖 Maintenance。
-统一同步从 `maintenance/cli/data.ts` 进入 `maintenance/sync.ts`，领域准备位于 `market/*/sync-partition.ts`；原始接纳与覆盖/失效同事务提交，模型资格不承担全局入库门禁。原候选子进程和 checkpoint 协议退役；M/P/R 与用户稳定读取复用 `infra/coordination/market-access.ts`。
-详见 [Maintenance 阅读入口](../apps/api/src/maintenance/README.md) 和 [变更记录](design/maintenance-business-boundaries.md)。
+Ingestion 负责目标日期、批次尝试、整批下载后的事务提交、恢复和未接纳记录；Market 负责来源身份、字段映射与显式领域写入。入口为 `ingestion/cli/data.ts` 和 `ingestion/ingest.ts`，四张采集表记录事实，不提供全市场完成资格。消费者检查自身实际输入。
+
+手动质量诊断组合位于 `market/quality/audit.ts`，不进入采集流程。M/P/R 与稳定读取由 `infra/coordination/market-access.ts` 负责。详见 [设计](design/ingestion.md) 与 [模块入口](../apps/api/src/ingestion/README.md)。
 
 ## Strategy SDK 与 Engine 契约
 
