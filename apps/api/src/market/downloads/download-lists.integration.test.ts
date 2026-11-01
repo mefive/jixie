@@ -2,7 +2,7 @@ import { ingest } from '#ingestion/ingest.js';
 import { planIngestion } from '#ingestion/plan.js';
 import { describe, expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
-import { selectTopEtfs } from './select-etfs.js';
+import { mergeEtfSelection, prepareHistoricalEtfSelection, selectTopEtfs } from './select-etfs.js';
 import {
   changeDownloadList,
   readDownloadCodes,
@@ -114,6 +114,66 @@ async function datasetScopes(dataset: string) {
 }
 
 describe('administrator download lists', () => {
+  it('selects fewer than N when history is small and merges former leaders instead of replacing them', async () =>
+    withSyncDatabase(async (database) => {
+      await database.etfBasic.createMany({
+        data: [
+          {
+            tsCode: '510000.SH',
+            exchange: 'SH',
+            listDate: '20100101',
+            listStatus: 'D',
+            delistDate: '20160101',
+          },
+          {
+            tsCode: '159000.SZ',
+            exchange: 'SZ',
+            listDate: '20100101',
+            listStatus: 'L',
+            delistDate: null,
+          },
+          {
+            tsCode: '510001.SH',
+            exchange: 'SH',
+            listDate: '20200101',
+            listStatus: 'L',
+            delistDate: null,
+          },
+        ].map((row) => ({ ...row, name: row.tsCode, sameDayTurnover: false })),
+      });
+      await database.ingestionSelection.create({
+        data: { assetType: 'etf', codes: ['510099.SH'] },
+      });
+      const result = await prepareHistoricalEtfSelection({
+        date: '20150105',
+        limit: 100,
+        exchanges: ['SSE'],
+        source: {
+          async call() {
+            return [
+              { ts_code: '510000.SH', trade_date: '20150105', total_size: 100 },
+              { ts_code: '159000.SZ', trade_date: '20150105', total_size: 200 },
+              { ts_code: '510001.SH', trade_date: '20150105', total_size: 300 },
+            ];
+          },
+        },
+      });
+      expect(result.selectedCodes).toEqual(['510000.SH']);
+      await database.$transaction((transaction) =>
+        mergeEtfSelection(transaction, result.selectedCodes),
+      );
+      expect(await readDownloadCodes('etf')).toEqual(['510000.SH', '510099.SH']);
+      const empty = await prepareHistoricalEtfSelection({
+        date: '20150106',
+        source: { call: async () => [] },
+      });
+      expect(empty.selectedCodes).toEqual([]);
+      await database.$transaction((transaction) =>
+        mergeEtfSelection(transaction, empty.selectedCodes),
+      );
+      expect(await readDownloadCodes('etf')).toEqual(['510000.SH', '510099.SH']);
+    }));
+
   it('ignores incomplete pending records, retains listed/delisted funds and initializes the top 100', async () =>
     withSyncDatabase(async (database) => {
       const { source, calls } = fixtureSource({ missingSize: '500120.SH', pending: true });
@@ -128,7 +188,7 @@ describe('administrator download lists', () => {
       expect(await database.etfBasic.findUnique({ where: { tsCode: '500124.SH' } })).toMatchObject({
         listStatus: 'D',
       });
-      expect(await readDownloadCodes('etf')).toEqual(selected.selectedCodes);
+      expect(await readDownloadCodes('etf')).toEqual(selected.codes);
       expect(calls.some((call) => ['fund_daily', 'fund_adj'].includes(call.api))).toBe(false);
       expect(calls.find((call) => call.api === 'etf_share_size')?.params).toMatchObject({
         trade_date: '20261027',
@@ -139,7 +199,7 @@ describe('administrator download lists', () => {
     }));
 
   it(
-    'keeps a saved empty list during daily sync and never repeats size selection',
+    'does not request ETF sizes before any ETF listing and preserves saved index settings',
     async () =>
       withSyncDatabase(async (database) => {
         await database.ingestionSelection.createMany({

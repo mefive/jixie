@@ -1,5 +1,10 @@
 import { getDatabase } from '#infra/database/prisma.js';
-import { calendarDay, localDate, localHour } from '#market/synchronization/date.js';
+import {
+  calendarDay,
+  isObservationDate,
+  localDate,
+  localHour,
+} from '#market/synchronization/date.js';
 import {
   STOCK_LIST_STATUSES,
   stockMarketRanges,
@@ -17,6 +22,7 @@ import type { IngestionUnit } from './schema.js';
  * Use available exchange-calendar history without fabricating dates for missing history.
  */
 export const CALENDAR_ORIGINS = { SSE: '19901219', SZSE: '19910703', BSE: '20211115' } as const;
+const ETF_CALENDARS: Readonly<Record<string, string>> = { SH: 'SSE', SZ: 'SZSE' };
 
 export interface IngestionPlan {
   units: IngestionUnit[];
@@ -54,12 +60,75 @@ export function referenceUnits(targetDate: string, startedAt: Date): IngestionUn
     scope: 'all',
     period: 'snapshot',
     startDate: capturedDate,
-    endDate: capturedDate,
+    endDate: targetDate,
     api: 'etf_basic',
     refresh: true,
   });
 
   return units;
+}
+
+/**
+ * 每个历史开市日独立选取 Top N，收据按日期恢复；不借用其他交易所日历。
+ *
+ * Select a top N for every historical session with dated recovery receipts and venue calendars.
+ */
+export async function planEtfSelections(
+  targetDate: string,
+  startedAt: Date,
+): Promise<IngestionUnit[]> {
+  const database = getDatabase();
+  const end = ingestionEnd(targetDate, startedAt);
+  const catalog = await database.etfBasic.findMany({
+    where: { listDate: { lte: end }, listStatus: { in: ['L', 'D'] } },
+    select: { exchange: true, listDate: true },
+  });
+  const origins = new Map<string, string>();
+  for (const row of catalog) {
+    const exchange = ETF_CALENDARS[row.exchange];
+    if (!exchange || !isObservationDate(row.listDate)) {
+      continue;
+    }
+    const previous = origins.get(exchange);
+    if (!previous || row.listDate < previous) {
+      origins.set(exchange, row.listDate);
+    }
+  }
+  if (!origins.size) {
+    return [];
+  }
+  const sessions = await database.tradeCal.findMany({
+    where: {
+      isOpen: 1,
+      OR: [...origins].map(([exchange, start]) => ({
+        exchange,
+        calDate: { gte: start, lte: end },
+      })),
+    },
+    orderBy: { calDate: 'asc' },
+    select: { exchange: true, calDate: true },
+  });
+  const dates = new Map<string, string[]>();
+  for (const session of sessions) {
+    const exchanges = dates.get(session.calDate) ?? [];
+    exchanges.push(session.exchange);
+    dates.set(session.calDate, exchanges);
+  }
+
+  return [...dates].map(([date, exchanges]) => {
+    exchanges.sort();
+
+    return {
+      dataset: 'etf-selection',
+      scope: `top-100/${exchanges.join(',')}`,
+      period: date,
+      startDate: date,
+      endDate: date,
+      exchanges,
+      api: 'etf_share_size',
+      refresh: false,
+    };
+  });
 }
 
 /**
@@ -70,14 +139,16 @@ export function referenceUnits(targetDate: string, startedAt: Date): IngestionUn
 export async function planIngestion(targetDate: string, startedAt: Date): Promise<IngestionPlan> {
   const database = getDatabase();
   const today = localDate(startedAt);
-  const closed = localHour(startedAt, 'Asia/Shanghai') >= 16 ? today : calendarDay(today, -1);
-  const end = [targetDate, closed].sort()[0];
+  const end = ingestionEnd(targetDate, startedAt);
   const stocks = await database.stockBasic.findMany();
   const ranges = stockMarketRanges(stocks);
   const blocked: IngestionPlan['blocked'] = [];
   const streams: IngestionUnit[][] = [];
   const marketStarts = new Map<string, string>();
   const stockStarts = [...ranges.entries()].flatMap(([code, range]) => {
+    if (range.startDate && range.startDate > end) {
+      return [];
+    }
     if (
       !range.startDate ||
       range.uncertain ||
@@ -144,6 +215,9 @@ export async function planIngestion(targetDate: string, startedAt: Date): Promis
   const etfs = await readDownloadCodes('etf');
   for (const code of etfs) {
     const row = await database.etfBasic.findUnique({ where: { tsCode: code } });
+    if (isObservationDate(row?.listDate) && row.listDate > end) {
+      continue;
+    }
     const range = etfDownloadRange(row ?? undefined, CALENDAR_ORIGINS.SSE);
     if (range.blockedReason) {
       blocked.push({ dataset: 'etf-prices', scope: code, message: range.blockedReason });
@@ -235,7 +309,13 @@ export async function planIngestion(targetDate: string, startedAt: Date): Promis
     ),
   );
   const financialEnd = [targetDate, calendarDay(today, -1)].sort()[0];
-  const codes = [...new Set(stocks.map((row) => canonicalStockCode(row.tsCode)))].sort();
+  const codes = [...new Set(stocks.map((row) => canonicalStockCode(row.tsCode)))]
+    .filter((code) => {
+      const start = ranges.get(code)?.startDate;
+
+      return !start || start <= financialEnd;
+    })
+    .sort();
   for (const [kind, api] of Object.entries({
     income: 'income_vip',
     balance_sheet: 'balancesheet_vip',
@@ -269,7 +349,7 @@ export async function planIngestion(targetDate: string, startedAt: Date): Promis
     })),
   );
   streams.push(
-    [...new Set(stocks.map((row) => canonicalStockCode(row.tsCode)))].sort().map((scope) => ({
+    codes.map((scope) => ({
       dataset: 'dividends',
       scope,
       period: 'all',
@@ -291,6 +371,13 @@ export async function planIngestion(targetDate: string, startedAt: Date): Promis
   }
 
   return { units, blocked };
+}
+
+function ingestionEnd(targetDate: string, startedAt: Date): string {
+  const today = localDate(startedAt);
+  const closed = localHour(startedAt, 'Asia/Shanghai') >= 16 ? today : calendarDay(today, -1);
+
+  return [targetDate, closed].sort()[0];
 }
 
 function alternate<Value>(values: Value[]): Value[] {

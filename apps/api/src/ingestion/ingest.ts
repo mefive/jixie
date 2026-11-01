@@ -10,11 +10,11 @@ import {
   type ImportDiagnostics,
   type ImportIssue,
 } from '#market/synchronization/diagnostics.js';
-import { fetchLatestSizes } from '#market/downloads/select-etfs.js';
+import { mergeEtfSelection, prepareHistoricalEtfSelection } from '#market/downloads/select-etfs.js';
 import { initializeIndexDownloads, readDownloadCodes } from '#market/downloads/lists.js';
 import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
 import { compactSuccessfulReceipts } from './receipts.js';
-import { planIngestion, referenceUnits } from './plan.js';
+import { planEtfSelections, planIngestion, referenceUnits } from './plan.js';
 import type { IngestionInput, IngestionResult, IngestionUnit } from './schema.js';
 
 /**
@@ -168,27 +168,12 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
         await withImportDiagnostics(diagnostics, async () => {
           try {
             if (unit.dataset === 'etf-selection') {
-              const snapshot = await fetchLatestSizes(source, localDate(clock()));
-              const catalog = await database.etfBasic.findMany({
-                where: { listStatus: 'L', listDate: { lte: snapshot.date } },
-                select: { tsCode: true },
+              const snapshot = await prepareHistoricalEtfSelection({
+                source,
+                date: unit.endDate,
+                exchanges: unit.exchanges,
               });
-              const listed = new Set(catalog.map((row) => row.tsCode));
-              selection = snapshot.rows
-                .filter(
-                  (row) => listed.has(row.tsCode) && row.totalSize !== null && row.totalSize > 0,
-                )
-                .sort(
-                  (left, right) =>
-                    right.totalSize! - left.totalSize! || left.tsCode.localeCompare(right.tsCode),
-                )
-                .slice(0, 100)
-                .map((row) => row.tsCode);
-              if (selection.length < 100) {
-                throw new Error(
-                  'A complete size snapshot is required to initialize one hundred ETFs',
-                );
-              }
+              selection = snapshot.selectedCodes;
               prepared = {
                 tables: [],
                 status: 'complete',
@@ -199,9 +184,10 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                   terminalPage: true,
                   sourceFailed: false,
                   invalidRows: 0,
-                  emptyResponse: false,
-                  pages: 1,
-                  sourceRows: snapshot.rows.length,
+                  emptyResponse: snapshot.receivedCount === 0,
+                  pages: snapshot.pages,
+                  sourceRows: snapshot.receivedCount,
+                  excludedRows: snapshot.receivedCount - selection.length,
                 },
               };
             } else {
@@ -280,9 +266,7 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                   !diagnostics.issues.length &&
                   !signal.aborted
                 ) {
-                  await transaction.ingestionSelection.create({
-                    data: { assetType: 'etf', codes: selection },
-                  });
+                  await mergeEtfSelection(transaction, selection);
                 }
                 const status = signal.aborted
                   ? 'interrupted'
@@ -356,16 +340,11 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
         }
         if (!signal.aborted) {
           await initializeIndexDownloads();
-          if (!(await database.ingestionSelection.findUnique({ where: { assetType: 'etf' } }))) {
-            await attempt({
-              dataset: 'etf-selection',
-              scope: 'all',
-              period: 'snapshot',
-              startDate: localDate(startedAt),
-              endDate: localDate(startedAt),
-              api: 'etf_share_size',
-              refresh: true,
-            });
+          for (const unit of await planEtfSelections(input.targetDate, startedAt)) {
+            if (signal.aborted) {
+              break;
+            }
+            await attempt(unit);
           }
           const plan = await planIngestion(input.targetDate, startedAt);
           await database.ingestionRun.update({

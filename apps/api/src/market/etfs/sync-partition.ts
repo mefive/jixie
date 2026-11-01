@@ -21,7 +21,7 @@ export async function prepareEtfPartition(
   partition: MarketPartition,
 ): Promise<PreparedMarketPartition> {
   if (partition.dataset === 'etf-master') {
-    return prepareEtfCatalog(source);
+    return prepareEtfCatalog(source, partition.endDate);
   }
   const definitions = {
     'etf-prices': {
@@ -56,7 +56,13 @@ export async function prepareEtfPartition(
     { ts_code: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
     Object.values(definition.columns).join(','),
   );
-  const mapped = mapSourceRecords(pages.rows, (row) => {
+  const inScope = pages.rows.filter(
+    (row) =>
+      row.ts_code !== partition.scope ||
+      !isObservationDate(row.trade_date) ||
+      (row.trade_date >= partition.startDate && row.trade_date <= partition.endDate),
+  );
+  const mapped = mapSourceRecords(inScope, (row) => {
     const date = sourceString(row, 'trade_date');
     if (
       !isObservationDate(date) ||
@@ -98,7 +104,10 @@ export async function prepareEtfPartition(
  *
  * This complete business operation is independent of daily series.
  */
-async function prepareEtfCatalog(source: SyncSource): Promise<PreparedMarketPartition> {
+async function prepareEtfCatalog(
+  source: SyncSource,
+  targetDate: string,
+): Promise<PreparedMarketPartition> {
   const columns = {
     tsCode: 'ts_code',
     fullName: 'cname',
@@ -132,9 +141,12 @@ async function prepareEtfCatalog(source: SyncSource): Promise<PreparedMarketPart
   }
   const fundByCode = new Map(funds.rows.map((row) => [row.ts_code, row]));
 
-  // 待上市资料不进入目录映射，避免缺少交易字段阻断上市／退市目录。
-  // Exclude pending listings before mapping so incomplete trading fields cannot block the catalog.
-  const retained = pages.rows.filter((row) => row.list_status !== 'P');
+  // 先排除待上市及目标日之后上市的资料，不校验本轮范围外的交易属性。
+  // Exclude pending and future listings before validating trading attributes outside this run.
+  const retained = pages.rows.filter(
+    (row) =>
+      row.list_status !== 'P' && !(isObservationDate(row.list_date) && row.list_date > targetDate),
+  );
   const mapped = mapSourceRecords(retained, (row) => {
     if (row.list_status !== 'L' && row.list_status !== 'D') {
       throw new Error(`Invalid ETF listing status ${String(row.ts_code)}`);
@@ -172,6 +184,7 @@ async function prepareEtfCatalog(source: SyncSource): Promise<PreparedMarketPart
   return completeResponse({
     pages,
     table: 'EtfBasic',
+    allowEmpty: true,
     ...mapped,
   });
 }

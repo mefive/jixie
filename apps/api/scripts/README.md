@@ -8,7 +8,7 @@
 | `pnpm data runs` | 最近 20 轮运行 |
 | `pnpm data issues RUN_ID` | 请求错误、受阻原因和未接纳原始记录 |
 | `pnpm data etf list` | ETF 名单、生命周期和实际行情范围 |
-| `pnpm data etf select-top --limit 100` | 用完整同日规模快照显式重选上市 ETF |
+| `pnpm data etf select-top --limit 100` | 用最近完整同日规模快照选取 Top N，并入累计 ETF 名单 |
 | `pnpm data etf add CODE` / `remove CODE` | 修改名单，移出不删除历史 |
 | `pnpm data index list` / `add CODE` / `remove CODE` | 管理指数名单 |
 | `pnpm data reset [--database /absolute/path.db]` | 预览业务重建，仅保留四张认证表 |

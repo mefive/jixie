@@ -82,6 +82,8 @@ export function ingestionSource(
           ];
         case 'fund_basic':
           return [{ ts_code: '510000.SH', name: 'ETF', fund_type: '股票型', delist_date: null }];
+        case 'etf_share_size':
+          return [{ ts_code: '510000.SH', trade_date: date, total_size: 100 }];
         case 'index_daily':
           return [{ ts_code: String(params.ts_code), trade_date: '19901219', close: 100 }];
         case 'index_dailybasic':
