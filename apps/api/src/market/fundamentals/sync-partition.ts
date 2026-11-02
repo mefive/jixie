@@ -1,4 +1,5 @@
 import { recordImportIssue } from '../synchronization/diagnostics.js';
+import { preferLatestDividendBases } from './dividend-selection.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
@@ -176,6 +177,8 @@ async function prepareDividendPartition(
     divProc: 'div_proc',
     cashDiv: 'cash_div',
     cashDivTax: 'cash_div_tax',
+    baseDate: 'base_date',
+    baseShare: 'base_share',
   };
   const codes = [
     partition.scope,
@@ -233,6 +236,9 @@ async function prepareDividendPartition(
       if (canonicalStockCode(sourceString(row, 'ts_code')) !== partition.scope) {
         throw new Error('Unexpected dividend security');
       }
+      if (row.base_date != null && !isObservationDate(row.base_date)) {
+        throw new Error('Invalid dividend base date');
+      }
       const values = {
         ...sourceValues(row, columns),
         tsCode: partition.scope,
@@ -259,6 +265,7 @@ async function prepareDividendPartition(
     table: 'Dividend',
     replace: true,
     ...mapped,
+    records: preferLatestDividendBases(mapped.records),
     allowEmpty: true,
     observedDates: mapped.records.map((record) => String(record.values.endDate)),
   });

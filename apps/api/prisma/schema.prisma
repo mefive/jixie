@@ -404,6 +404,13 @@ model Dividend {
   cashDiv      Float? // pre-tax cash dividend per share
   cashDivTax   Float? // per-share figure incl. proposal stage
 
+  /// 分红股本基准日，仅用于同一事件的新旧取舍，不代表已核实公告时间。
+  /// Dividend share-base date used to prefer newer values, never a verified announcement time.
+  baseDate  String?
+  /// 来源基准股本，单位万股；缺失值不推算。
+  /// Source share base in ten thousand shares; missing values are never inferred.
+  baseShare Float?
+
   /// 当前值首次捕获时间；未知时不能据公告日回填。
   /// First capture of the current value; announcements cannot fill unknown capture dates.
   observedAt          DateTime?

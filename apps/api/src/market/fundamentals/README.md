@@ -45,4 +45,8 @@ resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并�
 
 分红逐个请求规范代码及已确认的旧代码，按证券、报告期、公告日、除权日和阶段选择来源；不同事件不因同属一个报告期而合并。所有来源请求完整才允许替换窗口，任一来源失败／预算不足均保留缺口；起始日取接续链上市历史的并集下界。已知新来源不被后续旧来源覆盖，同值来源确认不重置捕获时间。回归见 [stock-source.test.ts](stock-source.test.ts)。
 
+分红另保存 Tushare `base_date` 与 `base_share`。在原有来源和事件身份内，同一响应优先接纳明确较新的基准；已保存的新基准不会被较旧或缺少基准日的响应覆盖。同基准日金额／股本仍冲突时记录问题，保留已有值和独立合法事件。基准日缺失不猜日期，旧行由重抓补充；不按响应顺序选择版本。该规则仅属于分红，事件 ID、其他数据的 hash 及 `ann_date` 口径不变。
+
+分红采用最新来源值，不提供完整历史预案版本还原。`baseDate` 不代表已核实的版本公告时间，`availabilityQuality` 仍为 `latest_only`，Research SDK 的公开列和可得性过滤不变。无需公告检索、PDF 解析或新增核验服务。回归见 [dividend-selection.integration.test.ts](dividend-selection.integration.test.ts)。
+
 十表迁移只新增可空来源列，旧值默认 null；Prisma schema 的内部字段不增加 Research SDK 列。财报 resolver 版本提升至 3，消费者继续通过现有显式映射读取。

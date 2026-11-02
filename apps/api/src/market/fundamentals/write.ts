@@ -1,4 +1,4 @@
-import { mergeStockSource } from '../instruments/source-selection.js';
+import { mergeDividendSource } from './dividend-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import { z } from 'zod';
 import type {
@@ -160,6 +160,8 @@ const dividendSchema = z.strictObject({
   divProc: z.string().nullish(),
   cashDiv: z.number().finite().nullish(),
   cashDivTax: z.number().finite().nullish(),
+  baseDate: z.string().nullish(),
+  baseShare: z.number().finite().nullish(),
   observedAt: z.date().nullish(),
   availabilityQuality: z.string().optional(),
 });
@@ -475,7 +477,7 @@ async function writeDividend(
   });
   const rows = mergeRows({
     schema: dividendSchema,
-    merge: mergeStockSource,
+    merge: mergeDividendSource,
     keys: ['id'],
     records: batch.records,
     existing,

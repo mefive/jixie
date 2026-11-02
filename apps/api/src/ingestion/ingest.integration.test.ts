@@ -349,3 +349,57 @@ it(
     }),
   60_000,
 );
+
+it(
+  'accepts newer dividend bases in one batch while continuing independent market batches',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      const source = ingestionSource();
+      const dividend = {
+        ts_code: '600000.SH',
+        end_date: '19901231',
+        ann_date: '19910326',
+        ex_date: null,
+        div_proc: '预案',
+        cash_div: 0,
+        cash_div_tax: 1.07,
+        base_date: '19901231',
+        base_share: 100,
+      };
+      const result = await ingest({
+        targetDate: '19910104',
+        clock: () => ingestionTime,
+        onLog: () => {},
+        source: {
+          call: async (api, params, fields) =>
+            api === 'dividend'
+              ? [
+                  { ...dividend, base_date: '19910409', cash_div_tax: 1.045102, base_share: 102 },
+                  dividend,
+                ]
+              : source.call(api, params, fields),
+        },
+      });
+      expect(result.status).toBe('completed');
+      expect(await database.ingestionIssue.count()).toBe(0);
+      expect(await database.dividend.findFirstOrThrow()).toMatchObject({
+        baseDate: '19910409',
+        cashDivTax: 1.045102,
+        availabilityQuality: 'latest_only',
+      });
+      expect(
+        await database.ingestionBatch.findFirstOrThrow({
+          where: { runId: result.runId, dataset: 'dividends' },
+        }),
+      ).toMatchObject({
+        status: 'succeeded',
+        receivedCount: 2,
+        acceptedCount: 1,
+        filteredCount: 1,
+        rejectedCount: 0,
+      });
+      expect(await database.daily.count()).toBeGreaterThan(0);
+    }),
+  60_000,
+);
