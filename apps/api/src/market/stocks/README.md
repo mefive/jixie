@@ -8,7 +8,9 @@
 
 下载和写入使用同一正式入口。历史代码和名称约束先看 [instruments](../instruments/README.md)，财报和分红归 [fundamentals](../fundamentals/README.md)，跨资产展示查询归 [queries](../queries/README.md)。
 
-改每日门禁看 [sync-partition.test.ts](sync-partition.test.ts)；改供应商字段看 [stock-reference-api.test.ts](../providers/tushare/stock-reference-api.test.ts)、[reference-data-api.test.ts](../providers/tushare/reference-data-api.test.ts)；发布编排与整体修复见 [Maintenance](../../maintenance/README.md)。
+改每日门禁看 [sync-partition.test.ts](sync-partition.test.ts)；改供应商字段看 [stock-reference-api.test.ts](../providers/tushare/stock-reference-api.test.ts)、[reference-data-api.test.ts](../providers/tushare/reference-data-api.test.ts)；采集编排与恢复见 [Ingestion](../../ingestion/README.md)。
+
+股票行情、复权、估值和涨跌停四类日数据统一以 `StockBasic` 为白名单。先按已有代码接续关系规范化，再判断是否在目录；不在目录的代码，包括缺失或格式不合法的代码，只计入正常过滤，不生成问题，也不导致批次部分接纳。不另设 B 股前缀或个别代码补丁，不追查目录外证券。目录内记录仍按原规则校验交易日、市场区间、交易所标签及业务数值。完整响应全部处理且无其他问题，批次记为成功；全部记录被过滤也不算异常。回归见 [catalog-scope.integration.test.ts](catalog-scope.integration.test.ts)。
 
 [返回 Market 总览](../README.md)
 

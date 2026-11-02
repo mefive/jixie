@@ -3,7 +3,7 @@ import { withSyncDatabase } from '../../../tests/sync-database.js';
 import { prepareStockPartition } from './sync-partition.js';
 import { withImportDiagnostics, type ImportDiagnostics } from '../synchronization/diagnostics.js';
 
-it('accepts independent auxiliary data without a price receipt and records unknown identities', async () =>
+it('accepts independent auxiliary data and silently filters codes absent from the catalog', async () =>
   withSyncDatabase(async (database) => {
     await database.stockBasic.create({
       data: {
@@ -29,12 +29,9 @@ it('accepts independent auxiliary data without a price receipt and records unkno
     );
     expect(result.tables[0].records).toHaveLength(1);
     expect(result.tables[0].records[0].values.tsCode).toBe('000001.SZ');
-    expect(diagnostics.issues).toContainEqual(
-      expect.objectContaining({
-        category: 'record',
-        payload: expect.objectContaining({ ts_code: '999999.SH' }),
-      }),
-    );
+    expect(result.status).toBe('complete');
+    expect(result.checks.excludedRows).toBe(1);
+    expect(diagnostics.issues).toEqual([]);
   }));
 
 it('filters valid records from exchanges outside the selected trading calendars without reporting them as invalid', async () =>

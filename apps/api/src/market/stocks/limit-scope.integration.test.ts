@@ -3,7 +3,7 @@ import { withSyncDatabase } from '../../../tests/sync-database.js';
 import { prepareStockPartition } from './sync-partition.js';
 import { withImportDiagnostics, type ImportDiagnostics } from '../synchronization/diagnostics.js';
 
-it('filters non-stock limits, retains zero placeholders and records unresolved identities', async () =>
+it('filters limits absent from the catalog and retains admitted zero placeholders', async () =>
   withSyncDatabase(async (database) => {
     await database.stockBasic.create({
       data: {
@@ -52,11 +52,7 @@ it('filters non-stock limits, retains zero placeholders and records unresolved i
     expect(result.tables[0].records.map((record) => record.values)).toEqual([
       expect.objectContaining({ tsCode: '000001.SZ', upLimit: 0, downLimit: 0 }),
     ]);
-    expect(result.checks.excludedRows).toBe(1);
-    expect(diagnostics.issues).toContainEqual(
-      expect.objectContaining({
-        reasonCode: 'unrecognized_identity',
-        payload: expect.objectContaining({ ts_code: '999999.SH' }),
-      }),
-    );
+    expect(result.status).toBe('complete');
+    expect(result.checks.excludedRows).toBe(2);
+    expect(diagnostics.issues).toEqual([]);
   }));

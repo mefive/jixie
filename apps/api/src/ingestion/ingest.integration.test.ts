@@ -119,6 +119,16 @@ it(
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
+      await database.stockBasic.create({
+        data: {
+          tsCode: '600001.SH',
+          symbol: '600001',
+          name: 'Known identity with invalid source values',
+          listDate: '19901219',
+          listStatus: 'L',
+          exchange: 'SSE',
+        },
+      });
       const result = await ingest({
         targetDate: '19901219',
         clock: () => ingestionTime,
@@ -126,7 +136,7 @@ it(
         source: ingestionSource({
           prices: (date) => [
             { ts_code: '600000.SH', trade_date: date, open: 10, high: 11, low: 9, close: 10 },
-            { ts_code: '999999.SH', trade_date: date, open: 10, high: 11, low: 9, close: 10 },
+            { ts_code: '600001.SH', trade_date: date, open: 10, high: 11, low: 12, close: 10 },
           ],
         }),
       });
@@ -145,7 +155,9 @@ it(
       });
       const issues = await database.ingestionIssue.findMany({ where: { runId: result.runId } });
       expect(issues).toContainEqual(
-        expect.objectContaining({ payload: expect.objectContaining({ ts_code: '999999.SH' }) }),
+        expect.objectContaining({
+          payload: expect.objectContaining({ ts_code: '600001.SH', low: 12 }),
+        }),
       );
     }),
   60_000,
@@ -400,6 +412,97 @@ it(
         rejectedCount: 0,
       });
       expect(await database.daily.count()).toBeGreaterThan(0);
+    }),
+  60_000,
+);
+
+it(
+  'retries a former partial adjustment batch and completes after filtering absent codes',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      await database.adjFactor.create({
+        data: { tsCode: '600000.SH', tradeDate: '19901219', adjFactor: 1 },
+      });
+      await database.ingestionRun.create({
+        data: {
+          id: 'previous-run',
+          trigger: 'manual',
+          targetDate: '19901219',
+          scopeSnapshot: {},
+          status: 'completed_with_issues',
+        },
+      });
+      await database.ingestionBatch.create({
+        data: {
+          id: 'previous-adjustments',
+          runId: 'previous-run',
+          dataset: 'stock-adjustments',
+          scope: 'SSE',
+          period: '19901219',
+          api: 'adj_factor',
+          request: {},
+          rangeStart: '19901219',
+          rangeEnd: '19901219',
+          responseComplete: true,
+          status: 'partial',
+          rejectedCount: 3,
+        },
+      });
+      await database.ingestionIssue.create({
+        data: {
+          id: 'previous-issue',
+          runId: 'previous-run',
+          batchId: 'previous-adjustments',
+          category: 'record',
+          reasonCode: 'record_not_accepted',
+          message: 'Historical unrecognized B-share code',
+          payload: { ts_code: '900906.SH' },
+        },
+      });
+      const source = ingestionSource();
+      const result = await ingest({
+        targetDate: '19901219',
+        clock: () => ingestionTime,
+        onLog: () => {},
+        source: {
+          call: async (api, params, fields) => {
+            const rows = await source.call(api, params, fields);
+            if (api !== 'adj_factor') {
+              return rows;
+            }
+
+            return [
+              ...rows,
+              ...['900906.SH', '900930.SH', '900951.SH'].map((ts_code) => ({
+                ts_code,
+                trade_date: String(params?.trade_date),
+                adj_factor: 1,
+              })),
+            ];
+          },
+        },
+      });
+
+      expect(result.status).toBe('completed');
+      expect(result.rejected).toBe(0);
+      expect(await database.ingestionIssue.count({ where: { runId: result.runId } })).toBe(0);
+      expect(
+        await database.ingestionBatch.findFirstOrThrow({
+          where: { runId: result.runId, dataset: 'stock-adjustments' },
+        }),
+      ).toMatchObject({
+        status: 'succeeded',
+        receivedCount: 4,
+        acceptedCount: 1,
+        filteredCount: 3,
+        rejectedCount: 0,
+      });
+      expect(await database.adjFactor.count()).toBe(1);
+      expect(
+        await database.ingestionBatch.findUniqueOrThrow({ where: { id: 'previous-adjustments' } }),
+      ).toMatchObject({ status: 'partial' });
+      expect(await database.ingestionIssue.count({ where: { runId: 'previous-run' } })).toBe(1);
     }),
   60_000,
 );

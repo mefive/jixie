@@ -95,24 +95,20 @@ export async function prepareStockPartition(
     fields.join(','),
   );
   const ranges = stockMarketRanges(await getDatabase().stockBasic.findMany());
-  const funds =
-    partition.dataset === 'stock-limits'
-      ? new Set(
-          (await getDatabase().etfBasic.findMany({ select: { tsCode: true } })).map(
-            (row) => row.tsCode,
-          ),
-        )
-      : new Set<string>();
 
-  // 先核对身份和日期；格式错误不能借范围过滤绕过校验。
-  // Check identity and date first; scope filtering must not hide malformed rows.
+  // 标的目录是白名单，目录外代码只计正常过滤；目录内记录继续校验日期和业务字段。
+  // The catalog is the allowlist: silently filter other codes, then validate admitted dates/values.
+  const catalogRows = pages.rows.filter((row) =>
+    ranges.has(canonicalStockCode(String(row.ts_code))),
+  );
+
   const limitScope =
     partition.dataset === 'stock-limits'
-      ? selectStockLimitRows(pages.rows, partition, ranges, funds)
+      ? selectStockLimitRows(catalogRows, partition, ranges)
       : undefined;
   const domainRows =
     limitScope?.rows ??
-    pages.rows.filter((row) => {
+    catalogRows.filter((row) => {
       const code = String(row.ts_code);
       if (!/^\d{6}\.(SH|SZ|BJ)$/.test(code) || row.trade_date !== partition.startDate) {
         return true;
@@ -194,7 +190,9 @@ export async function prepareStockPartition(
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
   prepared.checks.excludedRows =
-    (limitScope?.excludedRows ?? pages.rows.length - domainRows.length) +
+    pages.rows.length -
+    catalogRows.length +
+    (limitScope?.excludedRows ?? catalogRows.length - domainRows.length) +
     domainRows.length -
     inScope.length +
     inScope.length -

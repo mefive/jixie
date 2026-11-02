@@ -25,18 +25,15 @@ export function isOutsideStockLimitScope(
 }
 
 /**
- * 未知身份不进入业务记录；格式错误与真实目录冲突继续交给映射校验报错。
+ * 调用者已按目录过滤；这里只处理已纳入证券的交易区间和来源标签一致性。
  *
- * Unknown identities never enter business records; mapping still rejects malformed identities
- * and real catalog conflicts before range exclusions can conceal them.
+ * Callers filter by catalog first; handle admitted trading intervals and source-label consistency.
  */
 export function selectStockLimitRows(
   rows: TushareRow[],
   partition: MarketPartition,
   ranges: ReadonlyMap<string, StockMarketRange>,
-  etfs: ReadonlySet<string>,
 ) {
-  const stocks = new Set(ranges.keys());
   const selected: TushareRow[] = [];
   const unknown = new Set<string>();
   let excludedRows = 0;
@@ -56,10 +53,6 @@ export function selectStockLimitRows(
       continue;
     }
 
-    if (isOutsideStockLimitScope(code, stocks, etfs)) {
-      excludedRows++;
-      continue;
-    }
     const membership = stockMarketMembership(code, partition.startDate, ranges);
     if (membership === 'unknown') {
       unknown.add(code);

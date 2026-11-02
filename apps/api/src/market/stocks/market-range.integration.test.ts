@@ -67,7 +67,7 @@ describe('shared market admission rules', () => {
       expect(result.tables[0].records.map((row) => row.values.tsCode)).toEqual(['000001.SZ']);
     }));
 
-  it('rejects malformed identities instead of filtering them', async () =>
+  it('silently filters malformed codes absent from the catalog', async () =>
     withSyncDatabase(async () => {
       const result = await prepareStockPartition(
         {
@@ -77,10 +77,13 @@ describe('shared market admission rules', () => {
         { dataset: 'stock-prices', scope: 'all', startDate: '20150105', endDate: '20150105' },
       );
 
-      expect(result.errors).toEqual(
-        expect.arrayContaining([expect.stringContaining('invalid stock/date')]),
-      );
-      expect(result.checks.excludedRows).toBe(0);
+      expect(result).toMatchObject({
+        status: 'complete',
+        errors: [],
+        gaps: [],
+        checks: { excludedRows: 1, invalidRows: 0 },
+      });
+      expect(result.tables[0].records).toEqual([]);
     }));
 });
 
