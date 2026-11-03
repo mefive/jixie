@@ -112,3 +112,136 @@ describe('Research supplemental datasets', () => {
     });
   });
 });
+
+const cashImplementation = {
+  id: 'first-notice',
+  tsCode: '002326.SZ',
+  endDate: '20181231',
+  annDate: '20190429',
+  exDate: '20190820',
+  recordDate: '20190819',
+  payDate: '20190820',
+  implementationAnnouncementDate: '20190814',
+  distributionKind: 'cash',
+  cashDiv: 0.15,
+  cashDivTax: 0.15,
+  baseShare: 82009.3827,
+  stockDividend: 0,
+  stockBonusRate: null,
+  stockCapitalizationRate: null,
+  observedAt: new Date('2026-06-16T02:00:00Z'),
+  availabilityQuality: 'latest_only',
+};
+
+function mockCashImplementations(rows: object[]) {
+  mocks.dividendFindMany.mockResolvedValue(rows);
+  mocks.sessions.mockResolvedValue([
+    { calDate: '20260617' },
+    { calDate: '20260618' },
+    { calDate: '20260619' },
+  ]);
+}
+
+it.each([false, true])(
+  'returns Yongtai cash once while retaining source announcements, reversed=%s',
+  async (reversed) => {
+    const rows = [
+      cashImplementation,
+      { ...cashImplementation, id: 'second-notice', annDate: '20190806' },
+    ];
+    mockCashImplementations(reversed ? rows.reverse() : rows);
+    const result = await loadResearchEquityDividends({
+      identifier: '002326.SZ',
+      start: '20260101',
+      end: '20261231',
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ cash_dividend_pre_tax: 0.15, announcement_date: '20190429' });
+  },
+);
+
+it('does not emit a repeated later capture as another payment inside a later window', async () => {
+  mockCashImplementations([
+    cashImplementation,
+    {
+      ...cashImplementation,
+      id: 'later',
+      annDate: '20190806',
+      observedAt: new Date('2026-06-18T02:00:00Z'),
+    },
+  ]);
+  expect(
+    await loadResearchEquityDividends({
+      identifier: '002326.SZ',
+      start: '20260618',
+      end: '20260619',
+    }),
+  ).toEqual([]);
+});
+
+it('does not allow a future capture to alter earlier visible cash', async () => {
+  mockCashImplementations([
+    cashImplementation,
+    {
+      ...cashImplementation,
+      id: 'future',
+      cashDivTax: 0.2,
+      observedAt: new Date('2026-06-18T02:00:00Z'),
+    },
+  ]);
+  expect(
+    await loadResearchEquityDividends({
+      identifier: '002326.SZ',
+      start: '20260101',
+      end: '20260617',
+    }),
+  ).toHaveLength(1);
+});
+
+it.each([
+  { cashDivTax: 0.2 },
+  { baseShare: 51277.8827 },
+  { recordDate: null },
+  { payDate: null },
+  { cashDivTax: null },
+])(
+  'refuses ambiguous cash implementations rather than summing or overwriting: %j',
+  async (changed) => {
+    mockCashImplementations([
+      cashImplementation,
+      { ...cashImplementation, id: 'ambiguous', ...changed },
+    ]);
+    await expect(
+      loadResearchEquityDividends({ identifier: '002326.SZ', start: '20260101', end: '20261231' }),
+    ).rejects.toMatchObject({ reason: 'ambiguous_dividend_event' });
+  },
+);
+
+it('retains different payment dates, excludes pure stock distributions and emits mixed cash once', async () => {
+  const mixed = {
+    ...cashImplementation,
+    distributionKind: 'mixed',
+    stockDividend: 0.12,
+    stockCapitalizationRate: 0.12,
+  };
+  mockCashImplementations([
+    mixed,
+    { ...mixed, id: 'second', annDate: '20190806' },
+    { ...cashImplementation, id: 'other-payment', payDate: '20190821' },
+    {
+      ...cashImplementation,
+      id: 'stock',
+      distributionKind: 'shares',
+      cashDiv: 0,
+      cashDivTax: 0,
+      stockDividend: 0.12,
+    },
+  ]);
+  const result = await loadResearchEquityDividends({
+    identifier: '002326.SZ',
+    start: '20260101',
+    end: '20261231',
+  });
+  expect(result).toHaveLength(2);
+  expect(result.map((row) => row.cash_dividend_pre_tax)).toEqual([0.15, 0.15]);
+});

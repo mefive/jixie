@@ -1,5 +1,11 @@
 import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferLatestDividendBases } from './dividend-selection.js';
+import {
+  DIVIDEND_SOURCE_COLUMNS,
+  DIVIDEND_SOURCE_FIELDS,
+  dividendDistributionKind,
+  dividendIdentityResolver,
+} from './dividend-identity.js';
 import { financialStockCodes } from './scope.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
@@ -176,16 +182,15 @@ async function prepareDividendPartition(
   source: SyncSource,
   partition: MarketPartition,
 ): Promise<PreparedMarketPartition> {
-  const columns = {
-    tsCode: 'ts_code',
-    endDate: 'end_date',
-    annDate: 'ann_date',
-    exDate: 'ex_date',
-    divProc: 'div_proc',
-    cashDiv: 'cash_div',
-    cashDivTax: 'cash_div_tax',
-    baseDate: 'base_date',
-    baseShare: 'base_share',
+  const columns = DIVIDEND_SOURCE_COLUMNS;
+  const valuesOf = (row: TushareRow): MarketRow => {
+    const values = {
+      ...sourceValues(row, columns),
+      tsCode: partition.scope,
+      sourceTsCode: sourceString(row, 'ts_code'),
+    };
+
+    return { ...values, distributionKind: dividendDistributionKind(values) };
   };
   const codes = [
     partition.scope,
@@ -199,7 +204,7 @@ async function prepareDividendPartition(
       source,
       'dividend',
       { ts_code: code },
-      Object.values(columns).join(','),
+      DIVIDEND_SOURCE_FIELDS,
     );
     pages.rows.push(...response.rows);
     pages.errors.push(...response.errors);
@@ -234,34 +239,39 @@ async function prepareDividendPartition(
         row.ann_date,
         row.ex_date,
         row.div_proc,
+        dividendDistributionKind(valuesOf(row)),
       ]),
     (row) => String(row.ts_code),
   );
+  const existing = await getDatabase().dividend.findMany({
+    where: { tsCode: partition.scope, endDate: { lte: partition.endDate } },
+  });
+  const resolveIdentity = dividendIdentityResolver(existing, selected.map(valuesOf));
   const mapped = mapSourceRecords(
     selected.filter((row) => typeof row.end_date === 'string' && row.end_date <= partition.endDate),
     (row) => {
       if (canonicalStockCode(sourceString(row, 'ts_code')) !== partition.scope) {
         throw new Error('Unexpected dividend security');
       }
-      if (row.base_date != null && !isObservationDate(row.base_date)) {
-        throw new Error('Invalid dividend base date');
+      for (const field of [
+        'base_date',
+        'record_date',
+        'pay_date',
+        'imp_ann_date',
+        'div_listdate',
+      ]) {
+        if (row[field] != null && !isObservationDate(row[field])) {
+          throw new Error(`Invalid dividend date ${field}`);
+        }
       }
-      const values = {
-        ...sourceValues(row, columns),
-        tsCode: partition.scope,
-        sourceTsCode: sourceString(row, 'ts_code'),
-      };
-      const id = fingerprint({
-        tsCode: partition.scope,
-        endDate: row.end_date,
-        annDate: row.ann_date,
-        exDate: row.ex_date,
-        divProc: row.div_proc,
-      });
+      for (const field of ['stk_div', 'stk_bo_rate', 'stk_co_rate']) {
+        const value = row[field];
+        if (value != null && (typeof value !== 'number' || !Number.isFinite(value) || value < 0)) {
+          throw new Error(`Invalid dividend share ratio ${field}`);
+        }
+      }
 
-      return {
-        values: { ...values, id },
-      };
+      return { values: resolveIdentity(valuesOf(row)) };
     },
   );
 

@@ -393,16 +393,16 @@ model Dividend {
   /// 原始股票来源代码；无法确认的历史来源保持 null。
   /// Original stock source code; unverified legacy origins remain null.
   sourceTsCode String?
-  /// 规范证券、报告期、公告日、除权日和阶段组成的稳定事件摘要。
-  /// Stable event digest of canonical security, period, announcement, ex-date and stage.
+  /// 规范证券、报告期、公告日、除权日、阶段与分配形态组成的来源身份；唯一匹配的旧 ID 保留。
+  /// Source identity includes distribution shape; uniquely matched legacy IDs are preserved.
   id           String  @id
   tsCode       String
   endDate      String // distribution's report period
   annDate      String? // announcement date
   exDate       String? // ex-dividend date (PIT gate)
   divProc      String? // distribution stage (raw Chinese values from source): '预案' | '股东大会通过' | '实施' | ...
-  cashDiv      Float? // pre-tax cash dividend per share
-  cashDivTax   Float? // per-share figure incl. proposal stage
+  cashDiv      Float? // 税后每股现金分红 / Post-tax cash dividend per share
+  cashDivTax   Float? // 税前每股现金分红 / Pre-tax cash dividend per share
 
   /// 分红股本基准日，仅用于同一事件的新旧取舍，不代表已核实公告时间。
   /// Dividend share-base date used to prefer newer values, never a verified announcement time.
@@ -415,6 +415,26 @@ model Dividend {
   /// First capture of the current value; announcements cannot fill unknown capture dates.
   observedAt          DateTime?
   availabilityQuality String    @default("unknown")
+
+  /// 来源分配形态，非稳定方案编号；旧记录未知时为 null。
+  /// Source distribution shape, not a stable plan ID; unknown legacy rows remain null.
+  distributionKind               String?
+  /// 每股送转合计，不与其送股／转增分量重复相加。
+  /// Total shares distributed per share; do not add its bonus/capitalization components again.
+  stockDividend                  Float?
+  /// 每股送股比例 / Bonus shares per share.
+  stockBonusRate                 Float?
+  /// 每股转增比例 / Capitalization shares per share.
+  stockCapitalizationRate        Float?
+  /// 股权登记日 / Record date.
+  recordDate                     String?
+  /// 派息日 / Cash payment date.
+  payDate                        String?
+  /// 来源实施公告日，不作为已核实首次公开时间。
+  /// Source implementation announcement date, not verified first-publication time.
+  implementationAnnouncementDate String?
+  /// 红股上市日 / Distributed-share listing date.
+  shareListingDate               String?
 
   @@index([tsCode])
 }

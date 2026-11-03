@@ -12,7 +12,7 @@ import {
   collectWriteResult,
   emptyWriteResult,
   mergeRows,
-  sameValues,
+  hasValueConflict,
 } from '../synchronization/rows.js';
 import { localDate } from '../synchronization/date.js';
 import {
@@ -164,6 +164,14 @@ const dividendSchema = z.strictObject({
   baseShare: z.number().finite().nullish(),
   observedAt: z.date().nullish(),
   availabilityQuality: z.string().optional(),
+  distributionKind: z.enum(['cash', 'shares', 'mixed', 'none', 'unspecified']).nullish(),
+  stockDividend: z.number().finite().nonnegative().nullish(),
+  stockBonusRate: z.number().finite().nonnegative().nullish(),
+  stockCapitalizationRate: z.number().finite().nonnegative().nullish(),
+  recordDate: z.string().nullish(),
+  payDate: z.string().nullish(),
+  implementationAnnouncementDate: z.string().nullish(),
+  shareListingDate: z.string().nullish(),
 });
 
 /**
@@ -480,7 +488,7 @@ async function writeDividend(
     merge: mergeDividendSource,
     keys: ['id'],
     records: batch.records,
-    existing,
+    existing: existing.map((row) => dividendSchema.parse(row)),
     replace:
       batch.replace &&
       ((prepared.status === 'complete' && !prepared.errors.length) ||
@@ -492,7 +500,17 @@ async function writeDividend(
       }
       const unchanged =
         before?.observedAt instanceof Date &&
-        sameValues(before, values, ['observedAt', 'availabilityQuality', 'sourceTsCode']);
+        !hasValueConflict(
+          before,
+          Object.fromEntries(
+            Object.entries(values).filter(
+              ([field]) =>
+                !['observedAt', 'availabilityQuality', 'distributionKind', 'sourceTsCode'].includes(
+                  field,
+                ),
+            ),
+          ),
+        );
 
       return {
         ...values,

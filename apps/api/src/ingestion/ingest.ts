@@ -1,4 +1,5 @@
 import { ulid } from 'ulid';
+import { dividendReceiptHasCompleteFields } from '#market/fundamentals/dividend-identity.js';
 import { IngestionError } from './errors.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
@@ -77,6 +78,7 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
           rangeEnd: true,
           sourceStart: true,
           status: true,
+          request: true,
         },
       });
       const currentAttempts = latestAttempts(history.filter((batch) => batch.runId === runId));
@@ -95,10 +97,11 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
         byScope.set(key, saved);
       }
       const attempted = new Set<string>();
+      const reusable = (batch: (typeof history)[number]) =>
+        batch.status === 'succeeded' &&
+        (batch.dataset !== 'dividends' || dividendReceiptHasCompleteFields(batch.request));
       const completed = new Set(
-        [...currentAttempts]
-          .filter(([, batch]) => batch.status === 'succeeded')
-          .map(([key]) => key),
+        [...currentAttempts].filter(([, batch]) => reusable(batch)).map(([key]) => key),
       );
       const attempt = async (unit: IngestionUnit): Promise<boolean> => {
         required.add(unitKey(unit));
@@ -110,7 +113,7 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
         }
         attempted.add(unitKey(unit));
         const current = currentAttempts.get(unitKey(unit));
-        if (current?.status === 'succeeded') {
+        if (current && reusable(current)) {
           return true;
         }
 

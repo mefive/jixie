@@ -49,6 +49,9 @@ export function mergeDividendSource(
       cashDiv: row.cashDiv,
       cashDivTax: row.cashDivTax,
       baseShare: row.baseShare,
+      stockDividend: row.stockDividend,
+      stockBonusRate: row.stockBonusRate,
+      stockCapitalizationRate: row.stockCapitalizationRate,
     });
 
     if (

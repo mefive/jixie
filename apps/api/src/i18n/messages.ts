@@ -5,6 +5,10 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  ambiguousDividendEvent: {
+    zh: '现金分红实施记录无法唯一匹配或内容冲突，请先处理分红数据问题。',
+    en: 'Cash dividend implementations are ambiguous or conflicting. Resolve the dividend records first.',
+  },
   researchDatasetRetired: {
     zh: '该数据已退役，请从研究数据目录选择当前支持的股票、ETF 或境内指数行情。',
     en: 'This dataset is retired. Select supported stock, ETF or domestic-index prices from the Research catalog.',

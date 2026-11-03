@@ -5,6 +5,7 @@ import {
 } from '#infra/errors.js';
 
 const definitions = {
+  ambiguous_dividend_event: { category: 'conflict', messageKey: 'ambiguousDividendEvent' },
   inputs_not_ready: { category: 'unavailable', messageKey: 'marketInputsNotReady' },
   no_data: {
     category: 'missing',

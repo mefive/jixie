@@ -1,3 +1,4 @@
+import { selectImplementedCashDividends } from '#market/fundamentals/dividend-cash-events.js';
 import { localDate } from '#market/synchronization/date.js';
 import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
 import { getDatabase } from '#infra/database/prisma.js';
@@ -63,28 +64,32 @@ export async function loadResearchEquityDividends(request: ResearchDatedIdentifi
     select: { calDate: true },
   });
 
-  return rows.flatMap((row) => {
+  const visible = rows.flatMap((row) => {
     if (!row.observedAt) {
       return [];
     }
     const captureDate = localDate(row.observedAt);
     const availableDate = sessions.find((session) => session.calDate > captureDate)?.calDate;
     const date = availableDate && availableDate > row.exDate! ? availableDate : row.exDate!;
-    if (!availableDate || date < request.start || date > request.end) {
+    if (!availableDate || date > request.end) {
       return [];
     }
 
-    return [
-      {
-        date,
-        ex_date: row.exDate!,
-        availability_quality: row.availabilityQuality,
-        observed_at: row.observedAt.toISOString(),
-        report_period: row.endDate,
-        announcement_date: row.annDate,
-        cash_dividend_pre_tax: row.cashDivTax,
-        cash_dividend_tax_basis: row.cashDivTax,
-      },
-    ];
+    return [{ ...row, date }];
   });
+
+  // 先使用起点前的可得状态去重，避免后来重复公告再次成为现金事件。
+  // Deduplicate with pre-start visibility so a later repeated announcement is not another payment.
+  return selectImplementedCashDividends(visible)
+    .filter((row) => row.date >= request.start)
+    .map((row) => ({
+      date: row.date,
+      ex_date: row.exDate!,
+      availability_quality: row.availabilityQuality,
+      observed_at: row.observedAt!.toISOString(),
+      report_period: row.endDate,
+      announcement_date: row.annDate,
+      cash_dividend_pre_tax: row.cashDivTax,
+      cash_dividend_tax_basis: row.cashDivTax,
+    }));
 }
