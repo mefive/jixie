@@ -82,11 +82,24 @@ export async function summarizeIngestionRun(
   targetDate: string,
   required: Set<string>,
 ): Promise<IngestionResult> {
-  const attempts = await getDatabase().ingestionBatch.findMany({
-    where: { runId },
-    orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
-    include: { _count: { select: { issues: true } } },
-  });
+  const database = getDatabase();
+  const [attempts, warnings] = await Promise.all([
+    database.ingestionBatch.findMany({
+      where: { runId },
+      orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+      include: { _count: { select: { issues: true } } },
+    }),
+    database.ingestionIssue.groupBy({
+      by: ['batchId'],
+      where: { runId, severity: 'warning' },
+      _count: { _all: true },
+    }),
+  ]);
+  const warningCounts = new Map(
+    warnings.flatMap((entry) =>
+      entry.batchId ? [[entry.batchId, entry._count._all] as const] : [],
+    ),
+  );
   const result: IngestionResult = {
     runId,
     targetDate,
@@ -99,6 +112,7 @@ export async function summarizeIngestionRun(
     filtered: 0,
     rejected: 0,
     issues: 0,
+    warnings: 0,
   };
   for (const [key, batch] of latestAttempts(attempts)) {
     if (!required.has(key)) {
@@ -118,7 +132,9 @@ export async function summarizeIngestionRun(
     result.accepted += batch.acceptedCount;
     result.filtered += batch.filteredCount;
     result.rejected += batch.rejectedCount;
-    result.issues += batch._count.issues;
+    const warningCount = warningCounts.get(batch.id) ?? 0;
+    result.issues += batch._count.issues - warningCount;
+    result.warnings += warningCount;
   }
 
   return result;

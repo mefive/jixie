@@ -87,7 +87,7 @@ async function currentIssue(runId: string, status: string, snapshot: unknown) {
   let cursor: string | undefined;
   while (true) {
     const issue = await database.ingestionIssue.findFirst({
-      where: { runId },
+      where: { runId, severity: { not: 'warning' } },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       include: { batch: { select: { dataset: true, scope: true, period: true } } },

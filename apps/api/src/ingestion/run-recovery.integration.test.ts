@@ -179,7 +179,7 @@ it(
         onLog: () => {},
         source: ingestionSource({
           prices: (date) => [
-            { ts_code: '600000.SH', trade_date: date, open: 10, high: 11, low: 12, close: 10 },
+            { ts_code: '600000.SH', trade_date: date, open: 0, high: 11, low: 9, close: 10 },
           ],
         }),
       });

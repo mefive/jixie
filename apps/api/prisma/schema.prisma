@@ -527,8 +527,8 @@ model IngestionBatch {
   @@index([status])
 }
 
-/// 来源请求、未接纳记录及受阻原因；原始内容不包含凭证。
-/// Source-request failures, rejected records and blocked work; payloads never contain credentials.
+/// 来源请求、未接纳错误与已接纳记录的警告；原始内容不包含凭证。
+/// Source failures, rejected-record errors and admitted-record warnings; payloads exclude credentials.
 model IngestionIssue {
   id          String          @id
   runId       String
@@ -536,6 +536,7 @@ model IngestionIssue {
   batchId     String?
   batch       IngestionBatch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
   category    String
+  severity    String          @default("error")
   reasonCode  String
   message     String
   businessKey Json?

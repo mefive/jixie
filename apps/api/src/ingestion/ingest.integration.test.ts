@@ -136,7 +136,7 @@ it(
         source: ingestionSource({
           prices: (date) => [
             { ts_code: '600000.SH', trade_date: date, open: 10, high: 11, low: 9, close: 10 },
-            { ts_code: '600001.SH', trade_date: date, open: 10, high: 11, low: 12, close: 10 },
+            { ts_code: '600001.SH', trade_date: date, open: 0, high: 11, low: 9, close: 10 },
           ],
         }),
       });
@@ -156,7 +156,7 @@ it(
       const issues = await database.ingestionIssue.findMany({ where: { runId: result.runId } });
       expect(issues).toContainEqual(
         expect.objectContaining({
-          payload: expect.objectContaining({ ts_code: '600001.SH', low: 12 }),
+          payload: expect.objectContaining({ ts_code: '600001.SH', open: 0 }),
         }),
       );
     }),

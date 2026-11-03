@@ -7,6 +7,7 @@ import { isObservationDate, localDate } from '#market/synchronization/date.js';
 import { prepareMarketPartition, writeMarketPartition } from '#market/synchronization/prepare.js';
 import {
   withImportDiagnostics,
+  isImportError,
   type ImportDiagnostics,
   type ImportIssue,
 } from '#market/synchronization/diagnostics.js';
@@ -226,9 +227,13 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
           if (prepared) {
             for (const message of [
               ...prepared.errors,
-              ...(diagnostics.issues.length ? [] : prepared.gaps),
+              ...(diagnostics.issues.some(isImportError) ? [] : prepared.gaps),
             ]) {
-              if (!diagnostics.issues.some((issue) => issue.message === message)) {
+              if (
+                !diagnostics.issues.some(
+                  (issue) => isImportError(issue) && issue.message === message,
+                )
+              ) {
                 diagnostics.issues.push({
                   category: responseComplete ? 'snapshot' : 'request',
                   reasonCode: responseComplete ? 'batch_not_accepted' : 'incomplete_response',
@@ -272,7 +277,11 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                         errors: [] as string[],
                       };
                 for (const message of accepted.errors) {
-                  if (!diagnostics.issues.some((issue) => issue.message === message)) {
+                  if (
+                    !diagnostics.issues.some(
+                      (issue) => isImportError(issue) && issue.message === message,
+                    )
+                  ) {
                     diagnostics.issues.push({
                       category: 'record',
                       reasonCode: 'write_not_accepted',
@@ -283,7 +292,7 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                 if (
                   selection &&
                   responseComplete &&
-                  !diagnostics.issues.length &&
+                  !diagnostics.issues.some(isImportError) &&
                   !signal.aborted
                 ) {
                   await mergeEtfSelection(transaction, selection);
@@ -292,7 +301,7 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                   ? 'interrupted'
                   : !responseComplete
                     ? 'failed'
-                    : diagnostics.issues.length
+                    : diagnostics.issues.some(isImportError)
                       ? 'partial'
                       : 'succeeded';
                 const rejected = (prepared?.checks.invalidRows ?? 0) + accepted.rejected;
@@ -346,7 +355,7 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                   acceptedCount,
                   filtered,
                   rejected,
-                  issueCount: diagnostics.issues.length,
+                  issueCount: diagnostics.issues.filter(isImportError).length,
                 };
               },
               { timeout: 120_000 },
@@ -373,7 +382,9 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
           }
         });
         for (const issue of diagnostics.issues) {
-          log(`[ingestion] ${unit.dataset}/${unit.scope}: ${issue.message}`);
+          log(
+            `[ingestion] ${unit.dataset}/${unit.scope} [${issue.severity ?? 'error'}]: ${issue.message}`,
+          );
         }
 
         return succeeded;
@@ -523,6 +534,7 @@ async function persistIssues(
       runId,
       batchId,
       category: issue.category,
+      severity: issue.severity ?? 'error',
       reasonCode: issue.reasonCode,
       message: issue.message,
       ...(issue.businessKey != null ? { businessKey: jsonValue(issue.businessKey) } : {}),

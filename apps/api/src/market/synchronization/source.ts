@@ -242,19 +242,28 @@ export function validateSourceNumbers(
 }
 
 /**
- * 股票和 ETF 的完整价格约束。
+ * 股票和 ETF 保留可存储价格；OHLC 范围矛盾只记录来源警告。
  *
- * Complete price invariants shared by stock and ETF bars.
+ * Validate storable stock/ETF prices and record OHLC range inconsistencies as source warnings.
  */
-export function validateSourceBar(values: MarketRow): void {
+export function validateSourceBar(values: MarketRow, sourceRow?: TushareRow): void {
   const prices = ['open', 'high', 'low', 'close'].map((field) => values[field]);
   if (prices.some((value) => typeof value !== 'number' || !Number.isFinite(value) || value <= 0)) {
     throw new Error('Missing or invalid OHLC price');
   }
-  const [open, high, low, close] = prices as number[];
-  if (low > Math.min(open, close) || high < Math.max(open, close) || low > high) {
-    throw new Error('Inconsistent OHLC price range');
-  }
 
   validateSourceNumbers(values, [], ['vol', 'amount']);
+
+  const [open, high, low, close] = prices as number[];
+  if (low > Math.min(open, close) || high < Math.max(open, close) || low > high) {
+    recordImportIssue({
+      severity: 'warning',
+      category: 'record',
+      reasonCode: 'ohlc_range_inconsistent',
+      message: 'Inconsistent OHLC price range',
+      businessKey: { tsCode: values.tsCode, tradeDate: values.tradeDate },
+      field: 'ohlc',
+      payload: sourceRow ?? values,
+    });
+  }
 }

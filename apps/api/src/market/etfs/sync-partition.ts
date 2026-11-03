@@ -75,7 +75,7 @@ export async function prepareEtfPartition(
     const values = sourceValues(row, definition.columns);
     validateSourceNumbers(values, ['open', 'high', 'low', 'close', 'adjFactor'], ['vol', 'amount']);
     if (definition.table === 'EtfDaily') {
-      validateSourceBar(values);
+      validateSourceBar(values, row);
     }
     if (
       definition.table === 'EtfAdjFactor' &&

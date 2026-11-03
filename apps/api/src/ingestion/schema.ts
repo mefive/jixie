@@ -78,4 +78,5 @@ export interface IngestionResult {
   filtered: number;
   rejected: number;
   issues: number;
+  warnings: number;
 }

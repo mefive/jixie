@@ -55,8 +55,8 @@ describe('ETF formal maintenance validation', () => {
       expect(await database.etfBasic.count()).toBe(1);
     }));
 
-  it.each<Record<string, number>>([{ close: 1 }, { open: 1, high: 1, low: 2, close: 3 }])(
-    'rejects missing or impossible OHLC: %j',
+  it.each<Record<string, number>>([{ close: 1 }, { open: 0, high: 1, low: 1, close: 1 }])(
+    'rejects missing or nonpositive OHLC: %j',
     async (prices) =>
       withSyncDatabase(async (database) => {
         await database.etfDaily.create({

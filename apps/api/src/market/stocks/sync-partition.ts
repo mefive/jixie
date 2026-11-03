@@ -154,7 +154,7 @@ export async function prepareStockPartition(
       }
     }
     if (definition.table === 'Daily') {
-      validateSourceBar(values);
+      validateSourceBar(values, row);
     }
     if (
       definition.table === 'AdjFactor' &&

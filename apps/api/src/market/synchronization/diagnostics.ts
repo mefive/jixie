@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 export interface ImportIssue {
+  severity?: 'error' | 'warning';
   category: 'request' | 'record' | 'snapshot' | 'dependency' | 'internal';
   reasonCode: string;
   message: string;
@@ -15,6 +16,15 @@ export interface ImportDiagnostics {
 }
 
 const imports = new AsyncLocalStorage<ImportDiagnostics>();
+
+/**
+ * 未指定级别的既有诊断继续表示错误；警告不参与阻塞判断。
+ *
+ * Existing diagnostics default to errors; warnings never block batch completion.
+ */
+export function isImportError(issue: ImportIssue): boolean {
+  return issue.severity !== 'warning';
+}
 
 /**
  * 领域映射与事务写入共享本批诊断，不依赖采集调度模块。
