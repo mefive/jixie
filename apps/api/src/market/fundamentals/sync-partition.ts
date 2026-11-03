@@ -1,6 +1,6 @@
 import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferLatestDividendBases } from './dividend-selection.js';
-import { financialStockCodes } from './period-catalog.js';
+import { financialStockCodes } from './scope.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';

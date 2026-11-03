@@ -37,16 +37,14 @@ const unitSchema = z.object({
 });
 
 /**
- * 固定本轮阶段计划及已确认的报告期；旧版无计划快照在恢复时建立一次。
+ * 固定本轮阶段计划；旧版报告期目录快照恢复时重建季度计划。
  *
- * Freeze phase plans and discovered periods; establish a plan once for legacy runs.
+ * Freeze phase plans and rebuild quarterly work when resuming obsolete catalog snapshots.
  */
 export const runPlanSchema = z.object({
   version: z.literal(2),
   referenceUnits: z.array(unitSchema),
   selectionUnits: z.array(unitSchema).optional(),
-  catalogUnits: z.array(unitSchema).optional(),
-  financialPeriods: z.record(z.string(), z.array(z.string())),
   plan: z
     .object({
       units: z.array(unitSchema),
@@ -56,6 +54,24 @@ export const runPlanSchema = z.object({
 });
 
 export type IngestionRunPlan = z.infer<typeof runPlanSchema>;
+
+/**
+ * 旧目录计划只移除执行计划，保留运行身份和成功批次；下一步按固定季度重新规划。
+ *
+ * Discard obsolete catalog plans while retaining run identity and receipts for quarterly replanning.
+ */
+export function parseRunPlan(snapshot: unknown): IngestionRunPlan {
+  const plan = runPlanSchema.parse(snapshot);
+  if (
+    snapshot &&
+    typeof snapshot === 'object' &&
+    ('catalogUnits' in snapshot || 'financialPeriods' in snapshot)
+  ) {
+    delete plan.plan;
+  }
+
+  return plan;
+}
 
 export interface IngestionInput {
   targetDate: string;

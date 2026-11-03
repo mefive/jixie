@@ -16,7 +16,3 @@ export function quarterlyReportPeriods(startDate: string, endDate: string): stri
   }
   return periods;
 }
-
-export function financialHistoryStart(earliestMarketDate: string): string {
-  return `${Number(earliestMarketDate.slice(0, 4)) - 1}1231`;
-}

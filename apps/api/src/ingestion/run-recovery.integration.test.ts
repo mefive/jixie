@@ -1,12 +1,13 @@
 import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { emptySelections, ingestionSource, ingestionTime } from '../../tests/ingestion-source.js';
-import { ingest } from './ingest.js';
+import { ingest, jsonValue } from './ingest.js';
+import { referenceUnits } from './plan.js';
 import { getIngestionStatus } from './status.js';
 import { runPlanSchema } from './schema.js';
 
 it(
-  'waits for a complete stock catalog before financial discovery and rebuilds the dependent plan on recovery',
+  'waits for a complete stock catalog before quarterly financial requests and rebuilds the dependent plan on recovery',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -100,7 +101,7 @@ it(
         source: ingestionSource({
           incomeAvailable: () => true,
           onCall: (api) => {
-            if (api === 'dividend') {
+            if (api === 'fina_indicator_vip') {
               controller.abort();
             }
           },
@@ -123,11 +124,14 @@ it(
       };
       const resumed = await ingest(input);
       expect(resumed).toMatchObject({ runId: first.runId, status: 'completed', issues: 0 });
-      expect(calls.some((call) => call.api.endsWith('_vip'))).toBe(false);
+      expect(
+        calls.some((call) => call.api.endsWith('_vip') && call.api !== 'fina_indicator_vip'),
+      ).toBe(false);
       expect(calls.some((call) => call.api === 'stock_basic' || call.api === 'trade_cal')).toBe(
         false,
       );
-      expect(calls.some((call) => call.api === 'dividend')).toBe(true);
+      expect(calls.some((call) => call.api === 'fina_indicator_vip')).toBe(true);
+      expect(calls.some((call) => call.api === 'dividend')).toBe(false);
       expect(await database.ingestionRun.count()).toBe(1);
       expect(
         (await database.ingestionRun.findUniqueOrThrow({ where: { id: first.runId } })).startedAt,
@@ -139,14 +143,14 @@ it(
       ).toBe(succeeded.length);
       expect(
         await database.ingestionBatch.count({
-          where: { runId: first.runId, dataset: 'dividends' },
+          where: { runId: first.runId, dataset: 'financial-indicators', period: '19880331' },
         }),
       ).toBe(2);
       expect(
         await database.ingestionBatch.count({
           where: {
             runId: first.runId,
-            dataset: 'dividends',
+            dataset: 'financial-indicators',
             status: 'interrupted',
           },
         }),
@@ -157,7 +161,11 @@ it(
       const next = await ingest(input);
       expect(next.status).toBe('completed');
       expect(next.runId).not.toBe(first.runId);
-      expect(calls.some((call) => call.api === 'income_vip' && !call.params.period)).toBe(true);
+      expect(
+        calls
+          .filter((call) => call.api.endsWith('_vip'))
+          .every((call) => typeof call.params.period === 'string'),
+      ).toBe(true);
       expect(
         calls.some((call) => call.api === 'income_vip' && call.params.period === '19901231'),
       ).toBe(true);
@@ -214,70 +222,70 @@ it(
 );
 
 it(
-  'does not publish a truncated period catalog and resumes its failed discovery without reloading successful catalogs',
+  'retries only the failed report quarter in the original run and preserves completed empty quarters',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
       let fail = true;
-      const requests: Array<{ api: string; params: Record<string, unknown> }> = [];
-      const fallback = ingestionSource({ incomeAvailable: () => true, incomePeriod: '19881231' });
+      const calls: Array<{ api: string; params: Record<string, unknown> }> = [];
+      const base = ingestionSource({ incomeAvailable: () => true });
       const input = {
         targetDate: '19910104',
         clock: () => ingestionTime,
         onLog: () => {},
         source: {
           call: async (api: string, params: Record<string, unknown> = {}, fields?: string) => {
-            requests.push({ api, params });
-            if (api === 'income_vip' && params.report_type === '1' && !params.period) {
-              if (fail && params.offset) {
-                throw new Error('Controlled catalog page failure');
-              }
-              if (fail) {
-                return Array.from({ length: 5000 }, () => ({
-                  ts_code: '600000.SH',
-                  end_date: '19881231',
-                }));
-              }
+            calls.push({ api, params });
+            if (
+              api === 'income_vip' &&
+              params.report_type === '1' &&
+              params.period === '19901231' &&
+              fail
+            ) {
+              throw new Error('Controlled report-quarter failure');
             }
 
-            return fallback.call(api, params, fields);
+            return base.call(api, params, fields);
           },
         },
       };
       const first = await ingest(input);
       expect(first.status).toBe('completed_with_issues');
-      const snapshot = runPlanSchema.parse(
-        (await database.ingestionRun.findUniqueOrThrow({ where: { id: first.runId } }))
-          .scopeSnapshot,
-      );
-      expect(snapshot.financialPeriods).not.toHaveProperty('income|1');
       expect(await database.financialIncomeStatement.count()).toBe(0);
-      expect(await database.daily.count()).toBeGreaterThan(0);
-
-      fail = false;
-      requests.length = 0;
-      const resumed = await ingest(input);
-      expect(resumed).toMatchObject({ runId: first.runId, status: 'completed', issues: 0 });
-      expect(
-        requests.filter((request) => request.api.endsWith('_vip') && !request.params.period),
-      ).toEqual([{ api: 'income_vip', params: { report_type: '1', limit: 5000, offset: 0 } }]);
-      expect((await database.financialIncomeStatement.findFirstOrThrow()).endDate).toBe('19881231');
       expect(
         await database.ingestionBatch.count({
-          where: { runId: first.runId, dataset: 'financial-periods', scope: 'income|1' },
+          where: {
+            runId: first.runId,
+            dataset: { in: ['financial-statements', 'financial-indicators'] },
+            status: 'succeeded',
+          },
         }),
-      ).toBe(2);
+      ).toBe(119);
+      fail = false;
+      calls.length = 0;
+      expect(await ingest(input)).toMatchObject({
+        runId: first.runId,
+        status: 'completed',
+        issues: 0,
+      });
+      expect(calls).toEqual([
+        {
+          api: 'income_vip',
+          params: { period: '19901231', report_type: '1', limit: 5000, offset: 0 },
+        },
+      ]);
+      expect(await database.financialIncomeStatement.count()).toBe(1);
     }),
   60_000,
 );
 
 it(
-  'rolls the period list back with its receipt and restores the original run after a publication failure',
+  'rolls report data back with its success receipt and recovers the same quarter',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
       await database.$executeRawUnsafe(
-        `CREATE TRIGGER refuse_catalog_receipt BEFORE UPDATE ON "IngestionBatch" WHEN NEW.dataset='financial-periods' AND NEW.scope='income|1' AND NEW.status='succeeded' BEGIN SELECT RAISE(ABORT, 'controlled catalog receipt failure'); END`,
+        `CREATE TRIGGER refuse_report_receipt BEFORE UPDATE ON "IngestionBatch" WHEN NEW.dataset='financial-statements' AND NEW.scope='income|1' AND NEW.period='19901231' AND NEW.status='succeeded' BEGIN SELECT RAISE(ABORT, 'controlled report receipt failure'); END`,
       );
       const input = {
         targetDate: '19910104',
@@ -287,13 +295,8 @@ it(
       };
       const first = await ingest(input);
       expect(first.status).toBe('failed');
-      const snapshot = runPlanSchema.parse(
-        (await database.ingestionRun.findUniqueOrThrow({ where: { id: first.runId } }))
-          .scopeSnapshot,
-      );
-      expect(snapshot.financialPeriods).not.toHaveProperty('income|1');
       expect(await database.financialIncomeStatement.count()).toBe(0);
-      await database.$executeRawUnsafe('DROP TRIGGER refuse_catalog_receipt');
+      await database.$executeRawUnsafe('DROP TRIGGER refuse_report_receipt');
       expect(await ingest(input)).toMatchObject({
         runId: first.runId,
         status: 'completed',
@@ -304,12 +307,135 @@ it(
         await database.ingestionBatch.count({
           where: {
             runId: first.runId,
-            dataset: 'financial-periods',
+            dataset: 'financial-statements',
             scope: 'income|1',
+            period: '19901231',
             status: 'interrupted',
           },
         }),
       ).toBe(1);
+    }),
+  60_000,
+);
+
+it(
+  'replaces obsolete catalog plans without retrying their failures or re-fetching a successful quarter',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await emptySelections(database);
+      const runId = '00000000000000000000000002';
+      const firstQuarter = {
+        dataset: 'financial-statements',
+        scope: 'income|1',
+        period: '19880331',
+        startDate: '19880331',
+        endDate: '19880331',
+        api: 'income_vip',
+        refresh: true,
+        catalogThrough: '19910104',
+      };
+      await database.ingestionRun.create({
+        data: {
+          id: runId,
+          targetDate: '19910104',
+          trigger: 'manual',
+          status: 'interrupted',
+          startedAt: ingestionTime,
+          scopeSnapshot: jsonValue({
+            version: 2,
+            referenceUnits: referenceUnits('19910104', ingestionTime),
+            catalogUnits: [
+              {
+                dataset: 'financial-periods',
+                scope: 'income|1',
+                period: 'history',
+                api: 'income_vip',
+                refresh: true,
+                startDate: '',
+                endDate: '19910104',
+              },
+            ],
+            financialPeriods: { 'income|1': ['19880331'] },
+            plan: { units: [firstQuarter], blocked: [] },
+          }),
+        },
+      });
+      await database.ingestionBatch.createMany({
+        data: [
+          {
+            id: 'completed-quarter',
+            runId,
+            dataset: 'financial-statements',
+            scope: 'income|1',
+            period: '19880331',
+            api: 'income_vip',
+            rangeStart: '19880331',
+            rangeEnd: '19880331',
+            request: {},
+            status: 'succeeded',
+            responseComplete: true,
+          },
+          {
+            id: 'obsolete-catalog',
+            runId,
+            dataset: 'financial-periods',
+            scope: 'income|1',
+            period: 'history',
+            api: 'income_vip',
+            request: {},
+            status: 'failed',
+          },
+        ],
+      });
+      await database.ingestionIssue.create({
+        data: {
+          id: 'obsolete-offset-error',
+          runId,
+          batchId: 'obsolete-catalog',
+          category: 'request',
+          reasonCode: 'source_rejected_request',
+          message: 'offset cannot exceed 100000',
+        },
+      });
+      const calls: Array<{ api: string; params: Record<string, unknown> }> = [];
+      const result = await ingest({
+        targetDate: '19910104',
+        clock: () => ingestionTime,
+        onLog: () => {},
+        source: ingestionSource({ onCall: (api, params) => calls.push({ api, params }) }),
+      });
+      expect(result).toMatchObject({ runId, status: 'completed', issues: 0 });
+      const financialCalls = calls.filter((call) => call.api.endsWith('_vip'));
+      expect(financialCalls).toHaveLength(119);
+      expect(
+        financialCalls.every(
+          (call) => typeof call.params.period === 'string' && !call.params.ts_code,
+        ),
+      ).toBe(true);
+      expect(
+        financialCalls.some(
+          (call) =>
+            call.api === 'income_vip' &&
+            call.params.report_type === '1' &&
+            call.params.period === '19880331',
+        ),
+      ).toBe(false);
+      expect(
+        await database.ingestionBatch.count({ where: { runId, dataset: 'financial-periods' } }),
+      ).toBe(1);
+      expect(
+        await database.ingestionIssue.findUnique({ where: { id: 'obsolete-offset-error' } }),
+      ).not.toBeNull();
+      const saved = (await database.ingestionRun.findUniqueOrThrow({ where: { id: runId } }))
+        .scopeSnapshot;
+      expect(saved).not.toHaveProperty('catalogUnits');
+      expect(saved).not.toHaveProperty('financialPeriods');
+      expect(
+        runPlanSchema
+          .parse(saved)
+          .plan?.units.filter((unit) => unit.dataset.startsWith('financial-')),
+      ).toHaveLength(120);
+      expect((await getIngestionStatus()).error).toBeNull();
     }),
   60_000,
 );

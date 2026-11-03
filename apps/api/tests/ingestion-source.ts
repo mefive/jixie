@@ -31,6 +31,15 @@ export function ingestionSource(
   return {
     call: async (api, params = {}) => {
       options.onCall?.(api, params);
+      if (
+        api.endsWith('_vip') &&
+        (typeof params.period !== 'string' ||
+          params.ts_code ||
+          params.start_date ||
+          params.end_date)
+      ) {
+        throw new Error('Financial ingestion must request one whole-market report period');
+      }
       const date = String(params.trade_date ?? '19910104');
       switch (api) {
         case 'trade_cal': {
@@ -113,7 +122,7 @@ export function ingestionSource(
         case 'income_vip': {
           if (
             !options.incomeAvailable?.() ||
-            (params.period && params.period !== (options.incomePeriod ?? '19901231')) ||
+            params.period !== (options.incomePeriod ?? '19901231') ||
             params.report_type !== '1'
           ) {
             return [];

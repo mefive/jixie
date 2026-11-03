@@ -11,7 +11,6 @@ export interface SyncSource {
 
 export interface SourcePages {
   rows: TushareRow[];
-  rowCount?: number;
   complete: boolean;
   pages: number;
   deferred?: boolean;
@@ -30,7 +29,6 @@ export async function fetchSourcePages(
   fields: string,
   requestedPageSize?: number,
   maximumPages = 20,
-  consumePage?: (rows: TushareRow[]) => void,
 ): Promise<SourcePages> {
   const contract = INGESTION_SOURCE_REQUESTS[api];
   if (
@@ -46,7 +44,7 @@ export async function fetchSourcePages(
     contract.pageSize ?? Infinity,
   );
   const snapshotLimit = contract.snapshotLimit;
-  const result: SourcePages = { rows: [], rowCount: 0, complete: false, pages: 0, errors: [] };
+  const result: SourcePages = { rows: [], complete: false, pages: 0, errors: [] };
   const signatures = new Set<string>();
   for (let pageNumber = 0; pageNumber < maximumPages; pageNumber++) {
     try {
@@ -61,15 +59,7 @@ export async function fetchSourcePages(
         throw new Error(`${api}: provider repeated an offset page`);
       }
       signatures.add(signature);
-      result.rowCount! += page.length;
-
-      // 目录逐页归纳后释放原行；业务下载仍保留整批，完整后才允许入库。
-      // Reduce catalog pages without retaining raw rows; business batches remain buffered until complete.
-      if (consumePage) {
-        consumePage(page);
-      } else {
-        result.rows.push(...page);
-      }
+      result.rows.push(...page);
       if (snapshotLimit && page.length >= snapshotLimit) {
         throw new Error(`${api}: response reached its safety limit; narrow the request`);
       }
@@ -143,7 +133,7 @@ export function completeResponse(input: {
   errors?: string[];
 }): PreparedMarketPartition {
   const errors = [...input.pages.errors, ...(input.errors ?? [])];
-  const received = input.pages.rowCount ?? input.pages.rows.length;
+  const received = input.pages.rows.length;
   if (!input.records.length && !input.allowEmpty && !errors.length && !input.pages.deferred) {
     errors.push(`${input.table}: unexplained empty source response`);
   }

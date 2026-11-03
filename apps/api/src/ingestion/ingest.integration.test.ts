@@ -265,7 +265,7 @@ it(
 );
 
 it(
-  'discovers source periods before fetching complete pre-market reports in each new run',
+  'fetches pre-IPO reports from fixed 1988 quarters in each new run',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -285,7 +285,11 @@ it(
       requests.length = 0;
       await ingest(input);
       expect(requests.some((request) => request.period === '19881231')).toBe(true);
-      expect(requests.some((request) => !request.period)).toBe(true);
+      expect(
+        requests.every(
+          (request) => typeof request.period === 'string' && request.period >= '19880101',
+        ),
+      ).toBe(true);
       for (const request of requests) {
         expect(request).not.toHaveProperty('start_date');
         expect(request).not.toHaveProperty('end_date');

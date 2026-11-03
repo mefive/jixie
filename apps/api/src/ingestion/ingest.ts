@@ -15,16 +15,9 @@ import { mergeEtfSelection, prepareHistoricalEtfSelection } from '#market/downlo
 import { initializeIndexDownloads } from '#market/downloads/lists.js';
 import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
 import { compactSuccessfulReceipts } from './receipts.js';
-import {
-  financialCatalogUnits,
-  financialUnits,
-  planEtfSelections,
-  planIngestion,
-  referenceUnits,
-} from './plan.js';
-import { prepareFinancialPeriodCatalog } from '#market/fundamentals/period-catalog.js';
+import { planEtfSelections, planIngestion, referenceUnits } from './plan.js';
 import { latestAttempts, openIngestionRun, summarizeIngestionRun, unitKey } from './runs.js';
-import { runPlanSchema, type IngestionRunPlan } from './schema.js';
+import { parseRunPlan, type IngestionRunPlan } from './schema.js';
 import type { IngestionInput, IngestionResult, IngestionUnit } from './schema.js';
 
 /**
@@ -53,11 +46,10 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
         typeof snapshot === 'object' &&
         !Array.isArray(snapshot) &&
         'version' in snapshot
-          ? runPlanSchema.parse(snapshot)
+          ? parseRunPlan(snapshot)
           : {
               version: 2,
               referenceUnits: referenceUnits(input.targetDate, startedAt),
-              financialPeriods: {},
             };
       const savePlan = async (next: IngestionRunPlan) => {
         await database.ingestionRun.update({
@@ -186,9 +178,7 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
         let succeeded = false;
         await withImportDiagnostics(diagnostics, async () => {
           try {
-            if (unit.dataset === 'financial-periods') {
-              prepared = await prepareFinancialPeriodCatalog(source, unit.scope, unit.endDate);
-            } else if (unit.dataset === 'etf-selection') {
+            if (unit.dataset === 'etf-selection') {
               const snapshot = await prepareHistoricalEtfSelection({
                 source,
                 date: unit.endDate,
@@ -266,7 +256,7 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                   responseComplete &&
                   !signal.aborted &&
                   prepared &&
-                  !['etf-selection', 'financial-periods'].includes(unit.dataset)
+                  unit.dataset !== 'etf-selection'
                     ? await writeMarketPartition(transaction, prepared, unit, fetchedAt)
                     : {
                         inserted: 0,
@@ -308,27 +298,9 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                 const received = prepared?.checks.sourceRows ?? 0;
                 const filtered = prepared?.checks.excludedRows ?? 0;
                 const acceptedCount =
-                  responseComplete &&
-                  !signal.aborted &&
-                  (unit.dataset === 'financial-periods'
-                    ? status === 'succeeded'
-                    : selection || prepared?.tables.length)
+                  responseComplete && !signal.aborted && (selection || prepared?.tables.length)
                     ? Math.max(0, received - rejected - filtered)
                     : 0;
-                if (status === 'succeeded' && unit.dataset === 'financial-periods') {
-                  await transaction.ingestionRun.update({
-                    where: { id: runId },
-                    data: {
-                      scopeSnapshot: jsonValue({
-                        ...runPlan,
-                        financialPeriods: {
-                          ...runPlan.financialPeriods,
-                          [unit.scope]: prepared!.observedDates,
-                        },
-                      }),
-                    },
-                  });
-                }
                 await transaction.ingestionBatch.update({
                   where: { id: batchId },
                   data: {
@@ -371,15 +343,6 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
               'etf-selection',
             ].includes(unit.dataset);
           }
-          if (committed.status === 'succeeded' && unit.dataset === 'financial-periods') {
-            runPlan = {
-              ...runPlan,
-              financialPeriods: {
-                ...runPlan.financialPeriods,
-                [unit.scope]: prepared!.observedDates,
-              },
-            };
-          }
         });
         for (const issue of diagnostics.issues) {
           log(
@@ -411,33 +374,10 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
             }
             await attempt(unit);
           }
-          if (!signal.aborted && stockCatalogReady) {
-            if (!runPlan.catalogUnits) {
-              await savePlan({
-                ...runPlan,
-                catalogUnits: await financialCatalogUnits(input.targetDate, startedAt),
-              });
-            }
-            for (const unit of runPlan.catalogUnits!) {
-              if (signal.aborted) {
-                break;
-              }
-              await attempt(unit);
-            }
-          }
           const plan =
             (dependenciesChanged || runPlan.plan?.blocked.length ? undefined : runPlan.plan) ??
-            (await planIngestion(input.targetDate, startedAt, runPlan.financialPeriods));
-          const keys = new Set(plan.units.map(unitKey));
-          const added = financialUnits(
-            input.targetDate,
-            startedAt,
-            runPlan.financialPeriods,
-          ).filter((unit) => !keys.has(unitKey(unit)));
-          await savePlan({
-            ...runPlan,
-            plan: { units: [...plan.units, ...added], blocked: plan.blocked },
-          });
+            (await planIngestion(input.targetDate, startedAt));
+          await savePlan({ ...runPlan, plan });
           for (const unit of runPlan.plan!.units) {
             required.add(unitKey(unit));
           }
@@ -452,7 +392,10 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
             standaloneIssues++;
           }
           for (const unit of runPlan.plan!.units) {
-            if (unit.dataset === 'dividends' && !stockCatalogReady) {
+            if (
+              !stockCatalogReady &&
+              ['financial-statements', 'financial-indicators', 'dividends'].includes(unit.dataset)
+            ) {
               continue;
             }
             if (signal.aborted) {

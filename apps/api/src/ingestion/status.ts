@@ -78,7 +78,6 @@ async function currentIssue(runId: string, status: string, snapshot: unknown) {
         [
           ...parsed.data.referenceUnits,
           ...(parsed.data.selectionUnits ?? []),
-          ...(parsed.data.catalogUnits ?? []),
           ...(parsed.data.plan?.units ?? []),
         ].map(unitKey),
       )

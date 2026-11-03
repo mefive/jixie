@@ -8,7 +8,7 @@
 | [resolver.ts](resolver.ts) `resolveFinancialState`、`resolveFinancialStates`、`selectLatestStatementVersions` | Research／审计；前两者按 asOfDate 查库和规范代码，后者选择版本，保留报告类型、来源和可得性 |
 | [normalize.ts](normalize.ts) `normalizeIncomeFlows`、`normalizeCashFlows` | 累计流量转单季／TTM，缺少必要期数保留缺失而非补零 |
 | [metrics.ts](metrics.ts) `calculateFinancialMetrics` | 输入 ResolvedFinancialState，按版本化公式生成指标及来源，不查询市场 |
-| [reference-periods.ts](reference-periods.ts) `financialHistoryStart`、`quarterlyReportPeriods` | 纯时间范围计算 |
+| [reference-periods.ts](reference-periods.ts) `quarterlyReportPeriods` | 纯时间范围计算 |
 | [sync-partition.ts](sync-partition.ts) / [write.ts](write.ts) | 正式同步的分页准备、版本身份、PIT 与显式 Prisma 写入 |
 
 resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并使用当时可得财报与市值构造状态；市值从供应商万元转换为元。批量入口允许调用方提供 market snapshots，报告窗口也有独立边界。版本哈希、公告日期和更正证据不能因为相同 endDate 合并丢失。
@@ -52,4 +52,4 @@ resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并�
 十表迁移只新增可空来源列，旧值默认 null；Prisma schema 的内部字段不增加 Research SDK 列。财报 resolver 版本提升至 3，消费者继续通过现有显式映射读取。
 
 
-Ingestion 通过 [period-catalog.ts](period-catalog.ts) 逐页扫描 `ts_code,end_date`，按完整来源目录规划批量报表和指标；报表类型分别扫描 1／4／5，不以缺季度或上市日推断财务起点。该文件只归纳来源身份，不保存执行记录，目录与收据的事务提交归 Ingestion。批量业务窗口的 `catalogThrough` 表达最终证券准入日期，与窗口自身报告期分开，保留已入选公司的上市前财务。财报、指标的版本与公告时间规则保持原样。
+Ingestion 固定从 1988 年枚举季度，使用 VIP 按期下载全市场，不扫描财务目录。[scope.ts](scope.ts) 只按最终截止日筛选证券，`catalogThrough` 与窗口自身报告期分开，允许已上市证券保存这一覆盖范围内的上市前财务。财报、指标的版本与公告时间规则保持原样。

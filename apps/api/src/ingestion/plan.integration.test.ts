@@ -131,9 +131,7 @@ it('filters future listings before dependency checks and financial planning whil
     await database.tradeCal.create({
       data: { exchange: 'SSE', calDate: '20180103', isOpen: 1 },
     });
-    const plan = await planIngestion('20180103', new Date('2018-01-04T10:00:00Z'), {
-      'income|1': ['20171231'],
-    });
+    const plan = await planIngestion('20180103', new Date('2018-01-04T10:00:00Z'));
     expect(plan.blocked).toEqual([]);
     expect(plan.units.some((unit) => unit.dataset === 'etf-prices')).toBe(false);
     expect(plan.units.some((unit) => unit.scope.includes('600001.SH'))).toBe(false);
@@ -173,15 +171,33 @@ it('plans daily selections from each ETF venue calendar without future or borrow
     ]);
   }));
 
-it('plans discovered pre-IPO and nonstandard periods without filling empty quarters or truncating history', () => {
-  expect(
-    financialUnits('20181231', new Date('2019-01-01T10:00:00Z'), {
-      'income|1': ['19881231', '19900815', '20201231'],
-      all: ['19871231'],
-    }),
-  ).toMatchObject([
-    { scope: 'income|1', period: '19881231', catalogThrough: '20181231' },
-    { scope: 'income|1', period: '19900815', catalogThrough: '20181231' },
-    { dataset: 'financial-indicators', scope: 'all', period: '19871231' },
-  ]);
+it('plans exactly 124 quarters and 1240 whole-market financial batches from 1988 through 2018', () => {
+  const units = financialUnits('20181231', new Date('2019-01-01T10:00:00Z'));
+  expect(units).toHaveLength(1240);
+  expect(units.filter((unit) => unit.dataset === 'financial-statements')).toHaveLength(1116);
+  expect(units.filter((unit) => unit.dataset === 'financial-indicators')).toHaveLength(124);
+  expect(new Set(units.map((unit) => unit.period)).size).toBe(124);
+  expect(units[0]).toMatchObject({
+    api: 'income_vip',
+    scope: 'income|1',
+    period: '19880331',
+    catalogThrough: '20181231',
+  });
+  expect(units.at(-1)).toMatchObject({
+    api: 'fina_indicator_vip',
+    scope: 'all',
+    period: '20181231',
+  });
+  expect(units.every((unit) => unit.period >= '19880101' && unit.period <= '20181231')).toBe(true);
+});
+
+it('respects partial-quarter and fixed-origin boundaries without planning earlier history', () => {
+  const clock = new Date('2019-01-01T10:00:00Z');
+  expect(financialUnits('19871231', clock)).toEqual([]);
+  expect(financialUnits('19880330', clock)).toEqual([]);
+  const first = financialUnits('19880331', clock);
+  expect(first).toHaveLength(10);
+  expect(first.every((unit) => unit.period === '19880331')).toBe(true);
+  const beforeQuarterEnd = financialUnits('20181231', new Date('2018-12-31T10:00:00Z'));
+  expect(beforeQuarterEnd.some((unit) => unit.period === '20181231')).toBe(false);
 });

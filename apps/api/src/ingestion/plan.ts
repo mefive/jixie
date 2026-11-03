@@ -14,10 +14,7 @@ import { canonicalStockCode } from '#market/instruments/stock-identity.js';
 import { etfDownloadRange } from '#market/etfs/download-range.js';
 import { readDownloadCodes } from '#market/downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '#market/registry/index-presets.js';
-import {
-  FINANCIAL_PERIOD_SOURCES,
-  financialStockCodes,
-} from '#market/fundamentals/period-catalog.js';
+import { quarterlyReportPeriods } from '#market/fundamentals/reference-periods.js';
 import type { IngestionUnit } from './schema.js';
 
 /**
@@ -27,6 +24,7 @@ import type { IngestionUnit } from './schema.js';
  */
 export const CALENDAR_ORIGINS = { SSE: '19901219', SZSE: '19910703', BSE: '20211115' } as const;
 const ETF_CALENDARS: Readonly<Record<string, string>> = { SH: 'SSE', SZ: 'SZSE' };
+const FINANCIAL_HISTORY_START = '19880101';
 
 export interface IngestionPlan {
   units: IngestionUnit[];
@@ -140,11 +138,7 @@ export async function planEtfSelections(
  *
  * Build stable natural-range units; freeze phase plans in the run and create batch rows only on attempts.
  */
-export async function planIngestion(
-  targetDate: string,
-  startedAt: Date,
-  financialPeriods: Record<string, string[]> = {},
-): Promise<IngestionPlan> {
+export async function planIngestion(targetDate: string, startedAt: Date): Promise<IngestionPlan> {
   const database = getDatabase();
   const today = localDate(startedAt);
   const end = ingestionEnd(targetDate, startedAt);
@@ -324,7 +318,9 @@ export async function planIngestion(
       return !start || start <= financialEnd;
     })
     .sort();
-  streams.push(financialUnits(targetDate, startedAt, financialPeriods));
+  if (codes.length) {
+    streams.push(financialUnits(targetDate, startedAt));
+  }
   streams.push(
     codes.map((scope) => ({
       dataset: 'dividends',
@@ -351,57 +347,45 @@ export async function planIngestion(
 }
 
 /**
- * 来源目录保存实际报告期，包括上市前及非标准季末；每期保持独立重试。
+ * 从固定的 1988 年起逐季下载全市场；空季度也是一次完整检查。
  *
- * Plan actual source periods, including pre-IPO and nonstandard dates, with independent retries.
+ * Fetch whole-market quarterly data from the fixed 1988 origin, including empty quarters.
  */
-export function financialUnits(
-  targetDate: string,
-  startedAt: Date,
-  periods: Record<string, string[]>,
-): IngestionUnit[] {
+export function financialUnits(targetDate: string, startedAt: Date): IngestionUnit[] {
   const end = [targetDate, calendarDay(localDate(startedAt), -1)].sort()[0];
-
-  return FINANCIAL_PERIOD_SOURCES.flatMap((definition) =>
-    (periods[definition.scope] ?? [])
-      .filter((period) => period <= end)
-      .map((period) => ({
-        dataset: definition.dataset,
-        scope: definition.scope,
+  const periods = quarterlyReportPeriods(FINANCIAL_HISTORY_START, end);
+  const statements = Object.entries({
+    income: 'income_vip',
+    balance_sheet: 'balancesheet_vip',
+    cash_flow: 'cashflow_vip',
+  }).flatMap(([kind, api]) =>
+    ['1', '4', '5'].flatMap((reportType) =>
+      periods.map((period) => ({
+        dataset: 'financial-statements',
+        scope: `${kind}|${reportType}`,
         period,
         startDate: period,
         endDate: period,
         catalogThrough: end,
-        api: definition.api,
+        api,
         refresh: true,
       })),
+    ),
   );
-}
 
-/**
- * 每轮完整发现来源报告期；恢复时复用本轮成功目录与固定范围。
- *
- * Discover complete source periods once per run and reuse successful catalogs on recovery.
- */
-export async function financialCatalogUnits(
-  targetDate: string,
-  startedAt: Date,
-): Promise<IngestionUnit[]> {
-  const end = [targetDate, calendarDay(localDate(startedAt), -1)].sort()[0];
-  if (!(await financialStockCodes(end)).size) {
-    return [];
-  }
-
-  return FINANCIAL_PERIOD_SOURCES.map((definition) => ({
-    dataset: 'financial-periods',
-    scope: definition.scope,
-    period: 'history',
-    startDate: '',
-    endDate: end,
-    api: definition.api,
-    refresh: true,
-    fullHistory: true,
-  }));
+  return [
+    ...statements,
+    ...periods.map((period) => ({
+      dataset: 'financial-indicators',
+      scope: 'all',
+      period,
+      startDate: period,
+      endDate: period,
+      catalogThrough: end,
+      api: 'fina_indicator_vip',
+      refresh: true,
+    })),
+  ];
 }
 
 function ingestionEnd(targetDate: string, startedAt: Date): string {
