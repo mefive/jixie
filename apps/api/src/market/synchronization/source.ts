@@ -1,4 +1,5 @@
 import { recordImportIssue, recordImportRequest } from './diagnostics.js';
+import { createHash } from 'node:crypto';
 import { INGESTION_SOURCE_REQUESTS } from '../providers/tushare/request-contract.js';
 import { MarketSyncBudgetError, TushareError } from '../errors.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
@@ -10,6 +11,7 @@ export interface SyncSource {
 
 export interface SourcePages {
   rows: TushareRow[];
+  rowCount?: number;
   complete: boolean;
   pages: number;
   deferred?: boolean;
@@ -26,8 +28,9 @@ export async function fetchSourcePages(
   api: string,
   params: Record<string, unknown>,
   fields: string,
-  pageSize = 1000,
+  requestedPageSize?: number,
   maximumPages = 20,
+  consumePage?: (rows: TushareRow[]) => void,
 ): Promise<SourcePages> {
   const contract = INGESTION_SOURCE_REQUESTS[api];
   if (
@@ -38,8 +41,12 @@ export async function fetchSourcePages(
   }
   recordImportRequest(api, params, fields);
 
+  const pageSize = Math.min(
+    requestedPageSize ?? contract.pageSize ?? 1000,
+    contract.pageSize ?? Infinity,
+  );
   const snapshotLimit = contract.snapshotLimit;
-  const result: SourcePages = { rows: [], complete: false, pages: 0, errors: [] };
+  const result: SourcePages = { rows: [], rowCount: 0, complete: false, pages: 0, errors: [] };
   const signatures = new Set<string>();
   for (let pageNumber = 0; pageNumber < maximumPages; pageNumber++) {
     try {
@@ -49,12 +56,20 @@ export async function fetchSourcePages(
         fields,
       );
       result.pages++;
-      const signature = JSON.stringify(page);
+      const signature = createHash('sha256').update(JSON.stringify(page)).digest('hex');
       if (page.length && signatures.has(signature)) {
         throw new Error(`${api}: provider repeated an offset page`);
       }
       signatures.add(signature);
-      result.rows.push(...page);
+      result.rowCount! += page.length;
+
+      // 目录逐页归纳后释放原行；业务下载仍保留整批，完整后才允许入库。
+      // Reduce catalog pages without retaining raw rows; business batches remain buffered until complete.
+      if (consumePage) {
+        consumePage(page);
+      } else {
+        result.rows.push(...page);
+      }
       if (snapshotLimit && page.length >= snapshotLimit) {
         throw new Error(`${api}: response reached its safety limit; narrow the request`);
       }
@@ -128,6 +143,7 @@ export function completeResponse(input: {
   errors?: string[];
 }): PreparedMarketPartition {
   const errors = [...input.pages.errors, ...(input.errors ?? [])];
+  const received = input.pages.rowCount ?? input.pages.rows.length;
   if (!input.records.length && !input.allowEmpty && !errors.length && !input.pages.deferred) {
     errors.push(`${input.table}: unexplained empty source response`);
   }
@@ -154,15 +170,12 @@ export function completeResponse(input: {
           : 'partial',
     checks: {
       terminalPage: input.pages.complete,
-      emptyResponse: input.pages.rows.length === 0,
+      emptyResponse: received === 0,
       sourceFailed: input.pages.errors.length > 0,
       invalidRows: input.errors?.length ?? 0,
       pages: input.pages.pages,
-      sourceRows: input.pages.rows.length,
-      excludedRows: Math.max(
-        0,
-        input.pages.rows.length - input.records.length - (input.errors?.length ?? 0),
-      ),
+      sourceRows: received,
+      excludedRows: Math.max(0, received - input.records.length - (input.errors?.length ?? 0)),
     },
     observedDates: input.observedDates ?? [],
     gaps: complete ? [] : [`${input.table}: source extent is unfinished`],

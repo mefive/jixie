@@ -11,10 +11,19 @@ import {
   type ImportIssue,
 } from '#market/synchronization/diagnostics.js';
 import { mergeEtfSelection, prepareHistoricalEtfSelection } from '#market/downloads/select-etfs.js';
-import { initializeIndexDownloads, readDownloadCodes } from '#market/downloads/lists.js';
+import { initializeIndexDownloads } from '#market/downloads/lists.js';
 import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
 import { compactSuccessfulReceipts } from './receipts.js';
-import { planEtfSelections, planIngestion, referenceUnits } from './plan.js';
+import {
+  financialCatalogUnits,
+  financialUnits,
+  planEtfSelections,
+  planIngestion,
+  referenceUnits,
+} from './plan.js';
+import { prepareFinancialPeriodCatalog } from '#market/fundamentals/period-catalog.js';
+import { latestAttempts, openIngestionRun, summarizeIngestionRun, unitKey } from './runs.js';
+import { runPlanSchema, type IngestionRunPlan } from './schema.js';
 import type { IngestionInput, IngestionResult, IngestionUnit } from './schema.js';
 
 /**
@@ -28,55 +37,46 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
   }
   const database = getDatabase();
   const clock = input.clock ?? (() => new Date());
-  const startedAt = clock();
+  const invokedAt = clock();
   const signal = input.signal ?? new AbortController().signal;
   const log = input.onLog ?? console.log;
 
   return withSourceRequestBudget({ remaining: Infinity, deadline: Infinity, signal }, () =>
     withMaintenanceLock(async () => {
-      await database.$transaction(async (transaction) => {
-        await transaction.ingestionBatch.updateMany({
-          where: { status: 'running' },
-          data: { status: 'interrupted', finishedAt: startedAt },
+      const run = await openIngestionRun(input.targetDate, input.trigger ?? 'manual', invokedAt);
+      const runId = run.id;
+      const startedAt = run.startedAt;
+      const snapshot = run.scopeSnapshot;
+      let runPlan: IngestionRunPlan =
+        snapshot &&
+        typeof snapshot === 'object' &&
+        !Array.isArray(snapshot) &&
+        'version' in snapshot
+          ? runPlanSchema.parse(snapshot)
+          : {
+              version: 2,
+              referenceUnits: referenceUnits(input.targetDate, startedAt),
+              financialPeriods: {},
+            };
+      const savePlan = async (next: IngestionRunPlan) => {
+        await database.ingestionRun.update({
+          where: { id: runId },
+          data: { scopeSnapshot: jsonValue(next) },
         });
-        await transaction.ingestionRun.updateMany({
-          where: { status: 'running' },
-          data: { status: 'interrupted', finishedAt: startedAt },
-        });
-        await transaction.marketDataState.upsert({
-          where: { key: 'global' },
-          create: { key: 'global' },
-          update: {},
-        });
-      });
-      const runId = ulid();
-      const result: IngestionResult = {
-        runId,
-        targetDate: input.targetDate,
-        status: 'running',
-        batches: 0,
-        succeeded: 0,
-        partial: 0,
-        failed: 0,
-        accepted: 0,
-        filtered: 0,
-        rejected: 0,
-        issues: 0,
+        runPlan = next;
       };
-      await database.ingestionRun.create({
-        data: {
-          id: runId,
-          targetDate: input.targetDate,
-          trigger: input.trigger ?? 'manual',
-          scopeSnapshot: {},
-          status: 'running',
-          startedAt,
-        },
-      });
+      await savePlan(runPlan);
+      log(
+        `[ingestion] ${run.startedAt.getTime() === invokedAt.getTime() ? 'Running' : 'Resuming'} run ${runId} to ${input.targetDate}`,
+      );
+      const required = new Set<string>();
+      let standaloneIssues = 0;
+      let fatal = false;
+      let dependenciesChanged = false;
       const history = await database.ingestionBatch.findMany({
         orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
-        where: { runId: { not: runId } },
         select: {
+          runId: true,
           dataset: true,
           scope: true,
           period: true,
@@ -86,28 +86,44 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
           status: true,
         },
       });
+      const currentAttempts = latestAttempts(history.filter((batch) => batch.runId === runId));
       const receipts = new Map<string, typeof history>();
-      for (const batch of history) {
+      for (const batch of history.filter((batch) => batch.runId !== runId)) {
         const key = unitKey(batch);
         const saved = receipts.get(key) ?? [];
         saved.push(batch);
         receipts.set(key, saved);
       }
       const byScope = new Map<string, typeof history>();
-      for (const batch of history) {
+      for (const batch of history.filter((batch) => batch.runId !== runId)) {
         const key = JSON.stringify([batch.dataset, batch.scope]);
         const saved = byScope.get(key) ?? [];
         saved.push(batch);
         byScope.set(key, saved);
       }
       const attempted = new Set<string>();
-      const attempt = async (unit: IngestionUnit) => {
-        if (signal.aborted || attempted.has(unitKey(unit))) {
-          return;
+      const completed = new Set(
+        [...currentAttempts]
+          .filter(([, batch]) => batch.status === 'succeeded')
+          .map(([key]) => key),
+      );
+      const attempt = async (unit: IngestionUnit): Promise<boolean> => {
+        required.add(unitKey(unit));
+        if (signal.aborted) {
+          return false;
+        }
+        if (attempted.has(unitKey(unit))) {
+          return completed.has(unitKey(unit));
         }
         attempted.add(unitKey(unit));
+        const current = currentAttempts.get(unitKey(unit));
+        if (current?.status === 'succeeded') {
+          return true;
+        }
+
         const previous = receipts.get(unitKey(unit))?.[0];
         if (
+          !current &&
           !unit.refresh &&
           previous?.status === 'succeeded' &&
           previous.rangeStart &&
@@ -115,9 +131,10 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
           previous.rangeStart <= unit.startDate &&
           previous.rangeEnd >= unit.endDate
         ) {
-          return;
+          completed.add(unitKey(unit));
+          return true;
         }
-        if (!unit.refresh && (!previous || previous.status === 'succeeded')) {
+        if (!current && !unit.refresh && (!previous || previous.status === 'succeeded')) {
           const covered = (byScope.get(JSON.stringify([unit.dataset, unit.scope])) ?? []).some(
             (batch) =>
               batch.status === 'succeeded' &&
@@ -127,7 +144,8 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
               batch.rangeEnd >= unit.endDate,
           );
           if (covered) {
-            return;
+            completed.add(unitKey(unit));
+            return true;
           }
         }
         const batchId = ulid();
@@ -159,15 +177,17 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
             startedAt: clock(),
           },
         });
-        result.batches++;
         log(
           `[ingestion] ${unit.dataset}/${unit.scope} ${unit.fullHistory ? 'all' : unit.startDate}..${unit.endDate}`,
         );
         let prepared: PreparedMarketPartition | undefined;
         let selection: string[] | undefined;
+        let succeeded = false;
         await withImportDiagnostics(diagnostics, async () => {
           try {
-            if (unit.dataset === 'etf-selection') {
+            if (unit.dataset === 'financial-periods') {
+              prepared = await prepareFinancialPeriodCatalog(source, unit.scope, unit.endDate);
+            } else if (unit.dataset === 'etf-selection') {
               const snapshot = await prepareHistoricalEtfSelection({
                 source,
                 date: unit.endDate,
@@ -241,7 +261,7 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                   responseComplete &&
                   !signal.aborted &&
                   prepared &&
-                  unit.dataset !== 'etf-selection'
+                  !['etf-selection', 'financial-periods'].includes(unit.dataset)
                     ? await writeMarketPartition(transaction, prepared, unit, fetchedAt)
                     : {
                         inserted: 0,
@@ -279,9 +299,27 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                 const received = prepared?.checks.sourceRows ?? 0;
                 const filtered = prepared?.checks.excludedRows ?? 0;
                 const acceptedCount =
-                  responseComplete && !signal.aborted && (selection || prepared?.tables.length)
+                  responseComplete &&
+                  !signal.aborted &&
+                  (unit.dataset === 'financial-periods'
+                    ? status === 'succeeded'
+                    : selection || prepared?.tables.length)
                     ? Math.max(0, received - rejected - filtered)
                     : 0;
+                if (status === 'succeeded' && unit.dataset === 'financial-periods') {
+                  await transaction.ingestionRun.update({
+                    where: { id: runId },
+                    data: {
+                      scopeSnapshot: jsonValue({
+                        ...runPlan,
+                        financialPeriods: {
+                          ...runPlan.financialPeriods,
+                          [unit.scope]: prepared!.observedDates,
+                        },
+                      }),
+                    },
+                  });
+                }
                 await transaction.ingestionBatch.update({
                   where: { id: batchId },
                   data: {
@@ -314,49 +352,84 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
               { timeout: 120_000 },
             ),
           );
-          switch (committed.status) {
-            case 'succeeded':
-              result.succeeded++;
-              break;
-            case 'partial':
-              result.partial++;
-              break;
-            case 'failed':
-              result.failed++;
-              break;
+          succeeded = committed.status === 'succeeded';
+          if (succeeded) {
+            completed.add(unitKey(unit));
+            dependenciesChanged ||= [
+              'calendar',
+              'stock-master',
+              'etf-master',
+              'etf-selection',
+            ].includes(unit.dataset);
           }
-          result.accepted += committed.acceptedCount;
-          result.filtered += committed.filtered;
-          result.rejected += committed.rejected;
-          result.issues += committed.issueCount;
+          if (committed.status === 'succeeded' && unit.dataset === 'financial-periods') {
+            runPlan = {
+              ...runPlan,
+              financialPeriods: {
+                ...runPlan.financialPeriods,
+                [unit.scope]: prepared!.observedDates,
+              },
+            };
+          }
         });
         for (const issue of diagnostics.issues) {
           log(`[ingestion] ${unit.dataset}/${unit.scope}: ${issue.message}`);
         }
+
+        return succeeded;
       };
       try {
-        for (const unit of referenceUnits(input.targetDate, startedAt)) {
-          await attempt(unit);
+        let stockCatalogReady = true;
+        for (const unit of runPlan.referenceUnits) {
+          const succeeded = await attempt(unit);
+          if (unit.dataset === 'stock-master' && !succeeded) {
+            stockCatalogReady = false;
+          }
         }
         if (!signal.aborted) {
           await initializeIndexDownloads();
-          for (const unit of await planEtfSelections(input.targetDate, startedAt)) {
+          if (!runPlan.selectionUnits || dependenciesChanged) {
+            await savePlan({
+              ...runPlan,
+              selectionUnits: await planEtfSelections(input.targetDate, startedAt),
+            });
+          }
+          for (const unit of runPlan.selectionUnits!) {
             if (signal.aborted) {
               break;
             }
             await attempt(unit);
           }
-          const plan = await planIngestion(input.targetDate, startedAt);
-          await database.ingestionRun.update({
-            where: { id: runId },
-            data: {
-              scopeSnapshot: jsonValue({
-                etfs: await readDownloadCodes('etf'),
-                indices: await readDownloadCodes('index'),
-                datasets: [...new Set(plan.units.map((unit) => unit.dataset))],
-              }),
-            },
+          if (!signal.aborted && stockCatalogReady) {
+            if (!runPlan.catalogUnits) {
+              await savePlan({
+                ...runPlan,
+                catalogUnits: await financialCatalogUnits(input.targetDate, startedAt),
+              });
+            }
+            for (const unit of runPlan.catalogUnits!) {
+              if (signal.aborted) {
+                break;
+              }
+              await attempt(unit);
+            }
+          }
+          const plan =
+            (dependenciesChanged || runPlan.plan?.blocked.length ? undefined : runPlan.plan) ??
+            (await planIngestion(input.targetDate, startedAt, runPlan.financialPeriods));
+          const keys = new Set(plan.units.map(unitKey));
+          const added = financialUnits(
+            input.targetDate,
+            startedAt,
+            runPlan.financialPeriods,
+          ).filter((unit) => !keys.has(unitKey(unit)));
+          await savePlan({
+            ...runPlan,
+            plan: { units: [...plan.units, ...added], blocked: plan.blocked },
           });
+          for (const unit of runPlan.plan!.units) {
+            required.add(unitKey(unit));
+          }
           for (const blocked of plan.blocked) {
             await persistIssues(database, runId, null, [
               {
@@ -365,22 +438,20 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
                 message: `${blocked.dataset}/${blocked.scope}: ${blocked.message}`,
               },
             ]);
-            result.issues++;
+            standaloneIssues++;
           }
-          for (const unit of plan.units) {
+          for (const unit of runPlan.plan!.units) {
+            if (unit.dataset === 'dividends' && !stockCatalogReady) {
+              continue;
+            }
             if (signal.aborted) {
               break;
             }
             await attempt(unit);
           }
         }
-        result.status = signal.aborted
-          ? 'interrupted'
-          : result.issues
-            ? 'completed_with_issues'
-            : 'completed';
       } catch (error) {
-        result.status = 'failed';
+        fatal = true;
         // 数据库故障可能无法继续保存诊断；保留执行中记录供下次恢复。
         // Database failures may prevent persistence; leave running receipts for restart recovery.
         log(`[ingestion] fatal: ${error instanceof Error ? error.message : String(error)}`);
@@ -392,11 +463,20 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
               message: error instanceof Error ? error.message : String(error),
             },
           ]);
-          result.issues++;
+          standaloneIssues++;
         } catch {
           throw error;
         }
       }
+      const result = await summarizeIngestionRun(runId, input.targetDate, required);
+      result.issues += standaloneIssues;
+      result.status = fatal
+        ? 'failed'
+        : signal.aborted
+          ? 'interrupted'
+          : result.issues || result.partial || result.failed
+            ? 'completed_with_issues'
+            : 'completed';
       await database.ingestionRun.update({
         where: { id: runId },
         data: { status: result.status, finishedAt: clock(), summary: jsonValue(result) },
@@ -413,10 +493,6 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
       return result;
     }),
   );
-}
-
-function unitKey(unit: { dataset: string; scope: string; period: string }): string {
-  return JSON.stringify([unit.dataset, unit.scope, unit.period]);
 }
 
 /**

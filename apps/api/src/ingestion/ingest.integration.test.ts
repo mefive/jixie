@@ -79,7 +79,7 @@ it(
           if (offset) {
             throw new Error('Controlled second-page failure');
           }
-          return Array.from({ length: 1000 }, () => ({
+          return Array.from({ length: 6000 }, () => ({
             ts_code: '600000.SH',
             trade_date: date,
             open: 10,
@@ -265,7 +265,7 @@ it(
 );
 
 it(
-  'fetches complete pre-market financial history every run without date parameters',
+  'discovers source periods before fetching complete pre-market reports in each new run',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -284,11 +284,12 @@ it(
       expect((await database.financialIncomeStatement.findFirstOrThrow()).endDate).toBe('19881231');
       requests.length = 0;
       await ingest(input);
-      expect(requests.length).toBeGreaterThan(0);
+      expect(requests.some((request) => request.period === '19881231')).toBe(true);
+      expect(requests.some((request) => !request.period)).toBe(true);
       for (const request of requests) {
         expect(request).not.toHaveProperty('start_date');
         expect(request).not.toHaveProperty('end_date');
-        expect(request).not.toHaveProperty('period');
+        expect(request).not.toHaveProperty('ts_code');
       }
       expect(await database.financialIncomeStatement.count()).toBe(1);
     }),
@@ -431,6 +432,7 @@ it(
           targetDate: '19901219',
           scopeSnapshot: {},
           status: 'completed_with_issues',
+          startedAt: new Date('1991-01-04T10:00:00Z'),
         },
       });
       await database.ingestionBatch.create({
@@ -446,6 +448,7 @@ it(
           rangeEnd: '19901219',
           responseComplete: true,
           status: 'partial',
+          startedAt: new Date('1991-01-04T10:00:00Z'),
           rejectedCount: 3,
         },
       });
@@ -486,10 +489,12 @@ it(
 
       expect(result.status).toBe('completed');
       expect(result.rejected).toBe(0);
-      expect(await database.ingestionIssue.count({ where: { runId: result.runId } })).toBe(0);
+      expect(result.issues).toBe(0);
+      expect(result.runId).toBe('previous-run');
       expect(
         await database.ingestionBatch.findFirstOrThrow({
           where: { runId: result.runId, dataset: 'stock-adjustments' },
+          orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
         }),
       ).toMatchObject({
         status: 'succeeded',

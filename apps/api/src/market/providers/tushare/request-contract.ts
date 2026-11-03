@@ -4,15 +4,15 @@
  * Parameters and transport modes used by maintenance; field semantics belong to domains.
  */
 export const INGESTION_SOURCE_REQUESTS: Readonly<
-  Record<string, { parameters: readonly string[]; snapshotLimit?: number }>
+  Record<string, { parameters: readonly string[]; snapshotLimit?: number; pageSize?: number }>
 > = {
   trade_cal: { parameters: ['exchange', 'start_date', 'end_date'], snapshotLimit: 6000 },
   stock_basic: { parameters: ['list_status'], snapshotLimit: 10000 },
   namechange: { parameters: ['start_date', 'end_date'] },
-  daily: { parameters: ['trade_date'] },
-  adj_factor: { parameters: ['trade_date'] },
-  daily_basic: { parameters: ['trade_date'] },
-  stk_limit: { parameters: ['trade_date'] },
+  daily: { parameters: ['trade_date'], pageSize: 6000 },
+  adj_factor: { parameters: ['trade_date'], pageSize: 6000 },
+  daily_basic: { parameters: ['trade_date'], pageSize: 6000 },
+  stk_limit: { parameters: ['trade_date'], pageSize: 5800 },
   suspend_d: { parameters: ['trade_date', 'suspend_type'], snapshotLimit: 5000 },
   etf_basic: { parameters: [], snapshotLimit: 5000 },
   fund_basic: { parameters: ['market'], snapshotLimit: 20000 },
@@ -22,9 +22,9 @@ export const INGESTION_SOURCE_REQUESTS: Readonly<
   index_daily: { parameters: ['ts_code', 'start_date', 'end_date'] },
   index_dailybasic: { parameters: ['ts_code', 'start_date', 'end_date'] },
   index_weight: { parameters: ['index_code', 'start_date', 'end_date'] },
-  income_vip: { parameters: ['period', 'report_type', 'ts_code'] },
-  balancesheet_vip: { parameters: ['period', 'report_type', 'ts_code'] },
-  cashflow_vip: { parameters: ['period', 'report_type', 'ts_code'] },
-  fina_indicator_vip: { parameters: ['period', 'ts_code'] },
+  income_vip: { parameters: ['period', 'report_type', 'ts_code'], pageSize: 5000 },
+  balancesheet_vip: { parameters: ['period', 'report_type', 'ts_code'], pageSize: 5000 },
+  cashflow_vip: { parameters: ['period', 'report_type', 'ts_code'], pageSize: 5000 },
+  fina_indicator_vip: { parameters: ['period', 'ts_code'], pageSize: 10000 },
   dividend: { parameters: ['ts_code'], snapshotLimit: 2000 },
 };

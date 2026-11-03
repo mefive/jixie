@@ -522,7 +522,7 @@ model IngestionBatch {
   finishedAt       DateTime?
   issues           IngestionIssue[]
 
-  @@unique([runId, dataset, scope, period])
+  @@index([runId, dataset, scope, period, startedAt])
   @@index([dataset, scope, period, startedAt])
   @@index([status])
 }

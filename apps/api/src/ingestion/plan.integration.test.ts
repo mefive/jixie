@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { emptySelections } from '../../tests/ingestion-source.js';
-import { planEtfSelections, planIngestion } from './plan.js';
+import { financialUnits, planEtfSelections, planIngestion } from './plan.js';
 
 it('uses available exchange sessions when listing dates precede calendar history', async () =>
   withSyncDatabase(async (database) => {
@@ -131,7 +131,9 @@ it('filters future listings before dependency checks and financial planning whil
     await database.tradeCal.create({
       data: { exchange: 'SSE', calDate: '20180103', isOpen: 1 },
     });
-    const plan = await planIngestion('20180103', new Date('2018-01-04T10:00:00Z'));
+    const plan = await planIngestion('20180103', new Date('2018-01-04T10:00:00Z'), {
+      'income|1': ['20171231'],
+    });
     expect(plan.blocked).toEqual([]);
     expect(plan.units.some((unit) => unit.dataset === 'etf-prices')).toBe(false);
     expect(plan.units.some((unit) => unit.scope.includes('600001.SH'))).toBe(false);
@@ -140,7 +142,7 @@ it('filters future listings before dependency checks and financial planning whil
       plan.units
         .filter((unit) => unit.dataset === 'financial-statements')
         .map((unit) => unit.scope),
-    ).toContain('income|1|600000.SH');
+    ).toContain('income|1');
     expect(
       plan.units.filter((unit) => unit.dataset === 'dividends').map((unit) => unit.scope),
     ).toEqual(['600000.SH']);
@@ -170,3 +172,16 @@ it('plans daily selections from each ETF venue calendar without future or borrow
       { period: '20180104', exchanges: ['SZSE'] },
     ]);
   }));
+
+it('plans discovered pre-IPO and nonstandard periods without filling empty quarters or truncating history', () => {
+  expect(
+    financialUnits('20181231', new Date('2019-01-01T10:00:00Z'), {
+      'income|1': ['19881231', '19900815', '20201231'],
+      all: ['19871231'],
+    }),
+  ).toMatchObject([
+    { scope: 'income|1', period: '19881231', catalogThrough: '20181231' },
+    { scope: 'income|1', period: '19900815', catalogThrough: '20181231' },
+    { dataset: 'financial-indicators', scope: 'all', period: '19871231' },
+  ]);
+});

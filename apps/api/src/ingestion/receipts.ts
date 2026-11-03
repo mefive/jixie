@@ -13,6 +13,13 @@ export async function compactSuccessfulReceipts(): Promise<number> {
     select: { id: true },
   });
   const protectedRuns = new Set(recent.map((run) => run.id));
+  const unfinished = await database.ingestionRun.findMany({
+    where: { status: { not: 'completed' } },
+    select: { id: true },
+  });
+  for (const run of unfinished) {
+    protectedRuns.add(run.id);
+  }
   const receipts = await database.ingestionBatch.findMany({
     where: { status: 'succeeded' },
     orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],

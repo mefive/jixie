@@ -198,7 +198,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - `apps/api/src/agent` — core 负责统一模型/工具循环，profiles 选择业务能力；turns 负责后台执行、事件、轨迹和持久化状态，conversations 负责对话关联/历史/实体镜像及消息校验，tools 保留证券检索、数据覆盖、股票池和研究工具，不提供任意 SQL。Strategy Agent 负责依据 SDK 和上下文生成代码及必要校验，回测由用户在工作台显式发起；Research 探索后由用户手动在对应工作台建立草稿，不提供后台回测工具。routes/index.ts 组合 routes/turn.ts，适配 `/api/app/agent` HTTP/SSE；消息归 conversations，执行详情/订阅/取消归 turns；旧图表重查接口已移除。入口和消息顺序见 `src/agent/README.md`。
 - `apps/api/src/backtesting` — 根级 BacktestingEngine/OrderBook/BacktestingContext 分别持有运行、订单与当日上下文，CashPortfolio 负责股票／ETF 现金账户；data 为必填 DataPort/EngineData，factors 的 FactorEvaluator 为引擎内因子求值；adapters 为宿主 Prisma，TS/Python FactorHost 归 strategy/simulation，testing 为共用 fixture。因子源码只在各自沙箱执行，Engine 经独立 FactorExecutionPort 使用计算结果。模拟核心不导入宿主适配器；TS/Python 策略经共享 bridge 使用宿主 Engine，TS bundle 只包含 SDK 与沙箱适配。见 `src/backtesting/README.md`。
 - `apps/api/src/market` — stocks/etfs/indices 按数据领域聚合同步与读取，ETF 基础质量归 etfs；calendar 负责同步/读取及上海 16:00 的 SSE 日期规则，queries 保留股票／ETF／境内指数统一序列；valuation 保留估值计算/读取，fundamentals 承接财报、财务指标和分红。providers/tushare 是数据通道，downloads 保存管理员 CLI 下载名单与最新 ETF 规模，registry 仅保存来源支持范围和固定标识，instruments 负责证券身份及历史代码合并。routes/index.ts 直接组合 routes/instrument.ts、routes/valuation.ts，适配 `/api/app/market` 的 instruments、index-valuations 和 indices 序列。入口见 `src/market/README.md`。Market 不反向导入 Strategy、Research、Agent 或 Maintenance。
-- `apps/api/src/ingestion` — `ingest(T)` 从自然起点全量补齐到目标日期，不提供起点参数或内部刷新频率。四张表分别记录运行、批次尝试、未接纳问题和下载名单；整批完整下载后，业务数据、问题、终态和 revision 在一个事务提交。目录、名称、分红和财务数据每轮继续获取并去重；成功历史行情补缺推进。来源映射和显式 Prisma 写入归 Market，消费者检查自己的实际输入，不使用全市场分区资格。入口见 `apps/api/src/ingestion/README.md` 与 `docs/design/ingestion.md`。
+- `apps/api/src/ingestion` — `ingest(T)` 从自然起点全量补齐到目标日期，不提供起点参数或内部刷新频率。四张表分别记录运行、批次尝试、未接纳问题和下载名单；整批完整下载后，业务数据、问题、终态和 revision 在一个事务提交。目录、名称、分红和财务数据每个新 Run 获取并去重；未完成则恢复原 Run，跳过其已成功批次。财务数据完整扫描身份与报告期目录后按实际报告期批量下载全市场，成功历史行情补缺推进。来源映射和显式 Prisma 写入归 Market，消费者检查自己的实际输入，不使用全市场分区资格。入口见 `apps/api/src/ingestion/README.md` 与 `docs/design/ingestion.md`。
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/research`、`src/factor`、`src/strategy` 等)+ 模块内应用命令(`src/*/cli/`)及审计/探针/研究脚本(`scripts/`)
 - `apps/web` — 登录与工作台前端
 - `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`
@@ -287,7 +287,7 @@ A 股回测必须内置以下规则(写回测时别漏):
 
 ETF 基础目录同步目标范围内的上市与退市产品，先跳过待上市及上市日晚于目标日的记录，再校验交易属性；ingest 按每个历史开市日当日 `totalSize` 取最多 100，与持久名单合并去重，累计数量可超过 100，当前已退市产品仍可参与退市前排名。退市代码保留历史，只补至退市日；缺少有效退市日时报告缺口并暂缓该代码。管理员用 `pnpm data etf list/select-top/add/remove`、`pnpm data index list/add/remove` 修改；ETF select-top 只追加，空名单继续历史选取，指数空名单不自动重置。历史 ETF 份额／规模／净值研究接口与人工研究清单已退役；不为来源缺项补零或猜资产暴露。
 
-Ingestion 使用独立批次，整批下载完整响应后再提交。网络或分页失败不写半批；个别未接纳记录与合法记录一次事务提交，完整对象保持原子性；问题包含来源内容及明确原因。进程强杀通过未完成批次整批重试，业务键和来源指纹保证幂等，不先清理合法记录。
+Ingestion 使用独立批次，整批下载完整响应后再提交。网络或分页失败不写半批；个别未接纳记录与合法记录一次事务提交，完整对象保持原子性；问题包含来源内容及明确原因。进程强杀后恢复同一目标最近的未完成 Run；已成功批次跳过，未完成批次新增尝试并整批重试，旧诊断保留。业务键和来源指纹保证幂等，不先清理合法记录。只有 Run 完成后才新建下一轮刷新财务来源。
 
 日常采集不执行指标计算、入库后质量审计或历史清理，也不建立策略版本、分区水位或全局输入资格。日历和基础资料是范围与字段解释的前置；四类股票日数据相互独立。Tushare 成功完整响应的无记录是来源事实，不推断停牌、不补零，也不擦除旧价格。四类股票日数据按现有代码接续关系规范化后，以标的表为白名单；目录外代码静默过滤、不记录异常、不导致 partial，不按前缀另加例外。目录内无法解释的字段、市场区间和来源格式问题继续记录。
 

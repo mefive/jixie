@@ -21,7 +21,7 @@ resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并�
 
 ## 维护调用的数据能力
 
-正式入口使用 [sync-partition.ts](sync-partition.ts) 准备一个季度报表／指标窗口或单股分红年窗口，再由 [write.ts](write.ts) 显式写对应表。报表对象按版本指纹追加，财务指标保留捕获版本；日常不写通用来源证据表。分红当前值的 `observedAt`／`availabilityQuality` 随业务行保存，同值重复抓取和代码接续保留时间，真实修订更新捕获时间。Research 的经济除权日与可得日期继续分开。
+正式入口使用 [sync-partition.ts](sync-partition.ts) 准备一个来源报告期的全市场报表／指标窗口或单股完整分红历史，再由 [write.ts](write.ts) 显式写对应表。报表对象按版本指纹追加，财务指标保留捕获版本；日常不写通用来源证据表。分红当前值的 `observedAt`／`availabilityQuality` 随业务行保存，同值重复抓取和代码接续保留时间，真实修订更新捕获时间。Research 的经济除权日与可得日期继续分开。
 
 [audit.ts](audit.ts) 拥有财报可得时间、会计勾稽与指标覆盖检查，测试包括 [真实临时 SQLite](audit.integration.test.ts)。升级搬移和中断恢复见 [升级测试](../../../tests/minimal-sync-migration.test.ts)。
 
@@ -50,3 +50,6 @@ resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并�
 分红采用最新来源值，不提供完整历史预案版本还原。`baseDate` 不代表已核实的版本公告时间，`availabilityQuality` 仍为 `latest_only`，Research SDK 的公开列和可得性过滤不变。无需公告检索、PDF 解析或新增核验服务。回归见 [dividend-selection.integration.test.ts](dividend-selection.integration.test.ts)。
 
 十表迁移只新增可空来源列，旧值默认 null；Prisma schema 的内部字段不增加 Research SDK 列。财报 resolver 版本提升至 3，消费者继续通过现有显式映射读取。
+
+
+Ingestion 通过 [period-catalog.ts](period-catalog.ts) 逐页扫描 `ts_code,end_date`，按完整来源目录规划批量报表和指标；报表类型分别扫描 1／4／5，不以缺季度或上市日推断财务起点。该文件只归纳来源身份，不保存执行记录，目录与收据的事务提交归 Ingestion。批量业务窗口的 `catalogThrough` 表达最终证券准入日期，与窗口自身报告期分开，保留已入选公司的上市前财务。财报、指标的版本与公告时间规则保持原样。

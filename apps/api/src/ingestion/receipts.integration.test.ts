@@ -2,6 +2,39 @@ import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { compactSuccessfulReceipts } from './receipts.js';
 
+it('never compacts successful receipts belonging to an unfinished logical run', async () =>
+  withSyncDatabase(async (database) => {
+    for (let index = 0; index < 22; index++) {
+      await database.ingestionRun.create({
+        data: {
+          id: `run-${index}`,
+          targetDate: '20181231',
+          trigger: 'manual',
+          scopeSnapshot: {},
+          status: index === 0 ? 'interrupted' : 'completed',
+          startedAt: new Date(index * 1000),
+        },
+      });
+    }
+    for (const index of [0, 21]) {
+      await database.ingestionBatch.create({
+        data: {
+          id: `batch-${index}`,
+          runId: `run-${index}`,
+          dataset: 'dividends',
+          scope: '600000.SH',
+          period: 'all',
+          api: 'dividend',
+          request: {},
+          status: 'succeeded',
+          startedAt: new Date(index * 1000),
+        },
+      });
+    }
+    expect(await compactSuccessfulReceipts()).toBe(0);
+    expect(await database.ingestionBatch.findUnique({ where: { id: 'batch-0' } })).not.toBeNull();
+  }));
+
 it('compacts superseded success detail while retaining issues and wider successful ranges', async () =>
   withSyncDatabase(async (database) => {
     for (let index = 0; index < 23; index++) {

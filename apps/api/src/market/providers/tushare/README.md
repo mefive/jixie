@@ -15,3 +15,6 @@
 维护入口使用 [request-contract.ts](request-contract.ts) 的允许参数及单响应／分页声明。快照接口不伪造 limit/offset；到达保守安全上限时拒绝宣称完整。分红按证券取完整响应，在领域内按报告期筛选，不能发送文档没有定义的 start_date/end_date。列式解码严格检查状态、fields/items、唯一字段、行宽、标量类型及请求字段；损坏的响应不能变成允许覆盖旧值的空集。业务单位保持来源定义：行情价格元、成交量手、成交额千元；股票／指数市值万元；报表金额元、total_share 股；分红 cash_div 税后、cash_div_tax 税前。
 
 结构合法的 `fields: [], items: []` 可进入领域空响应规则；缺少数组或有行却缺请求字段仍拒绝。此区分兼容[官方 Python 客户端](https://github.com/waditu/tushare/blob/master/tushare/pro/client.py)的列式解码方式，不将空响应解释为所有业务均已完成。
+
+
+股票日数据与 VIP 财务数据的分页大小由 request-contract.ts 分别声明；允许更小的测试／专用分页，但不超过声明大小。满页继续请求，重复页与有限分页截断仍不能视为完整。报告期目录使用分页消费回调只保留实际报告期和行数；页面重复检测保存摘要，不保存所有页面的原始文本。该传输摘要不改变业务指纹或来源版本 hash。

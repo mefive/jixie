@@ -10,6 +10,12 @@ export type MarketRow = Record<string, MarketValue>;
  */
 export interface MarketPartition {
   fullHistory?: boolean;
+  /**
+   * 批量财务查询的标的准入截止日，与报告期边界分开。
+   *
+   * Listing cutoff for bulk financial queries, separate from the report-period boundary.
+   */
+  catalogThrough?: string;
   exchanges?: readonly string[];
   dataset: string;
   scope: string;

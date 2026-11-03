@@ -1,5 +1,6 @@
 import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferLatestDividendBases } from './dividend-selection.js';
+import { financialStockCodes } from './period-catalog.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
@@ -100,7 +101,13 @@ async function prepareStatementPartition(
         fields,
         5000,
       );
-  const rejected = pages.rows.filter(
+  const codes = partition.catalogThrough
+    ? await financialStockCodes(partition.catalogThrough)
+    : undefined;
+  const scopedRows = pages.rows.filter(
+    (row) => !codes || codes.has(canonicalStockCode(String(row.ts_code))),
+  );
+  const rejected = scopedRows.filter(
     (row) =>
       typeof row.comp_type !== 'string' ||
       !['1', '2', '3', '4', '7'].includes(row.comp_type) ||
@@ -120,7 +127,7 @@ async function prepareStatementPartition(
 
   const mapped: { records: SourceRecord[]; errors: string[] } = { records: [], errors: [] };
   let calendarIncomplete = false;
-  const candidates = pages.rows.filter(
+  const candidates = scopedRows.filter(
     (row) =>
       row.comp_type === '1' && !rejected.includes(row) && String(row.end_date) <= partition.endDate,
   );
@@ -301,11 +308,16 @@ async function prepareIndicatorPartition(
         fields,
         10000,
       );
+  const codes = partition.catalogThrough
+    ? await financialStockCodes(partition.catalogThrough)
+    : undefined;
   const captureDate = localDate(fetchedAt);
   const nextSession = await nextVerifiedSession(captureDate);
   const mapped = mapSourceRecords(
     pages.rows.filter(
-      (row) => !isObservationDate(row.end_date) || row.end_date <= partition.endDate,
+      (row) =>
+        (!codes || codes.has(canonicalStockCode(String(row.ts_code)))) &&
+        (!isObservationDate(row.end_date) || row.end_date <= partition.endDate),
     ),
     (row) => {
       if (

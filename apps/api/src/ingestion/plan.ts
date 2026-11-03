@@ -14,6 +14,10 @@ import { canonicalStockCode } from '#market/instruments/stock-identity.js';
 import { etfDownloadRange } from '#market/etfs/download-range.js';
 import { readDownloadCodes } from '#market/downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '#market/registry/index-presets.js';
+import {
+  FINANCIAL_PERIOD_SOURCES,
+  financialStockCodes,
+} from '#market/fundamentals/period-catalog.js';
 import type { IngestionUnit } from './schema.js';
 
 /**
@@ -132,11 +136,15 @@ export async function planEtfSelections(
 }
 
 /**
- * 按自然范围生成稳定单元；执行记录才持久化，不预写任务队列。
+ * 按自然范围生成稳定单元；阶段计划保存在 Run 快照，执行尝试才创建批次记录。
  *
- * Build stable units from natural ranges; persist actual attempts, never a planned queue.
+ * Build stable natural-range units; freeze phase plans in the run and create batch rows only on attempts.
  */
-export async function planIngestion(targetDate: string, startedAt: Date): Promise<IngestionPlan> {
+export async function planIngestion(
+  targetDate: string,
+  startedAt: Date,
+  financialPeriods: Record<string, string[]> = {},
+): Promise<IngestionPlan> {
   const database = getDatabase();
   const today = localDate(startedAt);
   const end = ingestionEnd(targetDate, startedAt);
@@ -316,38 +324,7 @@ export async function planIngestion(targetDate: string, startedAt: Date): Promis
       return !start || start <= financialEnd;
     })
     .sort();
-  for (const [kind, api] of Object.entries({
-    income: 'income_vip',
-    balance_sheet: 'balancesheet_vip',
-    cash_flow: 'cashflow_vip',
-  })) {
-    for (const reportType of ['1', '4', '5']) {
-      streams.push(
-        codes.map((code) => ({
-          dataset: 'financial-statements',
-          scope: `${kind}|${reportType}|${code}`,
-          period: 'all',
-          fullHistory: true,
-          startDate: '',
-          endDate: financialEnd,
-          api,
-          refresh: true,
-        })),
-      );
-    }
-  }
-  streams.push(
-    codes.map((scope) => ({
-      dataset: 'financial-indicators',
-      scope,
-      period: 'all',
-      fullHistory: true,
-      startDate: '',
-      endDate: financialEnd,
-      api: 'fina_indicator_vip',
-      refresh: true,
-    })),
-  );
+  streams.push(financialUnits(targetDate, startedAt, financialPeriods));
   streams.push(
     codes.map((scope) => ({
       dataset: 'dividends',
@@ -371,6 +348,60 @@ export async function planIngestion(targetDate: string, startedAt: Date): Promis
   }
 
   return { units, blocked };
+}
+
+/**
+ * 来源目录保存实际报告期，包括上市前及非标准季末；每期保持独立重试。
+ *
+ * Plan actual source periods, including pre-IPO and nonstandard dates, with independent retries.
+ */
+export function financialUnits(
+  targetDate: string,
+  startedAt: Date,
+  periods: Record<string, string[]>,
+): IngestionUnit[] {
+  const end = [targetDate, calendarDay(localDate(startedAt), -1)].sort()[0];
+
+  return FINANCIAL_PERIOD_SOURCES.flatMap((definition) =>
+    (periods[definition.scope] ?? [])
+      .filter((period) => period <= end)
+      .map((period) => ({
+        dataset: definition.dataset,
+        scope: definition.scope,
+        period,
+        startDate: period,
+        endDate: period,
+        catalogThrough: end,
+        api: definition.api,
+        refresh: true,
+      })),
+  );
+}
+
+/**
+ * 每轮完整发现来源报告期；恢复时复用本轮成功目录与固定范围。
+ *
+ * Discover complete source periods once per run and reuse successful catalogs on recovery.
+ */
+export async function financialCatalogUnits(
+  targetDate: string,
+  startedAt: Date,
+): Promise<IngestionUnit[]> {
+  const end = [targetDate, calendarDay(localDate(startedAt), -1)].sort()[0];
+  if (!(await financialStockCodes(end)).size) {
+    return [];
+  }
+
+  return FINANCIAL_PERIOD_SOURCES.map((definition) => ({
+    dataset: 'financial-periods',
+    scope: definition.scope,
+    period: 'history',
+    startDate: '',
+    endDate: end,
+    api: definition.api,
+    refresh: true,
+    fullHistory: true,
+  }));
 }
 
 function ingestionEnd(targetDate: string, startedAt: Date): string {

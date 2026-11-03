@@ -113,7 +113,7 @@ export function ingestionSource(
         case 'income_vip': {
           if (
             !options.incomeAvailable?.() ||
-            (!params.ts_code && params.period !== (options.incomePeriod ?? '19901231')) ||
+            (params.period && params.period !== (options.incomePeriod ?? '19901231')) ||
             params.report_type !== '1'
           ) {
             return [];

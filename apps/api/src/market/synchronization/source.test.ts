@@ -5,6 +5,76 @@ import { MarketSyncBudgetError } from '../errors.js';
 import { fetchMarketSource, withSourceRequestBudget } from '../providers/source-fetch.js';
 
 describe('bounded source evidence', () => {
+  it('reduces catalog pages without buffering source history while preserving completeness and counts', async () => {
+    const seen: string[] = [];
+    const result = await fetchSourcePages(
+      {
+        call: async (_api, params = {}) =>
+          params.offset === 0
+            ? [{ ts_code: '600000.SH' }, { ts_code: '600001.SH' }]
+            : [{ ts_code: '600002.SH' }],
+      },
+      'income_vip',
+      {},
+      'ts_code',
+      2,
+      20,
+      (rows) => seen.push(...rows.map((row) => String(row.ts_code))),
+    );
+    expect(seen).toEqual(['600000.SH', '600001.SH', '600002.SH']);
+    expect(result).toMatchObject({ complete: true, pages: 2, rowCount: 3, rows: [] });
+    expect(
+      completeResponse({ pages: result, table: 'Catalog', records: [], allowEmpty: true }).checks,
+    ).toMatchObject({ emptyResponse: false, sourceRows: 3 });
+  });
+
+  it.each([
+    ['daily', 6000],
+    ['adj_factor', 6000],
+    ['daily_basic', 6000],
+    ['stk_limit', 5800],
+  ] as const)(
+    'uses the %s page size and fetches a terminal page after a full response',
+    async (api, size) => {
+      const offsets: unknown[] = [];
+      const pages = await fetchSourcePages(
+        {
+          call: async (_api, params = {}) => {
+            expect(params.limit).toBe(size);
+            offsets.push(params.offset);
+
+            return params.offset === 0
+              ? Array.from({ length: size }, (_, index) => ({ ts_code: String(index) }))
+              : [];
+          },
+        },
+        api,
+        { trade_date: '20181228' },
+        'ts_code',
+      );
+      expect(offsets).toEqual([0, size]);
+      expect(pages.complete).toBe(true);
+      expect(pages.rows).toHaveLength(size);
+    },
+  );
+
+  it('bounds an override to the declared provider page size', async () => {
+    const pages = await fetchSourcePages(
+      {
+        call: async (_api, params) => {
+          expect(params?.limit).toBe(5800);
+
+          return [];
+        },
+      },
+      'stk_limit',
+      {},
+      'ts_code',
+      10000,
+    );
+    expect(pages.complete).toBe(true);
+  });
+
   it('A05 preserves received pages after a later transport failure', async () => {
     let calls = 0;
     const pages = await fetchSourcePages(
