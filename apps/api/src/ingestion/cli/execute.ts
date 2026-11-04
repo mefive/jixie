@@ -48,7 +48,27 @@ export async function executeDataCommand(
         case 'remove':
           return changeDownloadList(request.assetType, request.action, request.code);
         case 'runs':
-          return database.ingestionRun.findMany({ orderBy: { startedAt: 'desc' }, take: 20 });
+          return database.ingestionRun.findMany({
+            select: { id: true, status: true, startedAt: true, finishedAt: true },
+            orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+            take: request.limit,
+          });
+        case 'export-issues': {
+          const { exportIngestionIssues } = await import('../issue-export.js');
+          const { diagnosticCodeIdentity, writeIssueExportFile } =
+            await import('./issue-export-file.js');
+          const project = fileURLToPath(new URL('../../', apiDirectory));
+          const code = await diagnosticCodeIdentity(project);
+          const bundle = await exportIngestionIssues({
+            runId: request.runId,
+            issueId: request.issueId,
+            code,
+          });
+          controller.signal.throwIfAborted();
+          const output = await writeIssueExportFile(request.output, bundle, databaseFilename());
+
+          return { output, counts: bundle.counts, limitations: bundle.limitations };
+        }
         case 'issues':
           return database.ingestionIssue.findMany({
             where: { runId: request.runId },

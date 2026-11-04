@@ -5,6 +5,22 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  ingestionExportDatabasePath: {
+    zh: '诊断文件不能写到数据库或其日志文件路径，请选择独立的 JSON 文件。',
+    en: 'Diagnostics cannot be written to the database or its journal paths. Choose a separate JSON file.',
+  },
+  ingestionExportRunNotFound: {
+    zh: '采集运行不存在，无法导出诊断包。',
+    en: 'The ingestion run does not exist; diagnostics cannot be exported.',
+  },
+  ingestionExportIssueNotCurrent: {
+    zh: '该问题不属于指定运行的当前有效问题，无法按此范围导出。',
+    en: 'The issue is not current in the specified run and cannot be exported in this scope.',
+  },
+  ingestionExportFileExists: {
+    zh: '导出文件已存在，请选择新的路径；原文件未覆盖。',
+    en: 'The export file already exists. Choose a new path; the original file was preserved.',
+  },
   ambiguousDividendEvent: {
     zh: '现金分红实施记录无法唯一匹配或内容冲突，请先处理分红数据问题。',
     en: 'Cash dividend implementations are ambiguous or conflicting. Resolve the dividend records first.',

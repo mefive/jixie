@@ -1,0 +1,64 @@
+import { z } from 'zod';
+
+const identifierSchema = z.string().regex(/^[A-Za-z0-9_-]+$/);
+export const issueExportInputSchema = z.object({
+  runId: identifierSchema,
+  issueId: identifierSchema.optional(),
+  code: z.object({ commit: z.string().nullable(), sourceDirty: z.boolean().nullable() }),
+});
+export type IssueExportInput = z.output<typeof issueExportInputSchema>;
+
+export const issueClassificationSchema = z.enum([
+  'current',
+  'superseded_attempt',
+  'obsolete_unit',
+  'incomplete_dividend_receipt',
+  'unknown_plan',
+  'run_level_unknown',
+]);
+export type IssueClassification = z.output<typeof issueClassificationSchema>;
+
+/**
+ * 导出文件独立版本化，不作为 Research SDK 或数据库模型的自动镜像。
+ *
+ * Version exported files independently of Research SDK and persisted models.
+ */
+export const diagnosticBundleSchema = z.object({
+  format: z.literal('jixie-ingestion-diagnostics'),
+  version: z.literal(1),
+  manifest: z.object({
+    exportedAt: z.string(),
+    snapshotConsistency: z.literal('single_transaction'),
+    code: issueExportInputSchema.shape.code,
+    codeIdentityScope: z.literal('exporting_workspace_not_historical_attempts'),
+    schemaFingerprint: z.string(),
+    schemaFingerprintScope: z.literal('exported_tables_and_applied_migrations'),
+    migrations: z.object({
+      available: z.boolean(),
+      applied: z.array(z.object({ migrationName: z.string(), checksum: z.string() })),
+    }),
+    marketRevision: z.number().nullable(),
+    redacted: z.literal(true),
+    valueSerialization: z.object({
+      dateTime: z.literal('ISO_8601_from_Prisma'),
+      sqlLiteralsRequireStorageVerification: z.literal(true),
+    }),
+  }),
+  run: z.record(z.string(), z.unknown()),
+  selection: z.record(z.string(), z.unknown()),
+  counts: z.record(z.string(), z.unknown()),
+  items: z.array(
+    z.object({
+      issue: z.record(z.string(), z.unknown()),
+      classification: issueClassificationSchema,
+      classificationReason: z.string(),
+      batch: z.record(z.string(), z.unknown()).nullable(),
+      unit: z.record(z.string(), z.unknown()).nullable(),
+      context: z.record(z.string(), z.unknown()),
+    }),
+  ),
+  historicalIssues: z.array(z.record(z.string(), z.unknown())),
+  tableSchemas: z.array(z.record(z.string(), z.unknown())),
+  limitations: z.array(z.string()),
+});
+export type DiagnosticBundle = z.output<typeof diagnosticBundleSchema>;

@@ -5,8 +5,9 @@
 | 命令 | 用途 |
 | --- | --- |
 | `pnpm data ingest --to YYYYMMDD` | 从自然起点补齐到目标日期；省略日期取启动时上海自然日 |
-| `pnpm data runs` | 最近 20 轮运行 |
-| `pnpm data issues RUN_ID` | 请求错误、受阻原因和未接纳原始记录 |
+| `pnpm data runs [--limit N]` | 默认最近 5 轮，允许 1–100；仅 id、status、startedAt、finishedAt，按开始时间及 ID 倒序 |
+| `pnpm data issues RUN_ID` | 该轮全部历史诊断及原始记录 |
+| `pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]` | 只读导出当前诊断、来源 payload、相关业务行和实际表结构，供 Agent 离线分析；不覆盖文件 |
 | `pnpm data etf list` | ETF 名单、生命周期和实际行情范围 |
 | `pnpm data etf select-top --limit 100` | 用最近完整同日规模快照选取 Top N，并入累计 ETF 名单 |
 | `pnpm data etf add CODE` / `remove CODE` | 修改名单，移出不删除历史 |
@@ -16,7 +17,7 @@
 
 旧 `data sync`、`data clean`、daily／weekly／repair 与历史搬移入口退役。成功批次只记录本次响应的接纳，不充当研究准入证明；目录、分红、历史名称和财务数据每轮重取，历史行情按日期补缺。整批下载结束后再事务入库。
 
-退出码：完整完成为 0，有问题、失败或中断为 1，参数错误为 2，写者锁争用为 75。`runs`、`issues` 和名单查询不加载 Tushare 配置。重置备份保存在数据库旁的 `ingestion-backups`，备份失败不清空；实际重置前停止业务使用。
+退出码：完整完成为 0，有问题、失败或中断为 1，参数错误为 2，写者锁争用为 75。`runs`、`issues`、诊断包导出和名单查询不加载 Tushare 配置；诊断包有 error／warning 也表示导出成功，返回 0。重置备份保存在数据库旁的 `ingestion-backups`，备份失败不清空；实际重置前停止业务使用。
 
 生产 timer 为 `deploy/jixie-ingestion.timer`，每两小时上海时间 :15 调用；这只是外部执行安排，不是数据集刷新策略。部署启用 timer，不执行全历史下载；首次切换的业务重建失败时保持停服，并保留重建标记供重试。
 
