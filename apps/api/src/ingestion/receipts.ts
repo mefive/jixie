@@ -1,4 +1,5 @@
 import { getDatabase } from '#infra/database/prisma.js';
+import { unitKey } from './runs.js';
 
 /**
  * 保留最近运行明细和恢复必需的成功收据，所有问题及关联批次始终保留。
@@ -32,9 +33,18 @@ export async function compactSuccessfulReceipts(): Promise<number> {
       rangeStart: true,
       rangeEnd: true,
       sourceStart: true,
-      _count: { select: { issues: true } },
     },
   });
+  // 保留同轮问题对应的较新收据，防止压缩后把被替代的问题重新列为待办。
+  // Keep newer receipts for diagnosed units in the same run so compaction cannot reopen old issues.
+  const diagnosed = await database.ingestionBatch.findMany({
+    where: { issues: { some: {} } },
+    select: { runId: true, dataset: true, scope: true, period: true },
+    distinct: ['runId', 'dataset', 'scope', 'period'],
+  });
+  const diagnosedUnits = new Set(
+    diagnosed.map((batch) => JSON.stringify([batch.runId, unitKey(batch)])),
+  );
   const retained = new Map<string, typeof receipts>();
   const obsolete: string[] = [];
   for (const receipt of receipts) {
@@ -60,7 +70,11 @@ export async function compactSuccessfulReceipts(): Promise<number> {
         candidate.rangeEnd >= receipt.rangeEnd
       );
     });
-    if (!protectedRuns.has(receipt.runId) && !receipt._count.issues && covered) {
+    if (
+      !protectedRuns.has(receipt.runId) &&
+      !diagnosedUnits.has(JSON.stringify([receipt.runId, unitKey(receipt)])) &&
+      covered
+    ) {
       obsolete.push(receipt.id);
     } else {
       newer.push(receipt);

@@ -7,6 +7,7 @@
 | `pnpm data ingest --to YYYYMMDD` | 从自然起点补齐到目标日期；省略日期取启动时上海自然日 |
 | `pnpm data runs [--limit N]` | 默认最近 5 轮，允许 1–100；仅 id、status、startedAt、finishedAt，按开始时间及 ID 倒序 |
 | `pnpm data issues RUN_ID` | 该轮全部历史诊断及原始记录 |
+| `pnpm data issues reconcile [RUN_ID]` | 为已结束运行的有效问题幂等补齐 pending；不重置已有处理结果，不请求数据源 |
 | `pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]` | 只读导出当前诊断、来源 payload、相关业务行和实际表结构，供 Agent 离线分析；不覆盖文件 |
 | `pnpm data etf list` | ETF 名单、生命周期和实际行情范围 |
 | `pnpm data etf select-top --limit 100` | 用最近完整同日规模快照选取 Top N，并入累计 ETF 名单 |

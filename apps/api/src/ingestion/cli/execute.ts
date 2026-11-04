@@ -53,6 +53,11 @@ export async function executeDataCommand(
             orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
             take: request.limit,
           });
+        case 'reconcile-issues': {
+          const { reconcileIssueResolutions } = await import('../resolutions.js');
+
+          return reconcileIssueResolutions(request.runId);
+        }
         case 'export-issues': {
           const { exportIngestionIssues } = await import('../issue-export.js');
           const { diagnosticCodeIdentity, writeIssueExportFile } =
@@ -73,6 +78,7 @@ export async function executeDataCommand(
           return database.ingestionIssue.findMany({
             where: { runId: request.runId },
             include: {
+              resolution: true,
               batch: {
                 select: {
                   dataset: true,

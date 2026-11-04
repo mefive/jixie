@@ -7,15 +7,16 @@ import {
 } from '#infra/database/diagnostic-schema.js';
 import { loadMarketDiagnosticContext } from '#market/synchronization/diagnostic-context.js';
 import { dividendReceiptHasCompleteFields } from '#market/fundamentals/dividend-identity.js';
-import { latestAttempts, unitKey } from './runs.js';
-import { parseRunPlan, runPlanSchema } from './schema.js';
+import { unitKey } from './runs.js';
+import { readRunIssueState } from './issue-state.js';
+import { readIssueHandling } from './resolutions.js';
+import { emptyIssueCounts, addIssueHandling } from './issue-overview.js';
 import { IngestionError } from './errors.js';
 import { diagnosticJson } from './diagnostic-json.js';
 import {
   diagnosticBundleSchema,
   issueExportInputSchema,
   type DiagnosticBundle,
-  type IssueClassification,
   type IssueExportInput,
 } from './issue-export-schema.js';
 
@@ -38,34 +39,19 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
       }
       await database.$executeRaw`PRAGMA query_only = ON`;
       try {
-        const run = await database.ingestionRun.findUnique({ where: { id: request.runId } });
-        if (!run) {
-          throw new IngestionError('export_run_not_found');
-        }
         const revision = await database.marketDataState.findUnique({ where: { key: 'global' } });
-        const planResult = runPlanSchema.safeParse(run.scopeSnapshot);
-        const plan = planResult.success ? parseRunPlan(run.scopeSnapshot) : null;
-        const units = [
-          ...(plan?.referenceUnits ?? []),
-          ...(plan?.selectionUnits ?? []),
-          ...(plan?.plan?.units ?? []),
-        ];
-        const unitMap = new Map(units.map((unit) => [unitKey(unit), unit]));
-        const planComplete = Boolean(plan?.selectionUnits && plan.plan);
-        const attempts = await database.ingestionBatch.findMany({
-          where: { runId: run.id },
-          orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
-          select: {
-            id: true,
-            dataset: true,
-            scope: true,
-            period: true,
-            status: true,
-            rejectedCount: true,
-            startedAt: true,
-          },
-        });
-        const latest = latestAttempts(attempts);
+        const state = await readRunIssueState(database, request.runId, true);
+        const {
+          run,
+          plan,
+          unitMap,
+          planComplete,
+          attempts,
+          latest,
+          classified,
+          historical,
+          active,
+        } = state;
         const dividendReceipts = await database.ingestionBatch.findMany({
           where: { runId: run.id, dataset: 'dividends', status: 'succeeded' },
           select: { id: true, request: true },
@@ -76,42 +62,6 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
             .map((batch) => batch.id),
         );
         const attemptById = new Map(attempts.map((batch) => [batch.id, batch]));
-        const issues = await database.ingestionIssue.findMany({
-          where: { runId: run.id },
-          include: { batch: true },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        });
-        const classified = issues.map(({ batch, ...issue }) => {
-          let classification: IssueClassification = 'current';
-          let reason = 'latest_attempt_in_current_plan';
-          if (!batch) {
-            classification = 'run_level_unknown';
-            reason = 'run_level_issue_has_no_attempt_identity';
-          } else if (latest.get(unitKey(batch))?.id !== batch.id) {
-            classification = 'superseded_attempt';
-            reason = 'a_newer_attempt_exists_for_this_logical_unit';
-          } else if (!unitMap.has(unitKey(batch))) {
-            classification = planComplete ? 'obsolete_unit' : 'unknown_plan';
-            reason = planComplete
-              ? 'unit_not_in_current_saved_plan'
-              : 'saved_plan_does_not_prove_unit_membership';
-          } else if (
-            batch.dataset === 'dividends' &&
-            batch.status === 'succeeded' &&
-            !dividendReceiptHasCompleteFields(batch.request)
-          ) {
-            classification = 'incomplete_dividend_receipt';
-            reason = 'success_receipt_did_not_request_complete_dividend_fields';
-          }
-
-          return { issue, batch, classification, reason };
-        });
-        const historical = classified.filter((item) =>
-          ['superseded_attempt', 'obsolete_unit'].includes(item.classification),
-        );
-        const active = classified.filter(
-          (item) => !['superseded_attempt', 'obsolete_unit'].includes(item.classification),
-        );
         const selected = request.issueId
           ? active.filter((item) => item.issue.id === request.issueId)
           : active;
@@ -119,10 +69,18 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
           throw new IngestionError('export_issue_not_current');
         }
         const items = [];
+        const handlingCounts = emptyIssueCounts();
+        const handlingById = new Map();
+        for (const item of active) {
+          const handling = await readIssueHandling(database, item);
+          handlingById.set(item.issue.id, handling);
+          addIssueHandling(handlingCounts, item.issue.severity, handling.status);
+        }
         const tableNames = new Set([
           'IngestionRun',
           'IngestionBatch',
           'IngestionIssue',
+          'IngestionIssueResolution',
           'MarketDataState',
         ]);
         for (const item of selected) {
@@ -146,6 +104,8 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
             batch: item.batch,
             unit: unit ?? null,
             context,
+            resolution: item.resolution,
+            handling: handlingById.get(item.issue.id),
           });
         }
         const tableSchemas = [];
@@ -234,6 +194,7 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
             selectedDiagnostics: countSeverity(selected),
             effectiveBatchesInThisRun: batchCounts,
             plannedUnits: unitMap.size,
+            handling: handlingCounts,
           },
           items,
           historicalIssues: historical.map((item) => ({

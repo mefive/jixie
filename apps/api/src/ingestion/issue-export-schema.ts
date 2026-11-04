@@ -55,6 +55,8 @@ export const diagnosticBundleSchema = z.object({
       batch: z.record(z.string(), z.unknown()).nullable(),
       unit: z.record(z.string(), z.unknown()).nullable(),
       context: z.record(z.string(), z.unknown()),
+      resolution: z.record(z.string(), z.unknown()).nullable().optional(),
+      handling: z.record(z.string(), z.unknown()).optional(),
     }),
   ),
   historicalIssues: z.array(z.record(z.string(), z.unknown())),

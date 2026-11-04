@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { observer } from 'mobx-react';
 import { useTranslation } from 'react-i18next';
-import { Button, Dropdown, Menu, Segmented, Tooltip, Tag, type MenuProps } from 'antd';
+import { Button, Dropdown, Menu, Segmented, Tooltip, type MenuProps } from 'antd';
 import { faBars, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { Locale } from '@jixie/shared';
-import { authStore, maintenanceStore } from '@src/store';
+import { authStore } from '@src/store';
+import { DataHealthStatus } from './data-health-status';
 import { deploymentVersionStore } from '@src/store/deployment-version-store';
 import { localeStore } from '@src/i18n/locale-store';
 import banner from '@src/assets/banner.png';
@@ -19,11 +20,6 @@ import './top-nav.css';
 export const TopNav = observer(() => {
   const { t } = useTranslation();
   const location = useLocation();
-  const maintenance = maintenanceStore.status;
-  const backgroundPhase =
-    !maintenance?.active && ['preparing', 'error'].includes(maintenance?.phase ?? '')
-      ? maintenance.phase
-      : null;
   const versionLoader = deploymentVersionStore.loader;
   const revision = versionLoader.result?.revision;
   const versionLabel = revision
@@ -82,13 +78,7 @@ export const TopNav = observer(() => {
         />
       </div>
       <div className="jx-topnav-user">
-        {backgroundPhase && (
-          <Tooltip title={t('maintenance.backgroundDescription')}>
-            <Tag color={backgroundPhase === 'error' ? 'warning' : 'processing'}>
-              {t(`maintenance.background.${backgroundPhase}`)}
-            </Tag>
-          </Tooltip>
-        )}
+        <DataHealthStatus />
         <Tooltip
           title={revision ? t('deploymentVersion.details', { revision }) : versionLabel}
           trigger={['hover', 'focus', 'click']}

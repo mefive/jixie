@@ -60,6 +60,12 @@ Select **Back to workspace** in the upper-right corner to leave the Help Center.
 
 The account area shows the short revision of the latest successful deployment. Hover or select it to see the full revision; include it and the page URL when reporting a mismatch with Help. This revision is not a market-data date. Check the data date shown on the relevant page separately.
 
+## Check data updates and issue handling
+
+Select the data status in the top bar to view the target date, ingestion outcome, and current handling progress. Successful, partial, failed, and rejected counts describe ingestion at the time; pending, repaired, and accepted describe handling now. An update with warnings alone can complete successfully.
+
+The issue list separates errors and warnings. Expand a row for its security/date, reason, and handling notes. A new successful update does not hide older pending issues; repaired fields that change again require review. Source issues do not automatically block research or backtesting. Refresh to retry if details fail to load.
+
 ## System maintenance
 
 While publishing a release or validating new market data, the product may temporarily show **System maintenance**. The page displays the current stage, completion progress, and latest available data date.

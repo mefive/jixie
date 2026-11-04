@@ -26,6 +26,59 @@ export const enCommon: typeof zhCommon = {
   errors: {
     serviceUnavailable: 'Service temporarily unavailable. Please try again shortly.',
   },
+  dataHealth: {
+    open: 'View data updates and issue handling',
+    title: 'Data updates and issue handling',
+    description:
+      'Ingestion outcomes preserve what happened; handling reflects the current state. Source warnings and individual rejected records do not block continued use.',
+    labels: {
+      updating: 'Updating data',
+      failed: 'Last update unfinished',
+      pendingErrors: 'Data · {{count}} pending issues',
+      pendingWarnings: 'Updated · {{count}} warnings',
+      updated: 'Data updated',
+      uninitialized: 'No data updates yet',
+    },
+    run: 'Run',
+    target: 'Target date',
+    execution: 'Ingestion outcome',
+    finishedAt: 'Finished at',
+    inProgress: 'Not finished',
+    runStates: {
+      running: 'Ingesting',
+      completed: 'Completed',
+      completed_with_issues: 'Completed with recorded issues',
+      failed: 'Failed',
+      interrupted: 'Interrupted',
+    },
+    batchCounts: 'Ingestion batches',
+    batchSummary:
+      'Succeeded {{succeeded}} · Partial {{partial}} · Failed {{failed}} · Rejected records {{rejected}}',
+    originalDiagnostics: 'Original diagnostics',
+    diagnosticSummary: 'Errors {{issues}} · Warnings {{warnings}}',
+    severities: { error: 'Error', warning: 'Warning' },
+    latestHandling: 'Handling for this run',
+    allRuns: 'Current issues across all runs',
+    handlingSummary:
+      'Pending errors {{errors}} · Pending warnings {{warnings}} · Repaired {{resolved}} · Accepted {{accepted}}',
+    incomplete:
+      '{{unknown}} issues have uncertain validity; {{missing}} handling records are not persisted yet (shown as pending; reconcile with the CLI).',
+    issueDetails: 'Issue details',
+    refresh: 'Refresh',
+    loadFailed: 'Could not load issue details. Refresh to retry.',
+    severity: 'Severity',
+    problem: 'Issue',
+    handling: 'Handling',
+    runLevel: 'Run-level issue',
+    handlingStates: { pending: 'Pending', resolved: 'Repaired', accepted: 'Accepted as-is' },
+    verification: {
+      changed: 'Repaired fields changed; review required',
+      unknown: 'Repair could not be verified; review required',
+    },
+    issueId: 'Issue',
+    notHandled: 'No handling decision recorded',
+    handledAt: 'Handled at',
+  },
   maintenance: {
     backgroundDescription:
       'Preparation uses isolated data. You can continue using the published version.',

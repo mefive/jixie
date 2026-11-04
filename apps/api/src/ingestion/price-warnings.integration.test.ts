@@ -106,6 +106,9 @@ it(
         payload: historicalBar,
       });
       expect((await getIngestionStatus()).error).toBeNull();
+      expect(await database.ingestionIssueResolution.count({ where: { status: 'pending' } })).toBe(
+        1,
+      );
       expect(logs.some((line) => line.includes('[warning]'))).toBe(true);
     }),
   60_000,

@@ -39,3 +39,6 @@ OHLC 范围矛盾作为来源 warning：股票和 ETF 保留原始正值有限�
 
 
 诊断导出为只读操作，有 error／warning 仍正常返回 0；原始记录、当前业务行和实际表结构保存在一个带版本的 JSON 中，默认只选当前有效问题，历史诊断身份及原因单列。无批次问题或计划／来源身份不足时保留未知状态。输出路径相对 CLI 工作目录解析，已有文件不覆盖，文件权限 0600；命令、参数和示例同时见 `cli/data.ts` 入口注释及 `--help`。导出不修改接纳规则、旧诊断或市场 revision，不执行修复 SQL。
+
+
+[问题处理与数据状态](../../../../docs/design/ingestion-issue-resolution.md)：Run 结束时同事务补齐有效问题的 pending，历史运行通过 `pnpm data issues reconcile [RUN_ID]` 幂等补齐。原 Issue／Batch／Run 不因修复被重写。修复事务通过 `recordIssueResolution` 登记 resolved／accepted；前端和诊断包共同读取当前处理状态，已修复字段被覆盖时提示复核。只读接口不自动补写，未登记问题按 pending 展示。

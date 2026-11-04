@@ -1,9 +1,15 @@
 import { action, makeObservable, observable, runInAction } from 'mobx';
-import { fetchIngestionStatus, type IngestionStatus } from '@src/api/maintenance';
+import {
+  fetchIngestionStatus,
+  fetchIngestionIssues,
+  type IngestionStatus,
+} from '@src/api/maintenance';
+import type { IngestionIssueList } from '@jixie/shared/api/ingestion';
 import { LoaderModel, PollingModel } from '@src/lib';
 
 class MaintenanceStore {
   public loader = new LoaderModel<IngestionStatus>();
+  public issuesLoader = new LoaderModel<IngestionIssueList>();
 
   public polling = new PollingModel();
 
@@ -19,6 +25,9 @@ class MaintenanceStore {
       acceptServiceUnavailable: action,
     });
     this.loader.setup({ request: () => fetchIngestionStatus() });
+    this.issuesLoader.setup({
+      request: (offset: number, signal) => fetchIngestionIssues(offset, signal),
+    });
     this.polling.setup({
       interval: 5_000,
       request: async () => {
@@ -34,6 +43,15 @@ class MaintenanceStore {
     });
     window.addEventListener('jixie:maintenance', this.onMaintenance);
     window.addEventListener('jixie:service-unavailable', this.onServiceUnavailable);
+  }
+
+  public async loadIssues(offset = 0): Promise<void> {
+    try {
+      await this.issuesLoader.run(offset);
+    } catch {
+      // Loader 保留错误状态供弹层展示；关闭弹层时的取消无需额外通知。
+      // The loader retains errors for the drawer; cancellation on close needs no extra notification.
+    }
   }
 
   public async load(): Promise<void> {

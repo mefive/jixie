@@ -550,22 +550,42 @@ model IngestionBatch {
 /// 来源请求、未接纳错误与已接纳记录的警告；原始内容不包含凭证。
 /// Source failures, rejected-record errors and admitted-record warnings; payloads exclude credentials.
 model IngestionIssue {
-  id          String          @id
+  id          String                    @id
   runId       String
-  run         IngestionRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  run         IngestionRun              @relation(fields: [runId], references: [id], onDelete: Cascade)
   batchId     String?
-  batch       IngestionBatch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batch       IngestionBatch?           @relation(fields: [batchId], references: [id], onDelete: Cascade)
   category    String
-  severity    String          @default("error")
+  severity    String                    @default("error")
   reasonCode  String
   message     String
   businessKey Json?
   field       String?
   payload     Json?
-  createdAt   DateTime        @default(now())
+  createdAt   DateTime                  @default(now())
+  resolution  IngestionIssueResolution?
 
   @@index([runId, createdAt])
   @@index([batchId])
+}
+
+/// 问题的后续处理，不改写原始诊断及采集结果；issueId 保证重复补齐不重复创建。
+/// Follow-up handling preserves diagnostics and run outcomes; issueId makes reconciliation idempotent.
+model IngestionIssueResolution {
+  issueId        String         @id
+  issue          IngestionIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  status         String         @default("pending")
+  reason         String?
+  evidence       Json?
+  before         Json?
+  after          Json?
+  marketRevision Int?
+  history        Json           @default("[]")
+  resolvedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([status, updatedAt])
 }
 
 /// 管理员保存的下载名单；存在的空名单不会被默认值覆盖。

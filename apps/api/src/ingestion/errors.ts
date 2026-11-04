@@ -1,6 +1,15 @@
 import { BusinessError, type BusinessErrorOptions } from '#infra/errors.js';
 
 const definitions = {
+  resolution_not_ready: { category: 'conflict', messageKey: 'ingestionResolutionNotReady' },
+  resolution_verification_failed: {
+    category: 'conflict',
+    messageKey: 'ingestionResolutionVerificationFailed',
+  },
+  resolution_already_handled: {
+    category: 'conflict',
+    messageKey: 'ingestionResolutionAlreadyHandled',
+  },
   export_run_not_found: { category: 'missing', messageKey: 'ingestionExportRunNotFound' },
   export_issue_not_current: { category: 'invalid', messageKey: 'ingestionExportIssueNotCurrent' },
   export_path_is_database: { category: 'invalid', messageKey: 'ingestionExportDatabasePath' },

@@ -5,6 +5,18 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  ingestionResolutionNotReady: {
+    zh: '只能处理已结束运行中的有效问题。',
+    en: 'Only effective issues from finished runs can be handled.',
+  },
+  ingestionResolutionVerificationFailed: {
+    zh: '修复后的业务字段或市场数据版本未通过核验，事务应回滚。',
+    en: 'Repaired fields or the market revision failed verification; roll back the transaction.',
+  },
+  ingestionResolutionAlreadyHandled: {
+    zh: '该问题已有处理结果，不能覆盖处理历史。',
+    en: 'This issue already has a handling result; its history cannot be overwritten.',
+  },
   ingestionExportDatabasePath: {
     zh: '诊断文件不能写到数据库或其日志文件路径，请选择独立的 JSON 文件。',
     en: 'Diagnostics cannot be written to the database or its journal paths. Choose a separate JSON file.',

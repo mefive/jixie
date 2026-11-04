@@ -16,6 +16,7 @@ import { mergeEtfSelection, prepareHistoricalEtfSelection } from '#market/downlo
 import { initializeIndexDownloads } from '#market/downloads/lists.js';
 import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
 import { compactSuccessfulReceipts } from './receipts.js';
+import { ensureRunIssueResolutions } from './resolutions.js';
 import { planEtfSelections, planIngestion, referenceUnits } from './plan.js';
 import { latestAttempts, openIngestionRun, summarizeIngestionRun, unitKey } from './runs.js';
 import { parseRunPlan, type IngestionRunPlan } from './schema.js';
@@ -434,10 +435,16 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
           : result.issues || result.partial || result.failed
             ? 'completed_with_issues'
             : 'completed';
-      await database.ingestionRun.update({
-        where: { id: runId },
-        data: { status: result.status, finishedAt: clock(), summary: jsonValue(result) },
-      });
+      await database.$transaction(
+        async (transaction) => {
+          await transaction.ingestionRun.update({
+            where: { id: runId },
+            data: { status: result.status, finishedAt: clock(), summary: jsonValue(result) },
+          });
+          await ensureRunIssueResolutions(transaction, runId);
+        },
+        { timeout: 120_000 },
+      );
 
       try {
         await compactSuccessfulReceipts();

@@ -1,0 +1,26 @@
+@reference '../styles/index.css';
+
+.jx-dataHealth-trigger {
+  @apply inline-flex items-center gap-1;
+}
+
+.jx-dataHealth-content {
+  @apply flex flex-col gap-4;
+}
+
+.jx-dataHealth-summary {
+  @apply flex flex-col gap-1;
+}
+
+.jx-dataHealth-note {
+  @apply text-xs text-muted break-words;
+}
+
+.jx-dataHealth-actions {
+  @apply flex items-center justify-between gap-2;
+}
+
+.jx-dataHealth-expanded {
+  @apply flex flex-col gap-2;
+  @apply text-xs break-words;
+}

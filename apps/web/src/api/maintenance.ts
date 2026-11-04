@@ -1,10 +1,23 @@
 import { request } from './client';
 
-import type { IngestionStatus } from '@jixie/shared/api/ingestion';
+import type {
+  IngestionStatus,
+  IngestionIssueList,
+  IngestionIssueListQuery,
+} from '@jixie/shared/api/ingestion';
 export type { IngestionStatus } from '@jixie/shared/api/ingestion';
 
 export function fetchIngestionStatus(): Promise<IngestionStatus> {
   return request('/api/ingestion/status');
+}
+
+export function fetchIngestionIssues(
+  offset: number,
+  signal: AbortSignal,
+): Promise<IngestionIssueList> {
+  const query = { offset: String(offset), limit: '20' } satisfies IngestionIssueListQuery;
+
+  return request(`/api/ingestion/issues?${new URLSearchParams(query)}`, { signal });
 }
 
 /**

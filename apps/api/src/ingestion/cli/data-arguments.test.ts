@@ -1,6 +1,19 @@
 import { expect, it } from 'vitest';
 import { parseDataArguments } from './data.js';
 
+it('reconciles all finished runs or one explicit run', () => {
+  expect(parseDataArguments(['issues', 'reconcile'])).toEqual({
+    action: 'reconcile-issues',
+    runId: undefined,
+  });
+  expect(parseDataArguments(['issues', 'reconcile', 'RUN123'])).toEqual({
+    action: 'reconcile-issues',
+    runId: 'RUN123',
+  });
+  expect(() => parseDataArguments(['issues', 'reconcile', 'bad/id'])).toThrow('Usage:');
+  expect(() => parseDataArguments(['issues', 'reconcile', 'RUN123', '--force'])).toThrow('Usage:');
+});
+
 it('accepts a target date and keeps destructive reset explicit', () => {
   expect(parseDataArguments(['ingest', '--to', '20261030'])).toEqual({
     action: 'ingest',

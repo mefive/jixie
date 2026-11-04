@@ -19,6 +19,10 @@ import { isObservationDate } from '#market/synchronization/date.js';
  * RUN_ID：runs 返回的运行 ID；issues 原命令输出该轮全部历史诊断。
  * RUN_ID: a run ID from runs; the original issues command lists all historical diagnostics.
  *
+ * pnpm data issues reconcile [RUN_ID]
+ * 幂等补齐已结束运行的处理记录；省略 RUN_ID 时检查所有已结束且有问题的运行，不重置已有结果。
+ * Idempotently reconcile finished-run handling; omit RUN_ID for all finished runs with issues, preserving existing results.
+ *
  * pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]
  * --out：必填，JSON 输出路径（相对 CLI 工作目录或绝对）；打印最终路径，不覆盖文件。
  * --out: required JSON path relative to CLI cwd or absolute; prints the final path, never overwrites.
@@ -43,6 +47,7 @@ export type DataRequest =
   | { action: 'reset'; apply: boolean; database?: string }
   | { action: 'runs'; limit: number }
   | { action: 'issues'; runId: string }
+  | { action: 'reconcile-issues'; runId?: string }
   | { action: 'export-issues'; runId: string; output: string; issueId?: string }
   | { action: 'list'; assetType: 'etf' | 'index' }
   | { action: 'add' | 'remove'; assetType: 'etf' | 'index'; code: string }
@@ -53,6 +58,8 @@ const usage = [
   '       pnpm data runs [--limit N]',
   'Runs: default 5, range 1-100; id/status/startedAt/finishedAt only; newest first.',
   '       pnpm data issues RUN_ID',
+  '       pnpm data issues reconcile [RUN_ID]',
+  'Reconcile: create missing pending records for finished runs only; never reset handled issues.',
   '       pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]',
   'Export: RUN_ID from runs; --out is required (relative or absolute); --issue selects one current issue.',
   'Example: pnpm data issues export RUN123 --out diagnostics.json',
@@ -91,6 +98,12 @@ export function parseDataArguments(args: string[]): DataRequest {
       if (Number.isSafeInteger(limit) && limit >= 1 && limit <= 100) {
         return { action: 'runs', limit };
       }
+    }
+    throw new Error(usage);
+  }
+  if (args[0] === 'issues' && args[1] === 'reconcile') {
+    if (args.length === 2 || (args.length === 3 && /^[A-Za-z0-9_-]+$/.test(args[2]))) {
+      return { action: 'reconcile-issues', runId: args[2] };
     }
     throw new Error(usage);
   }

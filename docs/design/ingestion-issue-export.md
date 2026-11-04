@@ -112,3 +112,8 @@ Prompt 已增加 Agent 自行调用 `data runs`、按指定范围或最新 Run �
 - 导出前后，对 Run、37759 条 Batch 尝试、21 条 Issue、market revision、相关 3 条 Dividend 和 8 条 Daily 的只读内容摘要比对全部一致。未启动采集、未请求第三方数据、未执行修复 SQL，也未改变接纳规则。
 
 复审前的失败验证仅为上述已修正的 SQLite 别名问题；最终测试不存在遗留失败。本次真实导出仅验证诊断能力，问题事实仍留待后续 Agent／人工按独立 Prompt 交叉查证。
+
+
+## 后续问题处理状态扩展
+
+[问题处理设计](ingestion-issue-resolution.md)新增独立处理表与前端可见状态；原导出阶段“不增加迁移／HTTP”的范围仅描述前述 CLI 提交，不限制这个已单独批准的扩展。诊断包保留原采集事实，另附 resolution、handling 和 counts.handling，供 Agent 区分 pending、resolved 与 accepted；不通过重写原 Run 清空问题。

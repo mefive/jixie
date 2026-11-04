@@ -24,6 +24,56 @@ export const zhCommon = {
   errors: {
     serviceUnavailable: '服务暂时不可用，请稍后重试',
   },
+  dataHealth: {
+    open: '查看数据更新与问题处理进度',
+    title: '数据更新与问题处理',
+    description:
+      '采集结果保留当时的事实；处理进度反映当前状态。来源警告和个别未接纳记录不阻止继续使用。',
+    labels: {
+      updating: '数据更新中',
+      failed: '上次更新未完成',
+      pendingErrors: '数据 · {{count}} 个问题待处理',
+      pendingWarnings: '已更新 · {{count}} 条警告',
+      updated: '数据已更新',
+      uninitialized: '尚无数据更新',
+    },
+    run: 'Run',
+    target: '目标日期',
+    execution: '采集结果',
+    finishedAt: '完成时间',
+    inProgress: '尚未结束',
+    runStates: {
+      running: '采集中',
+      completed: '采集完成',
+      completed_with_issues: '采集完成，有问题记录',
+      failed: '采集失败',
+      interrupted: '采集中断',
+    },
+    batchCounts: '本次采集批次',
+    batchSummary:
+      '成功 {{succeeded}} · 部分接纳 {{partial}} · 失败 {{failed}} · 未接纳记录 {{rejected}}',
+    originalDiagnostics: '采集时的诊断',
+    diagnosticSummary: '错误 {{issues}} · 警告 {{warnings}}',
+    severities: { error: '错误', warning: '警告' },
+    latestHandling: '本次问题处理',
+    allRuns: '全部运行的当前问题',
+    handlingSummary:
+      '待处理错误 {{errors}} · 待处理警告 {{warnings}} · 已修复 {{resolved}} · 确认保留 {{accepted}}',
+    incomplete:
+      '有效性待核对 {{unknown}} 项；尚未持久化处理记录 {{missing}} 项（按待处理展示，可用 CLI 补齐）。',
+    issueDetails: '问题详情',
+    refresh: '刷新',
+    loadFailed: '问题详情加载失败，请刷新重试。',
+    severity: '级别',
+    problem: '问题',
+    handling: '处理状态',
+    runLevel: '运行级问题',
+    handlingStates: { pending: '待处理', resolved: '已修复', accepted: '确认保留' },
+    verification: { changed: '修复字段已变化，需要复核', unknown: '无法核对修复结果，需要复核' },
+    issueId: 'Issue',
+    notHandled: '尚未记录处理结论',
+    handledAt: '处理时间',
+  },
   maintenance: {
     backgroundDescription: '准备阶段使用独立数据，您可以继续使用当前已发布版本。',
     background: {

@@ -78,6 +78,21 @@ it('compacts superseded success detail while retaining issues and wider successf
     });
     await database.ingestionBatch.create({
       data: {
+        id: 'replacement-in-original-run',
+        runId: 'run-0',
+        dataset: 'financial-statements',
+        scope: 'income|1',
+        period: '20260630',
+        api: 'income_vip',
+        request: {},
+        status: 'succeeded',
+        rangeStart: '20260630',
+        rangeEnd: '20260630',
+        startedAt: new Date(1),
+      },
+    });
+    await database.ingestionBatch.create({
+      data: {
         id: 'wide-history',
         runId: 'run-0',
         dataset: 'index-prices',
@@ -108,6 +123,9 @@ it('compacts superseded success detail while retaining issues and wider successf
     });
     expect(await compactSuccessfulReceipts()).toBe(2);
     expect(await database.ingestionBatch.findUnique({ where: { id: 'batch-0' } })).not.toBeNull();
+    expect(
+      await database.ingestionBatch.findUnique({ where: { id: 'replacement-in-original-run' } }),
+    ).not.toBeNull();
     expect(await database.ingestionBatch.findUnique({ where: { id: 'batch-1' } })).toBeNull();
     expect(
       await database.ingestionBatch.findUnique({ where: { id: 'wide-history' } }),
