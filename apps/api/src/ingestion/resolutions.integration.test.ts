@@ -351,3 +351,70 @@ it(
     }),
   60_000,
 );
+
+it(
+  'archives covered legacy issues and separates unconfirmed evidence from the pending counter',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await seed(database);
+      await database.ingestionRun.update({
+        where: { id: 'old-run' },
+        data: { scopeSnapshot: {}, startedAt: new Date('2026-10-30') },
+      });
+      await database.ingestionRun.create({
+        data: {
+          id: 'later-run',
+          trigger: 'manual',
+          targetDate: '20181231',
+          status: 'completed',
+          startedAt: new Date('2026-11-02'),
+          finishedAt: new Date('2026-11-03'),
+          scopeSnapshot: {},
+        },
+      });
+      const data = {
+        id: 'later-receipt',
+        runId: 'later-run',
+        dataset: 'stock-prices',
+        scope: 'SSE,SZSE',
+        period: '19920131',
+        api: 'daily',
+        status: 'succeeded',
+        request: [],
+        startedAt: new Date('2026-11-02'),
+        rangeStart: '19920131',
+        rangeEnd: '19920131',
+        responseComplete: false,
+      };
+      await database.ingestionBatch.create({ data });
+      const read = () =>
+        database.$transaction((transaction) => readIssueOverview(transaction, 'later-run', true));
+      const unconfirmed = await read();
+      expect(unconfirmed.health.handling.pending.warning).toBe(0);
+      expect(unconfirmed.health.unknownValidity).toBe(1);
+      expect(unconfirmed.items).toMatchObject([{ id: 'warning', status: 'review' }]);
+
+      await database.ingestionBatch.update({
+        where: { id: data.id },
+        data: { responseComplete: true },
+      });
+      const covered = await read();
+      expect(covered.health.coveredHistorical).toBe(1);
+      expect(covered.health.unknownValidity).toBe(0);
+      expect(covered.items).toEqual([]);
+      const bundle = await exportIngestionIssues({
+        runId: 'old-run',
+        code: { commit: 'test', sourceDirty: false },
+      });
+      expect(bundle.historicalIssues).toContainEqual(
+        expect.objectContaining({
+          id: 'warning',
+          classification: 'covered_by_later_run',
+          coverage: expect.objectContaining({ receiptIds: [data.id] }),
+        }),
+      );
+      expect(await database.ingestionIssue.count()).toBe(2);
+      expect(await database.ingestionIssueResolution.count()).toBe(0);
+    }),
+  60_000,
+);

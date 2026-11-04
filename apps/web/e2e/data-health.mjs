@@ -16,10 +16,11 @@ page.on('pageerror', (error) => failures.push(error.message));
 let scenario = 'pending';
 let detailsFail = false;
 let detailCalls = 0;
+const allHandled = () => scenario === 'review' || scenario === 'archived';
 const counts = () => ({
-  pending: { error: 3, warning: scenario === 'repaired' ? 0 : 8 },
-  resolved: { error: 0, warning: scenario === 'repaired' ? 8 : 0 },
-  accepted: { error: 0, warning: 0 },
+  pending: { error: allHandled() ? 0 : 3, warning: scenario === 'pending' ? 8 : 0 },
+  resolved: { error: 0, warning: scenario === 'pending' ? 0 : 8 },
+  accepted: { error: allHandled() ? 3 : 0, warning: 0 },
 });
 const status = () => ({
   active: false,
@@ -44,7 +45,8 @@ const status = () => ({
       handling: counts(),
     },
     handling: counts(),
-    unknownValidity: 0,
+    unknownValidity: scenario === 'review' ? 1 : 0,
+    coveredHistorical: allHandled() ? 20 : 0,
     missingResolutionRecords: 0,
   },
 });
@@ -89,7 +91,12 @@ try {
             businessKey: index < 3 ? '20181231' : '19920131',
             reasonCode: index < 3 ? 'conflicting_business_key' : 'ohlc_range_inconsistent',
             message: index < 3 ? 'Conflicting cash values' : 'Inconsistent OHLC range',
-            status: scenario === 'repaired' && index >= 3 ? 'resolved' : 'pending',
+            status:
+              scenario !== 'pending' && index >= 3
+                ? 'resolved'
+                : allHandled()
+                  ? 'accepted'
+                  : 'pending',
             verification: scenario === 'repaired' && index >= 3 ? 'verified' : null,
             handlingReason:
               scenario === 'repaired' && index >= 3 ? '采用对齐口径的第三方实际报价' : null,
@@ -136,11 +143,30 @@ try {
     .first()
     .waitFor();
   await page.screenshot({ path: `${output}/repaired-en-mobile.png`, animations: 'disabled' });
+  await page.locator('.ant-drawer-close').click();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByText('中', { exact: true }).click();
+  scenario = 'review';
+  await page.getByText('数据 · 1 项待复核', { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).click();
+  await page.getByText('待复核 1 项，覆盖证据尚不足。', { exact: true }).waitFor();
+  await page.getByText('待处理错误 0 · 待处理警告 0 · 已修复 8 · 确认保留 3').first().waitFor();
+  await page.locator('.ant-drawer-close').click();
+  scenario = 'archived';
+  await page.getByText('数据已更新', { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).click();
+  await page.getByText('后续采集已覆盖 20 条历史诊断。', { exact: true }).waitFor();
+  await page.screenshot({ path: `${output}/covered-history-zh.png`, animations: 'disabled' });
   assert.deepEqual(failures, []);
   console.log(
     JSON.stringify({
       output,
-      screenshots: ['pending-zh.png', 'repaired-zh.png', 'repaired-en-mobile.png'],
+      screenshots: [
+        'pending-zh.png',
+        'repaired-zh.png',
+        'repaired-en-mobile.png',
+        'covered-history-zh.png',
+      ],
       detailCalls,
     }),
   );

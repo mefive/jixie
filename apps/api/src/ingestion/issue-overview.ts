@@ -22,9 +22,11 @@ export function emptyIssueCounts(): IssueHandlingCounts {
 export function addIssueHandling(
   counts: IssueHandlingCounts,
   severity: string,
-  status: keyof IssueHandlingCounts,
+  status: keyof IssueHandlingCounts | 'review',
 ): void {
-  counts[status][severity === 'warning' ? 'warning' : 'error']++;
+  if (status !== 'review') {
+    counts[status][severity === 'warning' ? 'warning' : 'error']++;
+  }
 }
 
 const executionSchema = z.object({
@@ -37,9 +39,9 @@ const executionSchema = z.object({
 });
 
 /**
- * 新运行成功不关闭旧待办；只按各自当前计划排除被替代尝试，不按最近 Run 清空问题。
+ * 旧问题有覆盖证据才归档，待复核单独计数。
  *
- * A new successful run never closes older pending issues; exclude superseded attempts per saved plan only.
+ * Archive older issues only with coverage evidence and count review separately.
  */
 export async function readIssueOverview(
   database: Prisma.TransactionClient,
@@ -55,6 +57,7 @@ export async function readIssueOverview(
     latestRun: null,
     handling: emptyIssueCounts(),
     unknownValidity: 0,
+    coveredHistorical: 0,
     missingResolutionRecords: 0,
   };
   const items: IngestionIssueList['items'] = [];
@@ -62,11 +65,12 @@ export async function readIssueOverview(
   for (const run of runs) {
     const state = await readRunIssueState(database, run.id);
     const counts = emptyIssueCounts();
+    health.coveredHistorical += state.historical.filter((item) => item.coverage).length;
     for (const item of state.active) {
       const handling = await readIssueHandling(database, item);
       addIssueHandling(counts, item.issue.severity, handling.status);
       addIssueHandling(health.handling, item.issue.severity, handling.status);
-      health.unknownValidity += item.classification === 'current' ? 0 : 1;
+      health.unknownValidity += handling.status === 'review' ? 1 : 0;
       health.missingResolutionRecords += item.resolution ? 0 : 1;
       if (
         run.id === latestRunId &&
@@ -116,7 +120,7 @@ export async function readIssueOverview(
     }
   }
   items.sort((left, right) => {
-    const priority = { pending: 0, resolved: 1, accepted: 2 };
+    const priority = { pending: 0, review: 1, resolved: 2, accepted: 3 };
 
     return priority[left.status] - priority[right.status] || left.id.localeCompare(right.id);
   });

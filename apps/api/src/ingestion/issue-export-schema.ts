@@ -12,6 +12,7 @@ export const issueClassificationSchema = z.enum([
   'current',
   'superseded_attempt',
   'obsolete_unit',
+  'covered_by_later_run',
   'incomplete_dividend_receipt',
   'unknown_plan',
   'run_level_unknown',

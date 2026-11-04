@@ -30,9 +30,11 @@ export const DataHealthStatus = observer(() => {
         ? 'pendingErrors'
         : pending?.warning
           ? 'pendingWarnings'
-          : latest
-            ? 'updated'
-            : 'uninitialized';
+          : health?.unknownValidity
+            ? 'review'
+            : latest
+              ? 'updated'
+              : 'uninitialized';
   const color =
     label === 'failed'
       ? 'error'
@@ -40,7 +42,9 @@ export const DataHealthStatus = observer(() => {
         ? 'warning'
         : label === 'updating'
           ? 'processing'
-          : 'success';
+          : label === 'review'
+            ? 'default'
+            : 'success';
 
   useEffect(() => {
     if (!open) {
@@ -61,7 +65,9 @@ export const DataHealthStatus = observer(() => {
       >
         <FontAwesomeIcon icon={faDatabase} />
         <Tag color={color}>
-          {t(`dataHealth.labels.${label}`, { count: pending?.error || pending?.warning || 0 })}
+          {t(`dataHealth.labels.${label}`, {
+            count: pending?.error || pending?.warning || health?.unknownValidity || 0,
+          })}
         </Tag>
       </Button>
       <Drawer title={t('dataHealth.title')} open={open} onClose={() => setOpen(false)} size="large">
@@ -121,11 +127,20 @@ export const DataHealthStatus = observer(() => {
             <section className="jx-dataHealth-summary">
               <h3>{t('dataHealth.allRuns')}</h3>
               <p>{handlingText(health.handling, t)}</p>
-              {(health.unknownValidity > 0 || health.missingResolutionRecords > 0) && (
+              {health.coveredHistorical > 0 && (
                 <p className="jx-dataHealth-note">
-                  {t('dataHealth.incomplete', {
-                    unknown: health.unknownValidity,
-                    missing: health.missingResolutionRecords,
+                  {t('dataHealth.coveredHistorical', { count: health.coveredHistorical })}
+                </p>
+              )}
+              {health.unknownValidity > 0 && (
+                <p className="jx-dataHealth-note">
+                  {t('dataHealth.needsReview', { count: health.unknownValidity })}
+                </p>
+              )}
+              {health.missingResolutionRecords > 0 && (
+                <p className="jx-dataHealth-note">
+                  {t('dataHealth.missingResolutionRecords', {
+                    count: health.missingResolutionRecords,
                   })}
                 </p>
               )}
@@ -183,7 +198,15 @@ export const DataHealthStatus = observer(() => {
                   title: t('dataHealth.handling'),
                   render: (_value, item) => (
                     <div>
-                      <Tag color={item.status === 'pending' ? 'warning' : 'success'}>
+                      <Tag
+                        color={
+                          item.status === 'pending'
+                            ? 'warning'
+                            : item.status === 'review'
+                              ? 'default'
+                              : 'success'
+                        }
+                      >
                         {t(`dataHealth.handlingStates.${item.status}`)}
                       </Tag>
                       {item.verification === 'changed' || item.verification === 'unknown' ? (

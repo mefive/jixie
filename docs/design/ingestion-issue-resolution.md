@@ -24,7 +24,7 @@ Run 结束时，在保存终态的同一事务内，按已保存计划与各逻�
 
 ## 统一读取与前端
 
-`issue-state.ts` 提供计划／最近尝试分类，`issue-overview.ts` 聚合当前处理进度。诊断包复用相同分类、处理核验与计数方法。新的干净 Run 不自动清空更早 Run 中仍有效的待办；跨 Run 的 Issue ID 分别计数，不冒充去重后的唯一业务问题数。
+`issue-state.ts` 提供计划／最近尝试分类，`issue-overview.ts` 聚合当前处理进度。诊断包复用相同分类、处理核验与计数方法。跨 Run 核对同业务范围后续完整收据。证据足以确认覆盖的旧诊断在导出中列为历史并携带覆盖收据 ID，范围外的证券按现行规则说明。旧逐证券财报只在同报表类型的全市场季度均有成功收据时归档。待复核与确认待处理单列，原处理记录不改写。
 
 - `GET /api/ingestion/status` 继续提供可用性与维护状态，同时增加 health：最近 Run 的执行结果和处理统计，以及跨 Run 的 pending／resolved／accepted（分别计 error、warning）。不将来源问题用作全站读取资格。
 - `GET /api/ingestion/issues?offset=0&limit=20` 需要登录，limit 1–100，只提供分页摘要、业务身份、处理理由与核验状态，详情不返回原始 payload 或内部故障内容。
@@ -43,3 +43,9 @@ Prisma 在隔离目录生成迁移 `20261104041114_ingestion_issue_resolution`�
 - 工作库先用 SQLite 在线备份，备份位于 `apps/api/prisma/ingestion-backups/before-issue-resolution-epwbFl/dev-20261104-121409.db`。本地 API 持有连接时 Prisma 两次遇到锁，临时退出 API 子进程后，在维护锁及发布锁下应用迁移。原 watch 进程已恢复 API。
 - 幂等补齐首次新增 31 条，第二次新增 0 条。目标为 `20181231` 的 Run 含 3 条待处理 error 和 8 条待处理 warning，另有 10 条历史错误仍按已替代尝试分类。其余 20 条来自更早的 Run，有效性待核对。实际 API 和 CLI 导出均已验证。
 - 目标 Run 的 Run、Batch、Issue、相关 Daily／Dividend 行及 market revision 的迁移前后摘要一致。行情修复另行处理。
+
+## 历史覆盖验收（2026-11-04）
+
+通过只读 CLI 核对目标 `20181231` 的 3 个旧中断 Run。20 条旧诊断均有覆盖或范围排除证据，归入导出包的历史分类。最终 Run 的 8 条已修复和 3 条确认保留继续显示，待处理和待复核均为 0。
+
+30 项相关测试、36 项后端边界自测和全工作区构建通过。浏览器验收验证待复核单列以及覆盖后的顶栏和抽屉显示。

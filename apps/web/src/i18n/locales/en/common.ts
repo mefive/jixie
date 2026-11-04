@@ -34,6 +34,7 @@ export const enCommon: typeof zhCommon = {
     labels: {
       updating: 'Updating data',
       failed: 'Last update unfinished',
+      review: 'Data · {{count}} to review',
       pendingErrors: 'Data · {{count}} pending issues',
       pendingWarnings: 'Updated · {{count}} warnings',
       updated: 'Data updated',
@@ -61,8 +62,10 @@ export const enCommon: typeof zhCommon = {
     allRuns: 'Current issues across all runs',
     handlingSummary:
       'Pending errors {{errors}} · Pending warnings {{warnings}} · Repaired {{resolved}} · Accepted {{accepted}}',
-    incomplete:
-      '{{unknown}} issues have uncertain validity; {{missing}} handling records are not persisted yet (shown as pending; reconcile with the CLI).',
+    coveredHistorical: 'Later ingestion covered {{count}} historical diagnostics.',
+    needsReview: '{{count}} issues need review because coverage is unconfirmed.',
+    missingResolutionRecords:
+      '{{count}} issues still need handling records. Use the CLI to reconcile them.',
     issueDetails: 'Issue details',
     refresh: 'Refresh',
     loadFailed: 'Could not load issue details. Refresh to retry.',
@@ -70,7 +73,12 @@ export const enCommon: typeof zhCommon = {
     problem: 'Issue',
     handling: 'Handling',
     runLevel: 'Run-level issue',
-    handlingStates: { pending: 'Pending', resolved: 'Repaired', accepted: 'Accepted as-is' },
+    handlingStates: {
+      pending: 'Pending',
+      review: 'Needs review',
+      resolved: 'Repaired',
+      accepted: 'Accepted as-is',
+    },
     verification: {
       changed: 'Repaired fields changed; review required',
       unknown: 'Repair could not be verified; review required',

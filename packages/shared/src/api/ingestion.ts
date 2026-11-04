@@ -24,6 +24,7 @@ export interface IngestionHealth {
   } | null;
   handling: IssueHandlingCounts;
   unknownValidity: number;
+  coveredHistorical: number;
   missingResolutionRecords: number;
 }
 
@@ -49,7 +50,7 @@ export interface IngestionIssueList {
     businessKey: string | null;
     reasonCode: string;
     message: string;
-    status: 'pending' | 'resolved' | 'accepted';
+    status: 'pending' | 'review' | 'resolved' | 'accepted';
     verification: 'verified' | 'changed' | 'unknown' | null;
     handlingReason: string | null;
     resolvedAt: string | null;

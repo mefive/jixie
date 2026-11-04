@@ -24,7 +24,7 @@ import type { IngestionUnit } from './schema.js';
  */
 export const CALENDAR_ORIGINS = { SSE: '19901219', SZSE: '19910703', BSE: '20211115' } as const;
 const ETF_CALENDARS: Readonly<Record<string, string>> = { SH: 'SSE', SZ: 'SZSE' };
-const FINANCIAL_HISTORY_START = '19880101';
+export const FINANCIAL_HISTORY_START = '19880101';
 
 export interface IngestionPlan {
   units: IngestionUnit[];

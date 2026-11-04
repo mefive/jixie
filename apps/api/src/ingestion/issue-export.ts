@@ -67,10 +67,14 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
         const items = [];
         const handlingCounts = emptyIssueCounts();
         const handlingById = new Map();
+        const reviewDiagnostics = { error: 0, warning: 0 };
         for (const item of active) {
           const handling = await readIssueHandling(database, item);
           handlingById.set(item.issue.id, handling);
           addIssueHandling(handlingCounts, item.issue.severity, handling.status);
+          if (handling.status === 'review') {
+            reviewDiagnostics[item.issue.severity === 'warning' ? 'warning' : 'error']++;
+          }
         }
         const datasets = new Set<string>();
         const finished = run.status !== 'running' && Boolean(run.finishedAt);
@@ -213,6 +217,7 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
             effectiveBatchesInThisRun: batchCounts,
             plannedUnits: unitMap.size,
             handling: handlingCounts,
+            reviewDiagnostics,
           },
           items,
           historicalIssues: historical.map((item) => ({
@@ -222,6 +227,7 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
             reasonCode: item.issue.reasonCode,
             classification: item.classification,
             classificationReason: item.reason,
+            coverage: item.coverage,
             logicalUnit: item.batch
               ? { dataset: item.batch.dataset, scope: item.batch.scope, period: item.batch.period }
               : null,

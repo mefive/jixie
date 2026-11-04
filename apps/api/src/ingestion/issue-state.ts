@@ -3,6 +3,7 @@ import { dividendReceiptHasCompleteFields } from '#market/fundamentals/dividend-
 import { latestAttempts, unitKey } from './runs.js';
 import { parseRunPlan, runPlanSchema } from './schema.js';
 import { IngestionError } from './errors.js';
+import { issueCoverageReader } from './issue-coverage.js';
 import type { IssueClassification } from './issue-export-schema.js';
 
 const attemptOrdering = [
@@ -74,31 +75,45 @@ export async function readRunIssueState(
     }
   }
 
-  const classified = issues.map(({ batch, resolution, ...issue }) => {
-    let classification: IssueClassification = 'current';
-    let reason = 'latest_attempt_in_current_plan';
-    if (!batch) {
-      classification = 'run_level_unknown';
-      reason = 'run_level_issue_has_no_attempt_identity';
-    } else if (latest.get(unitKey(batch))?.id !== batch.id) {
-      classification = 'superseded_attempt';
-      reason = 'a_newer_attempt_exists_for_this_logical_unit';
-    } else if (!unitMap.has(unitKey(batch))) {
-      classification = planComplete ? 'obsolete_unit' : 'unknown_plan';
-      reason = planComplete
-        ? 'unit_not_in_current_saved_plan'
-        : 'saved_plan_does_not_prove_unit_membership';
-    } else if (
-      batch.dataset === 'dividends' &&
-      batch.status === 'succeeded' &&
-      !dividendReceiptHasCompleteFields(batch.request)
-    ) {
-      classification = 'incomplete_dividend_receipt';
-      reason = 'success_receipt_did_not_request_complete_dividend_fields';
-    }
+  const checkCoverage = issueCoverageReader(database, run);
+  const classified = await Promise.all(
+    issues.map(async ({ batch, resolution, ...issue }) => {
+      let classification: IssueClassification = 'current';
+      let reason = 'latest_attempt_in_current_plan';
+      if (!batch) {
+        classification = 'run_level_unknown';
+        reason = 'run_level_issue_has_no_attempt_identity';
+      } else if (latest.get(unitKey(batch))?.id !== batch.id) {
+        classification = 'superseded_attempt';
+        reason = 'a_newer_attempt_exists_for_this_logical_unit';
+      } else if (!unitMap.has(unitKey(batch))) {
+        classification = planComplete ? 'obsolete_unit' : 'unknown_plan';
+        reason = planComplete
+          ? 'unit_not_in_current_saved_plan'
+          : 'saved_plan_does_not_prove_unit_membership';
+      } else if (
+        batch.dataset === 'dividends' &&
+        batch.status === 'succeeded' &&
+        !dividendReceiptHasCompleteFields(batch.request)
+      ) {
+        classification = 'incomplete_dividend_receipt';
+        reason = 'success_receipt_did_not_request_complete_dividend_fields';
+      }
 
-    return { issue, batch, resolution, classification, reason };
-  });
+      const coverage =
+        batch &&
+        !isHistoricalIssue(classification) &&
+        (!resolution || resolution.status === 'pending')
+          ? await checkCoverage(batch, issue)
+          : null;
+      if (coverage) {
+        classification = 'covered_by_later_run';
+        reason = coverage.reason;
+      }
+
+      return { issue, batch, resolution, classification, reason, coverage };
+    }),
+  );
   const historical = classified.filter((item) => isHistoricalIssue(item.classification));
   const active = classified.filter((item) => !isHistoricalIssue(item.classification));
 
@@ -109,5 +124,9 @@ export type RunIssueState = Awaited<ReturnType<typeof readRunIssueState>>;
 export type ActiveIssue = RunIssueState['active'][number];
 
 export function isHistoricalIssue(classification: IssueClassification): boolean {
-  return classification === 'superseded_attempt' || classification === 'obsolete_unit';
+  return (
+    classification === 'superseded_attempt' ||
+    classification === 'obsolete_unit' ||
+    classification === 'covered_by_later_run'
+  );
 }

@@ -32,6 +32,7 @@ export const zhCommon = {
     labels: {
       updating: '数据更新中',
       failed: '上次更新未完成',
+      review: '数据 · {{count}} 项待复核',
       pendingErrors: '数据 · {{count}} 个问题待处理',
       pendingWarnings: '已更新 · {{count}} 条警告',
       updated: '数据已更新',
@@ -59,8 +60,9 @@ export const zhCommon = {
     allRuns: '全部运行的当前问题',
     handlingSummary:
       '待处理错误 {{errors}} · 待处理警告 {{warnings}} · 已修复 {{resolved}} · 确认保留 {{accepted}}',
-    incomplete:
-      '有效性待核对 {{unknown}} 项；尚未持久化处理记录 {{missing}} 项（按待处理展示，可用 CLI 补齐）。',
+    coveredHistorical: '后续采集已覆盖 {{count}} 条历史诊断。',
+    needsReview: '待复核 {{count}} 项，覆盖证据尚不足。',
+    missingResolutionRecords: '有 {{count}} 项尚未生成处理记录，可用 CLI 补齐。',
     issueDetails: '问题详情',
     refresh: '刷新',
     loadFailed: '问题详情加载失败，请刷新重试。',
@@ -68,7 +70,12 @@ export const zhCommon = {
     problem: '问题',
     handling: '处理状态',
     runLevel: '运行级问题',
-    handlingStates: { pending: '待处理', resolved: '已修复', accepted: '确认保留' },
+    handlingStates: {
+      pending: '待处理',
+      review: '待复核',
+      resolved: '已修复',
+      accepted: '确认保留',
+    },
     verification: { changed: '修复字段已变化，需要复核', unknown: '无法核对修复结果，需要复核' },
     issueId: 'Issue',
     notHandled: '尚未记录处理结论',

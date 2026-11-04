@@ -116,9 +116,9 @@ function matchesFields(row: unknown, fields: Record<string, unknown>): boolean {
 }
 
 /**
- * 已修复字段被覆盖或无法核对时重新显示待处理；只读查询不改写修复历史。
+ * 已证实的覆盖变化返回待处理，证据不足则待复核。
  *
- * Display changed/unverifiable repaired fields as pending without mutating stored resolution history.
+ * Reopen confirmed changes as pending and distinguish evidence that still needs review.
  */
 export async function readIssueHandling(database: Prisma.TransactionClient, item: ActiveIssue) {
   const stored = item.resolution;
@@ -129,8 +129,12 @@ export async function readIssueHandling(database: Prisma.TransactionClient, item
     verification = after.success ? await verifyRows(database, item, after.data) : 'unknown';
   }
 
+  const handling = status === 'resolved' && verification !== 'verified' ? 'pending' : status;
+  const needsReview =
+    handling === 'pending' && (item.classification !== 'current' || verification === 'unknown');
+
   return {
-    status: status === 'resolved' && verification !== 'verified' ? ('pending' as const) : status,
+    status: needsReview ? ('review' as const) : handling,
     storedStatus: status,
     verification,
     recordExists: Boolean(stored),
