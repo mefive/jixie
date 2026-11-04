@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { repairReceiptSchema } from './repair-schema.js';
 
 export const resolutionStatusSchema = z.enum(['pending', 'resolved', 'accepted']);
 const scalarSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
@@ -10,7 +11,7 @@ export const resolutionRowsSchema = z
     z.object({
       table: z.string().min(1),
       key: fieldsSchema,
-      values: fieldsSchema,
+      values: fieldsSchema.nullable(),
     }),
   )
   .min(1)
@@ -31,6 +32,7 @@ export const recordIssueResolutionSchema = z.discriminatedUnion('status', [
     after: resolutionRowsSchema,
     marketRevision: z.number().int().nonnegative(),
     previousResolutionUpdatedAt: z.string().datetime().optional(),
+    receipt: repairReceiptSchema.optional(),
   }),
   z.object({
     issueId: z.string().min(1),
@@ -39,6 +41,16 @@ export const recordIssueResolutionSchema = z.discriminatedUnion('status', [
     evidence: z.array(z.string().min(1)).min(1).max(100),
     marketRevision: z.number().int().nonnegative(),
     previousResolutionUpdatedAt: z.string().datetime().optional(),
+    receipt: repairReceiptSchema.optional(),
+  }),
+  z.object({
+    issueId: z.string().min(1),
+    status: z.literal('pending'),
+    reason: z.string().trim().min(1).max(4000),
+    evidence: z.array(z.string().min(1)).min(1).max(100),
+    marketRevision: z.number().int().nonnegative(),
+    previousResolutionUpdatedAt: z.string().datetime(),
+    receipt: repairReceiptSchema,
   }),
 ]);
 export type RecordIssueResolutionInput = z.output<typeof recordIssueResolutionSchema>;

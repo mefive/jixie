@@ -8,7 +8,8 @@
 | `pnpm data runs [--limit N]` | 默认最近 5 轮，允许 1–100；仅 id、status、startedAt、finishedAt，按开始时间及 ID 倒序 |
 | `pnpm data issues RUN_ID` | 该轮全部历史诊断及原始记录 |
 | `pnpm data issues reconcile [RUN_ID]` | 为已结束运行的有效问题幂等补齐 pending；不重置已有处理结果，不请求数据源 |
-| `pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]` | 只读导出当前诊断、来源 payload、相关业务行和实际表结构，供 Agent 离线分析；不覆盖文件 |
+| `pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]` | 只读导出诊断、业务记录、修复契约和问题模板 |
+| `pnpm data issues repair --plan FILE [--apply --expect-plan PLAN_HASH]` | 默认预览。应用时校验并原子提交业务修复及问题处理结果 |
 | `pnpm data etf list` | ETF 名单、生命周期和实际行情范围 |
 | `pnpm data etf select-top --limit 100` | 用最近完整同日规模快照选取 Top N，并入累计 ETF 名单 |
 | `pnpm data etf add CODE` / `remove CODE` | 修改名单，移出不删除历史 |

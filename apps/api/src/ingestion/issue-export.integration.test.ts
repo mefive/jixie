@@ -244,7 +244,7 @@ async function seedDiagnostics(database: Prisma) {
 }
 
 it(
-  'exports current cash conflicts and accepted warnings with actual rows/schema, keeping old errors historical',
+  'exports current cash conflicts and accepted warnings with business records and repair fields, keeping old errors historical',
   async () =>
     withSyncDatabase(async (database) => {
       await seedDiagnostics(database);
@@ -273,56 +273,46 @@ it(
       const cash = bundle.items.find((item) => item.issue.id === 'cash-conflict-0')!;
       expect(cash.issue.payload).toEqual([cashProposal, { ...cashProposal, cash_div_tax: 0.13 }]);
       expect(cash.batch).toMatchObject({ status: 'partial', responseComplete: true });
-      expect(cash.context.tables).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            table: 'Dividend',
-            match: 'found',
-            rows: [
-              expect.objectContaining({
-                id: 'known-current-dividend',
-                observedAt: capture.toISOString(),
-              }),
-            ],
-          }),
-        ]),
-      );
+      expect(cash.context).toMatchObject({
+        affectedFields: ['cashDivTax'],
+        records: [
+          {
+            key: { tsCode: '300587.SZ', endDate: '20181231', divProc: '实施' },
+            values: { cashDivTax: 0.13 },
+          },
+        ],
+        allowedOperations: ['accept', 'insert'],
+      });
       const missing = bundle.items.find((item) => item.issue.id === 'null-zero-conflict')!;
       expect(missing.issue.payload).toEqual([
         stoppedDistribution,
         { ...stoppedDistribution, cash_div: null },
       ]);
-      expect(missing.context.tables).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ table: 'Dividend', match: 'not_found', rows: [] }),
-        ]),
-      );
+      expect(missing.context).toMatchObject({
+        contextComplete: true,
+        records: [],
+        affectedFields: ['cashDiv'],
+      });
       const bar = bundle.items.find((item) => item.issue.id === 'warning-0')!;
       expect(bar.issue.payload).toMatchObject({ open: 15.5 });
-      expect(bar.context.tables).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            table: 'Daily',
-            rows: [expect.objectContaining({ open: 16 })],
-          }),
-        ]),
-      );
-      const dividendSchema = bundle.tableSchemas.find((row) => row.table === 'Dividend')!;
-      expect(dividendSchema.sql).toContain('CREATE TABLE');
-      expect(dividendSchema.columns).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ name: 'stockDividend' }),
-          expect.objectContaining({ name: 'id', primaryKeyOrder: 1 }),
-        ]),
-      );
-      expect(bundle.tableSchemas.some((row) => row.table === 'User')).toBe(false);
-      expect(
-        bundle.tableSchemas.find((row) => row.table === 'IngestionIssue')!.foreignKeys,
-      ).toEqual(
-        expect.arrayContaining([expect.objectContaining({ referencedTable: 'IngestionBatch' })]),
-      );
+      expect(bar.context).toMatchObject({
+        affectedFields: ['open', 'high', 'low', 'close'],
+        records: [
+          {
+            key: { tsCode: '000003.SZ', tradeDate: '19911107' },
+            values: { open: 16 },
+            expectedVersion: expect.stringMatching(/^[a-f0-9]{64}$/),
+          },
+        ],
+        allowedOperations: ['accept', 'update', 'delete'],
+      });
+      expect(bundle).not.toHaveProperty('tableSchemas');
+      expect(bundle).not.toHaveProperty('version');
       expect(bundle.manifest.marketRevision).toBe(42);
-      expect(bundle.manifest.schemaFingerprint).toMatch(/^[a-f0-9]{64}$/);
+      expect(JSON.stringify(bundle.repairContract)).toContain('Pre-tax cash dividend');
+      expect(JSON.stringify(bundle)).not.toMatch(
+        /CREATE TABLE|known-current-dividend|foreignKeys|schemaFingerprint/,
+      );
       expect(JSON.stringify(bundle)).not.toMatch(
         /provider-secret|never-export@example.test|private-login-data/,
       );
@@ -350,7 +340,7 @@ it(
       expect(bundle.items.map((item) => item.issue.id)).toEqual(['null-zero-conflict']);
       expect(bundle.counts.selectedDiagnostics).toEqual({ error: 1, warning: 0 });
       expect(bundle.counts.currentDiagnostics).toEqual({ error: 3, warning: 8 });
-      expect(bundle.tableSchemas.some((row) => row.table === 'Daily')).toBe(false);
+      expect(JSON.stringify(bundle.repairContract)).not.toContain('stock-prices');
       for (const issueId of ['old-dividend-issue', 'missing', 'old-catalog-issue']) {
         await expect(exportIngestionIssues({ runId, code, issueId })).rejects.toMatchObject({
           reason: 'export_issue_not_current',

@@ -1,11 +1,7 @@
-import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { getDatabase } from '#infra/database/prisma.js';
-import {
-  readDiagnosticMigrations,
-  readDiagnosticTableSchema,
-} from '#infra/database/diagnostic-schema.js';
-import { loadMarketDiagnosticContext } from '#market/synchronization/diagnostic-context.js';
+import { readRepairContext, repairIssueTemplates } from './repair-context.js';
+import { describeIssueRepairPlan } from './repair-schema.js';
 import { dividendReceiptHasCompleteFields } from '#market/fundamentals/dividend-identity.js';
 import { unitKey } from './runs.js';
 import { readRunIssueState } from './issue-state.js';
@@ -21,9 +17,9 @@ import {
 } from './issue-export-schema.js';
 
 /**
- * 在同一个只读查询事务内导出有效诊断、实际 schema 和相关业务行。
+ * 在同一个只读查询事务内导出有效诊断、业务字段和修复契约。
  *
- * Export effective diagnostics, actual schema and related rows in one read-only query transaction.
+ * Export effective diagnostics, business fields and repair contract in one read-only transaction.
  */
 export async function exportIngestionIssues(input: IssueExportInput): Promise<DiagnosticBundle> {
   const request = issueExportInputSchema.parse(input);
@@ -76,43 +72,70 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
           handlingById.set(item.issue.id, handling);
           addIssueHandling(handlingCounts, item.issue.severity, handling.status);
         }
-        const tableNames = new Set([
-          'IngestionRun',
-          'IngestionBatch',
-          'IngestionIssue',
-          'IngestionIssueResolution',
-          'MarketDataState',
-        ]);
+        const datasets = new Set<string>();
+        const finished = run.status !== 'running' && Boolean(run.finishedAt);
         for (const item of selected) {
-          const unit = item.batch ? unitMap.get(unitKey(item.batch)) : undefined;
-          const context = await loadMarketDiagnosticContext(database, {
-            dataset: item.batch?.dataset ?? 'run-level',
-            scope: item.batch?.scope ?? '',
-            period: item.batch?.period ?? '',
-            startDate: unit?.startDate ?? item.batch?.rangeStart,
-            endDate: unit?.endDate ?? item.batch?.rangeEnd,
-            businessKey: item.issue.businessKey,
-            payload: item.issue.payload,
-          });
-          for (const table of context.tableNames) {
-            tableNames.add(table);
+          const context = await readRepairContext(database, item);
+          if (context.dataset) {
+            datasets.add(context.dataset);
           }
+          const handling = handlingById.get(item.issue.id)!;
+          const templates = repairIssueTemplates(item, context, finished);
           items.push({
-            issue: item.issue,
+            issue: {
+              id: item.issue.id,
+              runId: item.issue.runId,
+              batchId: item.issue.batchId,
+              category: item.issue.category,
+              severity: item.issue.severity,
+              reasonCode: item.issue.reasonCode,
+              message: item.issue.message,
+              field: item.issue.field,
+              payload: item.issue.payload,
+              createdAt: item.issue.createdAt,
+            },
             classification: item.classification,
             classificationReason: item.reason,
-            batch: item.batch,
-            unit: unit ?? null,
-            context,
-            resolution: item.resolution,
-            handling: handlingById.get(item.issue.id),
+            batch: item.batch
+              ? {
+                  id: item.batch.id,
+                  dataset: item.batch.dataset,
+                  scope: item.batch.scope,
+                  period: item.batch.period,
+                  api: item.batch.api,
+                  request: item.batch.request,
+                  status: item.batch.status,
+                  responseComplete: item.batch.responseComplete,
+                  receivedCount: item.batch.receivedCount,
+                  acceptedCount: item.batch.acceptedCount,
+                  filteredCount: item.batch.filteredCount,
+                  rejectedCount: item.batch.rejectedCount,
+                }
+              : null,
+            unit: item.batch ? (unitMap.get(unitKey(item.batch)) ?? null) : null,
+            context: {
+              ...context,
+              templates,
+              allowedOperations: [...new Set(templates.map((template) => template.op))],
+            },
+            resolution: item.resolution
+              ? {
+                  status: item.resolution.status,
+                  reason: item.resolution.reason,
+                  evidence:
+                    item.resolution.evidence &&
+                    typeof item.resolution.evidence === 'object' &&
+                    !Array.isArray(item.resolution.evidence)
+                      ? (item.resolution.evidence.sources ?? null)
+                      : item.resolution.evidence,
+                  resolvedAt: item.resolution.resolvedAt,
+                  updatedAt: item.resolution.updatedAt,
+                  marketRevision: item.resolution.marketRevision,
+                }
+              : null,
+            handling,
           });
         }
-        const tableSchemas = [];
-        for (const table of [...tableNames].sort()) {
-          tableSchemas.push(await readDiagnosticTableSchema(database, table));
-        }
-        const migrations = await readDiagnosticMigrations(database);
         const countSeverity = (values: typeof classified) => ({
           error: values.filter((item) => item.issue.severity !== 'warning').length,
           warning: values.filter((item) => item.issue.severity === 'warning').length,
@@ -138,7 +161,6 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
           rejectedRecords: effective.reduce((count, batch) => count + batch.rejectedCount, 0),
         };
         const limitations = [
-          'mapped_repair_candidates_require_an_admission_decision',
           'historical_attempt_code_versions_not_recorded',
           ...(!planComplete ? ['saved_plan_is_incomplete_or_unsupported'] : []),
           ...(!request.code.commit ? ['code_commit_unavailable'] : []),
@@ -146,34 +168,30 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
           ...(request.code.commit && request.code.sourceDirty === null
             ? ['source_worktree_state_unavailable']
             : []),
-          ...(!migrations.available ? ['migration_receipts_unavailable'] : []),
-          ...(tableSchemas.some((table) => !table.exists) ? ['referenced_table_missing'] : []),
         ];
         const bundle = {
           format: 'jixie-ingestion-diagnostics',
-          version: 1,
           manifest: {
             exportedAt: new Date().toISOString(),
             snapshotConsistency: 'single_transaction',
             code: request.code,
             codeIdentityScope: 'exporting_workspace_not_historical_attempts',
-            schemaFingerprint: createHash('sha256')
-              .update(JSON.stringify({ tableSchemas, migrations }))
-              .digest('hex'),
-            schemaFingerprintScope: 'exported_tables_and_applied_migrations',
-            migrations,
             marketRevision: revision?.revision ?? null,
             redacted: true,
-            valueSerialization: {
-              dateTime: 'ISO_8601_from_Prisma',
-              sqlLiteralsRequireStorageVerification: true,
-            },
           },
-          run: { ...run, summaryMayBeStale: run.status === 'running' },
+          run: {
+            id: run.id,
+            status: run.status,
+            targetDate: run.targetDate,
+            startedAt: run.startedAt,
+            finishedAt: run.finishedAt,
+            summary: run.summary,
+            summaryMayBeStale: run.status === 'running',
+          },
           selection: {
             requestedIssueId: request.issueId ?? null,
             planComplete,
-            currentPlan: plan,
+            blockedUnits: plan?.plan?.blocked ?? [],
             latestAttemptOrdering: ['startedAt DESC', 'id DESC'],
             standaloneIssues: 'unknown_without_attempt_identity',
             dividendReceiptFields: 'complete_source_fields_required_for_reuse',
@@ -209,7 +227,12 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
               : null,
             latestAttemptId: item.batch ? (latest.get(unitKey(item.batch))?.id ?? null) : null,
           })),
-          tableSchemas,
+          repairContract: {
+            command: 'pnpm data issues repair --plan FILE',
+            applyOptions: '--apply --expect-plan PLAN_HASH',
+            plan: describeIssueRepairPlan(datasets),
+            note: 'Templates need evidence, a reason and any requested business values. Use only allowed operations for each issue.',
+          },
           limitations,
         };
 

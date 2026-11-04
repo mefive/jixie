@@ -20,13 +20,7 @@ Run 结束时，在保存终态的同一事务内，按已保存计划与各逻�
 
 ## 登记修复
 
-后端 `ingestion/resolutions.ts:recordIssueResolution(transaction, input)` 接收维护者已经开启的 Prisma 写事务，不开放任意 SQL 执行器或前端改价按钮。
-
-受控调用方须先在同一事务检查完整旧值及预期行数，执行已批准的业务补丁、递增 market revision，再调用登记入口；入口核对 Run 已结束、Issue 有效、实时 revision 与 after 的唯一业务行／字段。before 是调用方在写入前已核实的快照，入口不能在更新后重新证明旧值，因此不声称代替旧值保护。任何错误由调用方抛出并整体回滚。调用方仍须遵循备份、maintenance／publication 锁与消费者失效流程。
-
-accepted 表示经过说明与证据确认保留现状，不冒充数据修改。已有终态处理需提供从新诊断包取得的 previousResolutionUpdatedAt，匹配后才能更新，并把旧结论加入 history；补齐命令永远不做这种修改。
-
-读取 resolved 时，复用 Market 对受影响身份的显式 ORM 查询核对 after。字段被覆盖、目标行消失或无法完整核验时，当前展示重新成为 pending，并返回 changed／unknown；存储结论保持，供审计。不同于仅凭当前值碰巧相同自动推断修复，只有正式处理记录存在才会显示 resolved。
+[修复 CLI](ingestion-issue-export.md) 是维护者和修复 Agent 的正式入口。导出的业务契约限定操作、数据集、业务键和字段，CLI 预览校验并在执行时重新核对。业务更新、一次 market revision 递增和处理登记同事务提交。accept／reopen 只写处理记录。重开保留历史，修复后核验已写入值或删除后的缺席。
 
 ## 统一读取与前端
 
@@ -36,7 +30,7 @@ accepted 表示经过说明与证据确认保留现状，不冒充数据修改�
 - `GET /api/ingestion/issues?offset=0&limit=20` 需要登录，limit 1–100，只提供分页摘要、业务身份、处理理由与核验状态，详情不返回原始 payload 或内部故障内容。
 - 顶栏可点击的数据状态打开抽屉，分别显示本次采集结果、全部运行当前处理进度及可展开的问题摘要；支持双语、窄屏、失败重试。只有实际发布锁争用／服务故障使用既有维护遮罩。
 
-诊断包新增处理表实际结构、每项 resolution／handling 及 counts.handling；原 error／warning 与历史分类统计保持。仍保留当前有效诊断中的已处理记录供核验，Agent 按 handling.status 优先处理 pending。`runs` 保持之前约定的四字段与默认 5 条。
+诊断包包含每项 resolution／handling 及 counts.handling。原 error／warning 与历史分类统计保持。仍保留当前有效诊断中的已处理记录供核验，Agent 按 handling.status 优先处理 pending。`runs` 保持之前约定的四字段与默认 5 条。
 
 ## 迁移与验证
 

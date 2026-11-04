@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, stat } from 'node:fs/promises';
 import { loadEnvFile } from 'node:process';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -58,6 +59,35 @@ export async function executeDataCommand(
 
           return reconcileIssueResolutions(request.runId);
         }
+        case 'repair-issues': {
+          const { issueRepairPlanSchema } = await import('../repair-schema.js');
+          const { repairIngestionIssues } = await import('../repair.js');
+          const planFile = await stat(request.plan);
+          if (!planFile.isFile() || planFile.size > 1024 * 1024) {
+            throw new Error('Expected a repair JSON file of at most 1 MiB.');
+          }
+          const plan = issueRepairPlanSchema.parse(
+            JSON.parse(await readFile(request.plan, 'utf8')),
+          );
+
+          return repairIngestionIssues(plan, {
+            expectedHash: request.expectedHash,
+            signal: controller.signal,
+            backup: async () => {
+              const filename = databaseFilename();
+              const root = join(dirname(filename), 'ingestion-backups');
+              await mkdir(root, { recursive: true });
+              const destination = await mkdtemp(join(root, 'before-issue-repair-'));
+              await promisify(execFile)(
+                process.execPath,
+                [fileURLToPath(new URL('scripts/backup-db.mjs', apiDirectory))],
+                { env: { ...process.env, JIXIE_DB_PATH: filename, JIXIE_BACKUP_DIR: destination } },
+              );
+
+              return destination;
+            },
+          });
+        }
         case 'export-issues': {
           const { exportIngestionIssues } = await import('../issue-export.js');
           const { diagnosticCodeIdentity, writeIssueExportFile } =
@@ -78,7 +108,9 @@ export async function executeDataCommand(
           return database.ingestionIssue.findMany({
             where: { runId: request.runId },
             include: {
-              resolution: true,
+              resolution: {
+                select: { status: true, reason: true, resolvedAt: true, marketRevision: true },
+              },
               batch: {
                 select: {
                   dataset: true,

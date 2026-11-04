@@ -7,28 +7,20 @@ import type { DiagnosticBundle } from '../issue-export-schema.js';
 
 const bundle: DiagnosticBundle = {
   format: 'jixie-ingestion-diagnostics',
-  version: 1,
   manifest: {
     exportedAt: '2026-11-04T00:00:00Z',
     snapshotConsistency: 'single_transaction',
     code: { commit: 'test', sourceDirty: false },
     codeIdentityScope: 'exporting_workspace_not_historical_attempts',
-    schemaFingerprint: 'test',
-    schemaFingerprintScope: 'exported_tables_and_applied_migrations',
-    migrations: { available: false, applied: [] },
     marketRevision: null,
     redacted: true,
-    valueSerialization: {
-      dateTime: 'ISO_8601_from_Prisma',
-      sqlLiteralsRequireStorageVerification: true,
-    },
   },
   run: {},
   selection: {},
   counts: {},
   items: [],
   historicalIssues: [],
-  tableSchemas: [],
+  repairContract: {},
   limitations: [],
 };
 

@@ -31,6 +31,12 @@ import { isObservationDate } from '#market/synchronization/date.js';
  * 示例 / Example: pnpm data issues export RUN123 --out diagnostics.json
  * 示例 / Example: pnpm data issues export RUN123 --issue ISSUE123 --out one-issue.json
  *
+ * pnpm data issues repair --plan FILE [--apply --expect-plan PLAN_HASH]
+ * FILE：issues export 提供 repairContract 和各问题模板，计划为 {runId, actions}。
+ * FILE: a {runId, actions} JSON plan built from the export's repairContract and issue templates.
+ * 默认只读预览。--apply 与 --expect-plan 同时使用，提交已确认的预览。
+ * Preview is read-only. Use --apply and --expect-plan together to apply a reviewed preview.
+ *
  * pnpm data reset [--database /absolute/path.db] [--apply]
  * --database：可选绝对路径；--apply 才备份并执行清理，否则仅预览。
  * --database: optional absolute path; --apply backs up and resets, otherwise preview only.
@@ -49,6 +55,7 @@ export type DataRequest =
   | { action: 'issues'; runId: string }
   | { action: 'reconcile-issues'; runId?: string }
   | { action: 'export-issues'; runId: string; output: string; issueId?: string }
+  | { action: 'repair-issues'; plan: string; expectedHash?: string }
   | { action: 'list'; assetType: 'etf' | 'index' }
   | { action: 'add' | 'remove'; assetType: 'etf' | 'index'; code: string }
   | { action: 'select-top'; assetType: 'etf'; limit: number };
@@ -63,6 +70,8 @@ const usage = [
   '       pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]',
   'Export: RUN_ID from runs; --out is required (relative or absolute); --issue selects one current issue.',
   'Example: pnpm data issues export RUN123 --out diagnostics.json',
+  '       pnpm data issues repair --plan FILE [--apply --expect-plan PLAN_HASH]',
+  'Repair: use repairContract and issue templates in the export. Default is a read-only preview.',
   '       pnpm data reset [--database /absolute/path.db] [--apply]',
   '       pnpm data etf list | select-top [--limit 100] | add CODE | remove CODE',
   '       pnpm data index list | add CODE | remove CODE',
@@ -104,6 +113,23 @@ export function parseDataArguments(args: string[]): DataRequest {
   if (args[0] === 'issues' && args[1] === 'reconcile') {
     if (args.length === 2 || (args.length === 3 && /^[A-Za-z0-9_-]+$/.test(args[2]))) {
       return { action: 'reconcile-issues', runId: args[2] };
+    }
+    throw new Error(usage);
+  }
+  if (args[0] === 'issues' && args[1] === 'repair') {
+    const [, , flag, plan, apply, expect, expectedHash] = args;
+    if (flag === '--plan' && plan?.trim() && !plan.startsWith('--')) {
+      if (args.length === 4) {
+        return { action: 'repair-issues', plan };
+      }
+      if (
+        args.length === 7 &&
+        apply === '--apply' &&
+        expect === '--expect-plan' &&
+        /^[a-f0-9]{64}$/.test(expectedHash)
+      ) {
+        return { action: 'repair-issues', plan, expectedHash };
+      }
     }
     throw new Error(usage);
   }

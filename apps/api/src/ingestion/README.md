@@ -35,10 +35,6 @@ OHLC 范围矛盾作为来源 warning：股票和 ETF 保留原始正值有限�
 
 分红来源字段补齐时，恢复会检查成功收据里的实际请求字段；缺少送转或实施日期字段的旧分红批次补采一次，完整字段成功收据继续复用。旧收据不删除、不改状态，其他成功数据不重新下载。分红来源按分配形态区分独立记录，现金实施去重归 Market 规则和 Research 显式读取，不修改复权因子。
 
-采集结束后的问题分析与修复 SQL 提案见 [通用 Prompt](../../../../docs/prompts/ingestion-issue-repair.md)。[CLI 导出设计](../../../../docs/design/ingestion-issue-export.md)约定导出当前有效问题、表结构及必要业务上下文，Agent 分析导出文件；`pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]` 导出诊断包，原有 `data issues RUN_ID` 继续返回全部历史诊断。Agent 读取导出文件分析，修复 SQL 由维护者另行审阅执行；导出器通过正式 CLI 读库，不进行业务写入。
+采集结束后，按 [修复 Agent Prompt](../../../../docs/prompts/ingestion-issue-repair.md) 使用 `pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]` 一次取得诊断、业务字段和修复契约。Agent 生成业务 JSON 计划，调用 `pnpm data issues repair --plan FILE` 预览，获准后加 `--apply --expect-plan PLAN_HASH` 提交。完整流程见 [导出与修复设计](../../../../docs/design/ingestion-issue-export.md)。
 
-
-诊断导出为只读操作，有 error／warning 仍正常返回 0；原始记录、当前业务行和实际表结构保存在一个带版本的 JSON 中，默认只选当前有效问题，历史诊断身份及原因单列。无批次问题或计划／来源身份不足时保留未知状态。输出路径相对 CLI 工作目录解析，已有文件不覆盖，文件权限 0600；命令、参数和示例同时见 `cli/data.ts` 入口注释及 `--help`。导出不修改接纳规则、旧诊断或市场 revision，不执行修复 SQL。
-
-
-[问题处理与数据状态](../../../../docs/design/ingestion-issue-resolution.md)：Run 结束时同事务补齐有效问题的 pending，历史运行通过 `pnpm data issues reconcile [RUN_ID]` 幂等补齐。原 Issue／Batch／Run 不因修复被重写。修复事务通过 `recordIssueResolution` 登记 resolved／accepted；前端和诊断包共同读取当前处理状态，已修复字段被覆盖时提示复核。只读接口不自动补写，未登记问题按 pending 展示。
+[问题处理与数据状态](../../../../docs/design/ingestion-issue-resolution.md)：Run 结束时同事务补齐有效问题的 pending。历史运行通过 `pnpm data issues reconcile [RUN_ID]` 幂等补齐。CLI 在修复事务内登记 resolved／accepted 或重开为 pending，前端和导出共同读取处理结果。已经修复的字段被覆盖时提示复核。

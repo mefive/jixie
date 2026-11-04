@@ -93,7 +93,11 @@ async function verifyRows(
     }
     const rows = table.rows.map((row) => diagnosticJson(row));
     const matches = rows.filter((row) => matchesFields(row, expectation.key));
-    if (matches.length !== 1 || !matchesFields(matches[0], expectation.values)) {
+    const matchesExpectation =
+      expectation.values === null
+        ? matches.length === 0
+        : matches.length === 1 && matchesFields(matches[0], expectation.values);
+    if (!matchesExpectation) {
       return 'changed' as const;
     }
   }
@@ -177,7 +181,7 @@ export async function recordIssueResolution(
   if (request.previousResolutionUpdatedAt !== previousVersion) {
     throw new IngestionError('resolution_already_handled');
   }
-  if (previous && previousVersion) {
+  if (previous && (previousVersion || previous.reason)) {
     // 再次修复先保留上一次结论，不能覆盖掉原来的证据。
     // Preserve the previous decision and evidence before repairing a changed result again.
     const { history: _history, ...snapshot } = previous;
@@ -186,12 +190,14 @@ export async function recordIssueResolution(
   const data = {
     status: request.status,
     reason: String(diagnosticJson(request.reason)),
-    evidence: diagnosticJson(request.evidence) as Prisma.InputJsonArray,
+    evidence: diagnosticJson(
+      request.receipt ? { sources: request.evidence, receipt: request.receipt } : request.evidence,
+    ) as Prisma.InputJsonValue,
     history,
     before: request.status === 'resolved' ? request.before : pkg.Prisma.DbNull,
     after: request.status === 'resolved' ? request.after : pkg.Prisma.DbNull,
     marketRevision: request.marketRevision,
-    resolvedAt: new Date(),
+    resolvedAt: request.status === 'pending' ? null : new Date(),
   };
 
   return database.ingestionIssueResolution.upsert({

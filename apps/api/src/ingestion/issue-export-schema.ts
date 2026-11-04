@@ -19,30 +19,19 @@ export const issueClassificationSchema = z.enum([
 export type IssueClassification = z.output<typeof issueClassificationSchema>;
 
 /**
- * 导出文件独立版本化，不作为 Research SDK 或数据库模型的自动镜像。
+ * 导出面向问题修复的业务契约。
  *
- * Version exported files independently of Research SDK and persisted models.
+ * Export a business contract for issue repair.
  */
 export const diagnosticBundleSchema = z.object({
   format: z.literal('jixie-ingestion-diagnostics'),
-  version: z.literal(1),
   manifest: z.object({
     exportedAt: z.string(),
     snapshotConsistency: z.literal('single_transaction'),
     code: issueExportInputSchema.shape.code,
     codeIdentityScope: z.literal('exporting_workspace_not_historical_attempts'),
-    schemaFingerprint: z.string(),
-    schemaFingerprintScope: z.literal('exported_tables_and_applied_migrations'),
-    migrations: z.object({
-      available: z.boolean(),
-      applied: z.array(z.object({ migrationName: z.string(), checksum: z.string() })),
-    }),
     marketRevision: z.number().nullable(),
     redacted: z.literal(true),
-    valueSerialization: z.object({
-      dateTime: z.literal('ISO_8601_from_Prisma'),
-      sqlLiteralsRequireStorageVerification: z.literal(true),
-    }),
   }),
   run: z.record(z.string(), z.unknown()),
   selection: z.record(z.string(), z.unknown()),
@@ -60,7 +49,7 @@ export const diagnosticBundleSchema = z.object({
     }),
   ),
   historicalIssues: z.array(z.record(z.string(), z.unknown())),
-  tableSchemas: z.array(z.record(z.string(), z.unknown())),
+  repairContract: z.record(z.string(), z.unknown()),
   limitations: z.array(z.string()),
 });
 export type DiagnosticBundle = z.output<typeof diagnosticBundleSchema>;

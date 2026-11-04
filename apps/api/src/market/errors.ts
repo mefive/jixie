@@ -5,6 +5,14 @@ import {
 } from '#infra/errors.js';
 
 const definitions = {
+  repair_price_range: { category: 'invalid', messageKey: 'repairPriceRange' },
+  repair_price_change: { category: 'invalid', messageKey: 'repairPriceChange' },
+  repair_dividend_kind: { category: 'invalid', messageKey: 'repairDividendKind' },
+  repair_dividend_dates: { category: 'invalid', messageKey: 'repairDividendDates' },
+  repair_dividend_ratio: { category: 'invalid', messageKey: 'repairDividendRatio' },
+  repair_target_changed: { category: 'conflict', messageKey: 'repairTargetChanged' },
+  repair_security: { category: 'invalid', messageKey: 'repairSecurity' },
+  repair_dividend_identity: { category: 'conflict', messageKey: 'repairDividendIdentity' },
   ambiguous_dividend_event: { category: 'conflict', messageKey: 'ambiguousDividendEvent' },
   inputs_not_ready: { category: 'unavailable', messageKey: 'marketInputsNotReady' },
   no_data: {

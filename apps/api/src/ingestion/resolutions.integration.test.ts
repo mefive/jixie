@@ -240,9 +240,8 @@ it(
         status: 'resolved',
         verification: 'verified',
       });
-      expect(bundle.tableSchemas.some((table) => table.table === 'IngestionIssueResolution')).toBe(
-        true,
-      );
+      expect(bundle.items[0].resolution).toMatchObject({ status: 'resolved' });
+      expect(bundle.items[0].resolution).not.toHaveProperty('after');
       await database.daily.updateMany({ data: { low: 20.81 } });
       const changed = await database.$transaction((transaction) =>
         readIssueOverview(transaction, 'old-run', true),

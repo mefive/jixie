@@ -5,6 +5,50 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  repairPriceRange: {
+    zh: '修复后的最高、最低、开盘与收盘价不一致。',
+    en: 'The corrected OHLC range is inconsistent.',
+  },
+  repairPriceChange: {
+    zh: '修复后的收盘、前收盘和涨跌幅不一致。',
+    en: 'The corrected close, previous close and percentage change disagree.',
+  },
+  repairDividendKind: {
+    zh: '分红值与业务键中的分配形态不一致。',
+    en: 'The dividend values do not match the distribution kind.',
+  },
+  repairDividendDates: {
+    zh: '分红阶段、报告期、公告日、登记日或除权日不一致。',
+    en: 'The dividend stage, reporting period, announcement, record or ex-date is inconsistent.',
+  },
+  repairDividendRatio: {
+    zh: '送转合计与送股、转增分量不一致。',
+    en: 'The stock dividend total disagrees with its components.',
+  },
+  repairTargetChanged: {
+    zh: '目标记录与预期版本或缺席条件不符，请重新导出。',
+    en: 'The target differs from the expected record version or absence. Export again.',
+  },
+  repairSecurity: {
+    zh: '修复需要股票目录中的规范证券代码。',
+    en: 'Repair requires a canonical security code in the stock catalog.',
+  },
+  repairDividendIdentity: {
+    zh: '分红业务身份已存在或有歧义。',
+    en: 'The dividend identity already exists or is ambiguous.',
+  },
+  ingestionRepairScopeMismatch: {
+    zh: '修复目标不属于该问题的可写范围，或计划存在重复及冲突操作。',
+    en: 'The repair is outside the issue scope or contains duplicate or conflicting actions.',
+  },
+  ingestionRepairPlanChanged: {
+    zh: '修复计划或其依赖状态已变化，请重新导出并预览。',
+    en: 'The repair plan or its underlying state changed. Export and preview again.',
+  },
+  ingestionRepairNoChange: {
+    zh: '目标业务值已相同。请确认保留或重新检查修复范围。',
+    en: 'The business values already match. Accept them or review the repair scope.',
+  },
   ingestionResolutionNotReady: {
     zh: '只能处理已结束运行中的有效问题。',
     en: 'Only effective issues from finished runs can be handled.',
