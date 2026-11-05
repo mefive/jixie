@@ -1,5 +1,9 @@
 import { ulid } from 'ulid';
-import { dividendReceiptHasCompleteFields } from '#market/fundamentals/dividend-identity.js';
+import {
+  DIVIDEND_DATE_FIELDS,
+  dividendReceiptHasCompleteFields,
+  dividendReceiptMatchesRequests,
+} from '#market/fundamentals/dividend-identity.js';
 import { IngestionError } from './errors.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
@@ -102,6 +106,8 @@ async function collect(input: IngestionInput, replicaRunId?: string): Promise<In
         sourceStart: true,
         status: true,
         request: true,
+        responseComplete: true,
+        rejectedCount: true,
       },
     });
     const currentAttempts = latestAttempts(history.filter((batch) => batch.runId === runId));
@@ -120,9 +126,22 @@ async function collect(input: IngestionInput, replicaRunId?: string): Promise<In
       byScope.set(key, saved);
     }
     const attempted = new Set<string>();
-    const reusable = (batch: (typeof history)[number]) =>
-      batch.status === 'succeeded' &&
-      (batch.dataset !== 'dividends' || dividendReceiptHasCompleteFields(batch.request));
+    const reusable = (batch: (typeof history)[number]) => {
+      if (batch.status !== 'succeeded' || batch.dataset !== 'dividends') {
+        return batch.status === 'succeeded';
+      }
+      if (!batch.responseComplete || batch.rejectedCount !== 0) {
+        return false;
+      }
+      const dateField = DIVIDEND_DATE_FIELDS.find((field) => field === batch.scope);
+
+      return dateField
+        ? batch.rangeStart === batch.period &&
+            (batch.rangeEnd === batch.period ||
+              (batch.runId === runId && batch.rangeEnd === null)) &&
+            dividendReceiptMatchesRequests(batch.request, [{ [dateField]: batch.period }])
+        : dividendReceiptHasCompleteFields(batch.request);
+    };
     const completed = new Set(
       [...currentAttempts].filter(([, batch]) => reusable(batch)).map(([key]) => key),
     );
@@ -328,6 +347,7 @@ async function collect(input: IngestionInput, replicaRunId?: string): Promise<In
                   status,
                   responseComplete,
                   sourceStart: prepared?.sourceStartDate ?? null,
+                  ...(prepared?.hasDeferredRecords ? { rangeEnd: null } : {}),
                   request: jsonValue(diagnostics.requests),
                   receivedCount: received,
                   acceptedCount,
@@ -397,7 +417,7 @@ async function collect(input: IngestionInput, replicaRunId?: string): Promise<In
         }
         const plan =
           (dependenciesChanged || runPlan.plan?.blocked.length ? undefined : runPlan.plan) ??
-          (await planIngestion(input.targetDate, startedAt));
+          (await planIngestion(input.targetDate, startedAt, runId));
         await savePlan({ ...runPlan, plan });
         for (const unit of runPlan.plan!.units) {
           required.add(unitKey(unit));

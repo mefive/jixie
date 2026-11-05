@@ -15,6 +15,7 @@ import { etfDownloadRange } from '#market/etfs/download-range.js';
 import { readDownloadCodes } from '#market/downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '#market/registry/index-presets.js';
 import { quarterlyReportPeriods } from '#market/fundamentals/reference-periods.js';
+import { planDividendUnits } from './dividend-plan.js';
 import type { IngestionUnit } from './schema.js';
 
 /**
@@ -138,7 +139,11 @@ export async function planEtfSelections(
  *
  * Build stable natural-range units; freeze phase plans in the run and create batch rows only on attempts.
  */
-export async function planIngestion(targetDate: string, startedAt: Date): Promise<IngestionPlan> {
+export async function planIngestion(
+  targetDate: string,
+  startedAt: Date,
+  runId?: string,
+): Promise<IngestionPlan> {
   const database = getDatabase();
   const today = localDate(startedAt);
   const end = ingestionEnd(targetDate, startedAt);
@@ -321,18 +326,7 @@ export async function planIngestion(targetDate: string, startedAt: Date): Promis
   if (codes.length) {
     streams.push(financialUnits(targetDate, startedAt));
   }
-  streams.push(
-    codes.map((scope) => ({
-      dataset: 'dividends',
-      scope,
-      period: 'all',
-      fullHistory: true,
-      startDate: '',
-      endDate: targetDate,
-      api: 'dividend',
-      refresh: true,
-    })),
-  );
+  streams.push(await planDividendUnits(codes, targetDate, startedAt, runId));
   const units: IngestionUnit[] = [];
   const maximum = Math.max(0, ...streams.map((stream) => stream.length));
   for (let index = 0; index < maximum; index++) {

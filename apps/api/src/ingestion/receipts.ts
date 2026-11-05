@@ -1,4 +1,9 @@
 import { getDatabase } from '#infra/database/prisma.js';
+import {
+  DIVIDEND_DATE_FIELDS,
+  dividendReceiptMatchesRequests,
+  dividendSourceCodes,
+} from '#market/fundamentals/dividend-identity.js';
 import { unitKey } from './runs.js';
 
 /**
@@ -33,6 +38,9 @@ export async function compactSuccessfulReceipts(): Promise<number> {
       rangeStart: true,
       rangeEnd: true,
       sourceStart: true,
+      request: true,
+      responseComplete: true,
+      rejectedCount: true,
     },
   });
   // 保留同轮问题对应的较新收据，防止压缩后把被替代的问题重新列为待办。
@@ -51,6 +59,23 @@ export async function compactSuccessfulReceipts(): Promise<number> {
     const key = JSON.stringify([receipt.dataset, receipt.scope, receipt.period]);
     const newer = retained.get(key) ?? [];
     const covered = newer.some((candidate) => {
+      if (receipt.dataset === 'dividends') {
+        const dateField = DIVIDEND_DATE_FIELDS.find((field) => field === receipt.scope);
+        const requests = dateField
+          ? [{ [dateField]: receipt.period }]
+          : dividendSourceCodes(receipt.scope).map((ts_code) => ({ ts_code }));
+
+        return (
+          candidate.responseComplete &&
+          candidate.rejectedCount === 0 &&
+          Boolean(
+            candidate.rangeEnd && receipt.rangeEnd && candidate.rangeEnd >= receipt.rangeEnd,
+          ) &&
+          (!dateField ||
+            (candidate.rangeStart === receipt.period && candidate.rangeEnd === receipt.period)) &&
+          dividendReceiptMatchesRequests(candidate.request, requests)
+        );
+      }
       if (
         receipt.sourceStart &&
         (!candidate.sourceStart || candidate.sourceStart > receipt.sourceStart)

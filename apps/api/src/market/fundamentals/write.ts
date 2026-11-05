@@ -1,4 +1,5 @@
 import { mergeDividendSource } from './dividend-selection.js';
+import { DIVIDEND_DATE_FIELDS } from './dividend-identity.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import { z } from 'zod';
 import type {
@@ -477,11 +478,14 @@ async function writeDividend(
   fetchedAt: Date,
   result: AcceptedMarketPartition,
 ) {
+  const daily = DIVIDEND_DATE_FIELDS.some((field) => field === partition.scope);
   const existing = await transaction.dividend.findMany({
-    where: {
-      tsCode: partition.scope,
-      endDate: { gte: partition.startDate, lte: partition.endDate },
-    },
+    where: daily
+      ? { id: { in: [...new Set(batch.records.map(({ values }) => String(values.id)))] } }
+      : {
+          tsCode: partition.scope,
+          endDate: { gte: partition.startDate, lte: partition.endDate },
+        },
   });
   const rows = mergeRows({
     schema: dividendSchema,

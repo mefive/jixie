@@ -61,6 +61,12 @@ export interface PreparedMarketPartition {
    * History start established by a complete source query.
    */
   sourceStartDate?: string;
+  /**
+   * 响应已取得，但含未来目标推进后才能接纳的记录。
+   *
+   * The response includes rows that can only be admitted after advancing the target.
+   */
+  hasDeferredRecords?: boolean;
   status: 'complete' | 'partial' | 'waiting' | 'not_applicable' | 'error';
   checks: {
     terminalPage: boolean;

@@ -17,6 +17,7 @@ it(
       };
       const first = await ingest(input);
       expect(first.status).toBe('completed');
+      expect(calls).toContain('dividend');
       expect(await database.daily.count()).toBeGreaterThan(0);
       expect(
         await database.ingestionBatch.count({
@@ -33,7 +34,7 @@ it(
       expect(calls).not.toContain('daily');
       expect(calls).not.toContain('adj_factor');
       expect(calls).toContain('stock_basic');
-      expect(calls).toContain('dividend');
+      expect(calls).not.toContain('dividend');
       expect(calls).toContain('income_vip');
       expect(await database.daily.count()).toBe(rows);
       expect(

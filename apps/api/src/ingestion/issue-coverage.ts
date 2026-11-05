@@ -1,5 +1,9 @@
 import type { IngestionBatch, IngestionIssue, Prisma } from '@prisma/client';
-import { dividendReceiptHasCompleteFields } from '#market/fundamentals/dividend-identity.js';
+import {
+  DIVIDEND_DATE_FIELDS,
+  dividendReceiptHasCompleteFields,
+  dividendReceiptMatchesRequests,
+} from '#market/fundamentals/dividend-identity.js';
 import { quarterlyReportPeriods } from '#market/fundamentals/reference-periods.js';
 import { isObservationDate } from '#market/synchronization/date.js';
 import { canonicalStockCode } from '#market/instruments/stock-identity.js';
@@ -32,6 +36,17 @@ function records(value: unknown): Array<Record<string, unknown>> {
 }
 
 function coversRange(previous: IngestionBatch, receipt: Receipt, targetDate: string) {
+  const dateField =
+    previous.dataset === 'dividends' &&
+    DIVIDEND_DATE_FIELDS.find((field) => field === previous.scope);
+  if (dateField) {
+    return (
+      receipt.rangeStart === previous.period &&
+      receipt.rangeEnd === previous.period &&
+      dividendReceiptMatchesRequests(receipt.request, [{ [dateField]: previous.period }])
+    );
+  }
+
   const end = previous.rangeEnd ?? (previous.dataset === 'dividends' ? targetDate : null);
   return (
     (!previous.rangeStart ||

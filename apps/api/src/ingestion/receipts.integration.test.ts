@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest';
+import { DIVIDEND_SOURCE_FIELDS } from '#market/fundamentals/dividend-identity.js';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { compactSuccessfulReceipts } from './receipts.js';
 
@@ -121,7 +122,47 @@ it('compacts superseded success detail while retaining issues and wider successf
         startedAt: new Date(22000),
       },
     });
+    const dividendReceipts = [
+      {
+        id: 'complete-dividend-history',
+        index: 0,
+        rangeEnd: '20181231',
+        fields: DIVIDEND_SOURCE_FIELDS,
+      },
+      {
+        id: 'narrow-dividend-history',
+        index: 21,
+        rangeEnd: '20181230',
+        fields: DIVIDEND_SOURCE_FIELDS,
+      },
+      {
+        id: 'incomplete-dividend-fields',
+        index: 22,
+        rangeEnd: '20190101',
+        fields: 'ts_code,end_date',
+      },
+    ];
+    for (const { id, index, rangeEnd, fields } of dividendReceipts) {
+      await database.ingestionBatch.create({
+        data: {
+          id,
+          runId: `run-${index}`,
+          dataset: 'dividends',
+          scope: '600000.SH',
+          period: 'all',
+          api: 'dividend',
+          request: [{ api: 'dividend', params: { ts_code: '600000.SH' }, fields }],
+          rangeEnd,
+          status: 'succeeded',
+          responseComplete: true,
+          startedAt: new Date(index * 1000),
+        },
+      });
+    }
     expect(await compactSuccessfulReceipts()).toBe(2);
+    expect(
+      await database.ingestionBatch.findUnique({ where: { id: 'complete-dividend-history' } }),
+    ).not.toBeNull();
     expect(await database.ingestionBatch.findUnique({ where: { id: 'batch-0' } })).not.toBeNull();
     expect(
       await database.ingestionBatch.findUnique({ where: { id: 'replacement-in-original-run' } }),

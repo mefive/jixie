@@ -1,6 +1,8 @@
 import { fingerprint, hasValueConflict } from '../synchronization/rows.js';
 import type { MarketRow } from '../synchronization/partition.js';
+import { canonicalStockCode, STOCK_CODE_CHANGES } from '../instruments/stock-identity.js';
 
+export const DIVIDEND_DATE_FIELDS = ['ann_date', 'imp_ann_date'] as const;
 export const DIVIDEND_SOURCE_COLUMNS = {
   tsCode: 'ts_code',
   endDate: 'end_date',
@@ -20,6 +22,15 @@ export const DIVIDEND_SOURCE_COLUMNS = {
   shareListingDate: 'div_listdate',
 } as const;
 export const DIVIDEND_SOURCE_FIELDS = Object.values(DIVIDEND_SOURCE_COLUMNS).join(',');
+
+export function dividendSourceCodes(tsCode: string): string[] {
+  return [
+    tsCode,
+    ...STOCK_CODE_CHANGES.map((change) => change.oldTsCode).filter(
+      (code) => canonicalStockCode(code) === tsCode,
+    ),
+  ];
+}
 
 /**
  * 分配形态只区分同次响应中的现金、送转与混合记录，不冒充稳定方案编号。
@@ -161,4 +172,22 @@ export function dividendReceiptHasCompleteFields(request: unknown): boolean {
       return Object.values(DIVIDEND_SOURCE_COLUMNS).every((field) => fields.includes(field));
     })
   );
+}
+
+export function dividendReceiptMatchesRequests(
+  request: unknown,
+  expected: readonly Record<string, string>[],
+): boolean {
+  if (!dividendReceiptHasCompleteFields(request) || !Array.isArray(request)) {
+    return false;
+  }
+
+  const requested = request.flatMap((item) =>
+    item?.api === 'dividend' && item.params && typeof item.params === 'object'
+      ? [fingerprint(item.params)]
+      : [],
+  );
+  const keys = new Set(expected.map((params) => fingerprint(params)));
+
+  return keys.size === requested.length && requested.every((key) => keys.delete(key));
 }

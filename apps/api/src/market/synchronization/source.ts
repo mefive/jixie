@@ -43,7 +43,10 @@ export async function fetchSourcePages(
     requestedPageSize ?? contract.pageSize ?? 1000,
     contract.pageSize ?? Infinity,
   );
-  const snapshotLimit = contract.snapshotLimit;
+  const snapshotLimit =
+    !contract.snapshotParameter || Object.hasOwn(params, contract.snapshotParameter)
+      ? contract.snapshotLimit
+      : undefined;
   const result: SourcePages = { rows: [], complete: false, pages: 0, errors: [] };
   const signatures = new Set<string>();
   for (let pageNumber = 0; pageNumber < maximumPages; pageNumber++) {

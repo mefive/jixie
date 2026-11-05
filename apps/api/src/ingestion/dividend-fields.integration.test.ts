@@ -3,6 +3,8 @@ import { withSyncDatabase } from '../../tests/sync-database.js';
 import { emptySelections, ingestionSource, ingestionTime } from '../../tests/ingestion-source.js';
 import { DIVIDEND_SOURCE_FIELDS } from '#market/fundamentals/dividend-identity.js';
 import { ingest } from './ingest.js';
+import { acceptCandidate, ingestCandidate, inspectCandidate } from './replica.js';
+import { withCandidate } from './replica-files.js';
 
 const cash = {
   ts_code: '600000.SH',
@@ -22,6 +24,126 @@ const cash = {
   imp_ann_date: '19910103',
   div_listdate: null,
 };
+
+it(
+  'publishes date batches after retrying incomplete pagination without reloading stock history',
+  async () =>
+    withSyncDatabase(async (main) => {
+      await emptySelections(main);
+      const clock = new Date('2000-01-04T08:00:00Z');
+      const existing = await main.dividend.create({
+        data: {
+          id: 'previous-dividend',
+          tsCode: '600000.SH',
+          endDate: '19981231',
+          cashDivTax: 0.1,
+        },
+      });
+      await main.ingestionRun.create({
+        data: {
+          id: 'published-history',
+          trigger: 'manual',
+          status: 'completed',
+          scopeSnapshot: {},
+          targetDate: '20000101',
+          startedAt: clock,
+          finishedAt: clock,
+          batches: {
+            create: {
+              id: 'published-stock-dividends',
+              dataset: 'dividends',
+              scope: '600000.SH',
+              period: 'all',
+              api: 'dividend',
+              request: [
+                {
+                  api: 'dividend',
+                  params: { ts_code: '600000.SH' },
+                  fields: DIVIDEND_SOURCE_FIELDS,
+                },
+              ],
+              rangeEnd: '20000101',
+              status: 'succeeded',
+              responseComplete: true,
+              startedAt: clock,
+            },
+          },
+        },
+      });
+
+      const event = {
+        ...cash,
+        end_date: '19991231',
+        ann_date: '20000102',
+        imp_ann_date: '20000102',
+        ex_date: '20000103',
+        base_date: '19991231',
+        record_date: '20000102',
+        pay_date: '20000103',
+      };
+      const abort = new AbortController();
+      const fallback = ingestionSource();
+      const requests: Record<string, unknown>[] = [];
+      const input = {
+        targetDate: '20000102',
+        clock: () => clock,
+        onLog: () => {},
+        source: {
+          call: async (api: string, params: Record<string, unknown> = {}, fields?: string) => {
+            if (api === 'trade_cal') {
+              return [];
+            }
+            if (api !== 'dividend') {
+              return fallback.call(api, params, fields);
+            }
+            requests.push(params);
+            expect(fields).toBe(DIVIDEND_SOURCE_FIELDS);
+            if (params.imp_ann_date && !abort.signal.aborted) {
+              if (params.offset === 0) {
+                return Array.from({ length: 2000 }, () => ({ ...event, ex_date: '20000104' }));
+              }
+              abort.abort();
+              throw new Error('Controlled pagination failure');
+            }
+
+            return [event];
+          },
+        },
+      };
+      const first = await ingestCandidate({ ...input, signal: abort.signal }, true);
+      expect(first.phase).toBe('interrupted');
+      expect(requests).toEqual([
+        { ann_date: '20000102', limit: 2000, offset: 0 },
+        { imp_ann_date: '20000102', limit: 2000, offset: 0 },
+        { imp_ann_date: '20000102', limit: 2000, offset: 2000 },
+      ]);
+      expect(await main.dividend.count()).toBe(1);
+      await withCandidate(first.runId, async (candidate) => {
+        expect(await candidate.dividend.count()).toBe(2);
+        expect(await candidate.dividend.count({ where: { exDate: '20000104' } })).toBe(0);
+      });
+
+      requests.length = 0;
+      const resumed = await ingestCandidate(input, true);
+      expect(resumed).toMatchObject({ runId: first.runId, phase: 'awaiting_publish' });
+      expect(requests).toEqual([{ imp_ann_date: '20000102', limit: 2000, offset: 0 }]);
+      const review = await inspectCandidate(first.runId);
+      await acceptCandidate(first.runId, review.candidateVersion!);
+
+      expect(await main.dividend.count()).toBe(2);
+      expect(await main.dividend.findUnique({ where: { id: existing.id } })).toEqual(existing);
+      expect(await main.dividend.findFirst({ where: { endDate: event.end_date } })).toMatchObject({
+        cashDivTax: event.cash_div_tax,
+        implementationAnnouncementDate: event.imp_ann_date,
+      });
+      expect(
+        await main.ingestionBatch.count({
+          where: { runId: first.runId, dataset: 'dividends', status: 'succeeded' },
+        }),
+      ).toBe(2);
+    }),
+  60_000,
+);
 
 it(
   'refreshes a successful old-field dividend batch once in the original Run while skipping other successes',

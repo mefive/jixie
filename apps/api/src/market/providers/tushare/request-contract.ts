@@ -4,7 +4,15 @@
  * Parameters and transport modes used by maintenance; field semantics belong to domains.
  */
 export const INGESTION_SOURCE_REQUESTS: Readonly<
-  Record<string, { parameters: readonly string[]; snapshotLimit?: number; pageSize?: number }>
+  Record<
+    string,
+    {
+      parameters: readonly string[];
+      snapshotLimit?: number;
+      snapshotParameter?: string;
+      pageSize?: number;
+    }
+  >
 > = {
   trade_cal: { parameters: ['exchange', 'start_date', 'end_date'], snapshotLimit: 6000 },
   stock_basic: { parameters: ['list_status'], snapshotLimit: 10000 },
@@ -26,5 +34,10 @@ export const INGESTION_SOURCE_REQUESTS: Readonly<
   balancesheet_vip: { parameters: ['period', 'report_type', 'ts_code'], pageSize: 5000 },
   cashflow_vip: { parameters: ['period', 'report_type', 'ts_code'], pageSize: 5000 },
   fina_indicator_vip: { parameters: ['period', 'ts_code'], pageSize: 10000 },
-  dividend: { parameters: ['ts_code'], snapshotLimit: 2000 },
+  dividend: {
+    parameters: ['ts_code', 'ann_date', 'imp_ann_date'],
+    snapshotLimit: 2000,
+    snapshotParameter: 'ts_code',
+    pageSize: 2000,
+  },
 };
