@@ -29,3 +29,5 @@ apps/docs/acceptance/
 
 # Backtesting data ports and loaders are source code.
 !apps/api/src/backtesting/data/
+
+apps/api/prisma/ingestion-candidates/

@@ -35,6 +35,11 @@ export const enCommon: typeof zhCommon = {
       updating: 'Updating data',
       failed: 'Last update unfinished',
       review: 'Data · {{count}} to review',
+      candidateRepair: 'Candidate needs repair',
+      candidateRepairing: 'Repairing candidate',
+      candidatePublishing: 'Publishing candidate',
+      candidateReview: 'Candidate awaiting acceptance',
+      candidateInterrupted: 'Candidate interrupted',
       pendingErrors: 'Data · {{count}} pending issues',
       pendingWarnings: 'Updated · {{count}} warnings',
       updated: 'Data updated',
@@ -58,6 +63,8 @@ export const enCommon: typeof zhCommon = {
     originalDiagnostics: 'Original diagnostics',
     diagnosticSummary: 'Errors {{issues}} · Warnings {{warnings}}',
     severities: { error: 'Error', warning: 'Warning' },
+    candidateDetails:
+      'Working candidate {{runId}} targets {{targetDate}}. Review and repair through the CLI.',
     latestHandling: 'Handling for this run',
     allRuns: 'Current issues across all runs',
     handlingSummary:

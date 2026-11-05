@@ -504,18 +504,37 @@ model IndexBenchmark {
 /// 一轮固定目标的数据采集；摘要不承担恢复游标。
 /// One ingestion run with a fixed target; summaries never act as recovery cursors.
 model IngestionRun {
-  id            String           @id
-  trigger       String
-  targetDate    String
-  scopeSnapshot Json
-  status        String
-  summary       Json?
-  startedAt     DateTime         @default(now())
-  finishedAt    DateTime?
-  batches       IngestionBatch[]
-  issues        IngestionIssue[]
+  id                String           @id
+  trigger           String
+  targetDate        String
+  scopeSnapshot     Json
+  status            String
+  summary           Json?
+  startedAt         DateTime         @default(now())
+  finishedAt        DateTime?
+  /// 同时只允许一个未决副本。空值属于旧运行或终态。
+  /// Reserve one unresolved candidate. Null identifies legacy or terminal runs.
+  activeReplica     Int?             @unique
+  replicaPhase      String?
+  replicaBaseline   String?
+  replicaOperation  String?
+  replicaReadyAt    DateTime?
+  publishedAt       DateTime?
+  publishedRevision Int?
+  rejectionReason   String?
+  batches           IngestionBatch[]
+  issues            IngestionIssue[]
 
   @@index([startedAt])
+}
+
+/// 副本内实际变更过的业务键，随市场写事务提交。
+/// Exact business keys touched in the replica, committed with market writes.
+model IngestionReplicaChange {
+  model String
+  key   String
+
+  @@id([model, key])
 }
 
 /// 一个稳定采集单元的一次实际尝试；成功记录与业务数据共同提交。

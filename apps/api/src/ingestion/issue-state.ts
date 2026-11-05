@@ -30,7 +30,18 @@ export async function readRunIssueState(
   runId: string,
   includeAllAttempts = false,
 ) {
-  const run = await database.ingestionRun.findUnique({ where: { id: runId } });
+  const run = await database.ingestionRun.findUnique({
+    where: { id: runId },
+    select: {
+      id: true,
+      targetDate: true,
+      scopeSnapshot: true,
+      status: true,
+      summary: true,
+      startedAt: true,
+      finishedAt: true,
+    },
+  });
   if (!run) {
     throw new IngestionError('export_run_not_found');
   }

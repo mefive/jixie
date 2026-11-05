@@ -34,9 +34,9 @@ export async function readDownloadCodes(assetType: DownloadAssetType): Promise<s
 
 /** 初始化与人工空名单分开；已存在的配置永不被默认值覆盖。
  * Initialize only absent settings; saved empty lists never acquire defaults implicitly. */
-export async function initializeIndexDownloads(): Promise<void> {
+export async function initializeIndexDownloads(publish = withMarketPublication): Promise<void> {
   const database = getDatabase();
-  await withMarketPublication(() =>
+  await publish(() =>
     database.$transaction(async (transaction) => {
       await transaction.ingestionSelection.upsert({
         where: { assetType: 'index' },

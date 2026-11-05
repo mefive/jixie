@@ -14,20 +14,43 @@ import { readIssueOverview } from './issue-overview.js';
  */
 export async function getIngestionStatus(): Promise<IngestionStatus> {
   const database = getDatabase();
-  const [active, running, run, revision] = await Promise.all([
+  const [active, running, revision, candidate] = await Promise.all([
     isMarketPublicationActive(),
     isMaintenanceOwnerActive(),
-    database.ingestionRun
-      .findFirst({ where: { status: 'running' }, orderBy: [{ startedAt: 'desc' }, { id: 'desc' }] })
-      .then(
-        (run) =>
-          run ??
-          database.ingestionRun.findFirst({
-            orderBy: [{ finishedAt: 'desc' }, { startedAt: 'desc' }, { id: 'desc' }],
-          }),
-      ),
     marketRevision(),
+    database.ingestionRun
+      .findUnique({
+        where: { activeReplica: 1 },
+        select: { id: true, targetDate: true, replicaPhase: true },
+      })
+      .catch((error: unknown) => {
+        // 审阅和滚动更新期间，旧库继续提供已发布数据状态。
+        // Keep reporting published status while the candidate migration is pending.
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2022') {
+          return undefined;
+        }
+        throw error;
+      }),
   ]);
+  const published =
+    candidate === undefined
+      ? {}
+      : {
+          activeReplica: null,
+          OR: [{ replicaPhase: null }, { replicaPhase: 'published' }],
+        };
+  const select = { id: true, status: true, targetDate: true, startedAt: true } as const;
+  const run =
+    (await database.ingestionRun.findFirst({
+      where: { ...published, status: 'running' },
+      orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+      select,
+    })) ??
+    (await database.ingestionRun.findFirst({
+      where: published,
+      orderBy: [{ finishedAt: 'desc' }, { startedAt: 'desc' }, { id: 'desc' }],
+      select,
+    }));
   const batch =
     run && running
       ? await database.ingestionBatch.findFirst({
@@ -64,5 +87,14 @@ export async function getIngestionStatus(): Promise<IngestionStatus> {
     retryAfterSeconds: active ? 5 : 0,
     revision,
     health,
+    ...(candidate
+      ? {
+          candidate: {
+            runId: candidate.id,
+            targetDate: candidate.targetDate,
+            phase: candidate.replicaPhase,
+          },
+        }
+      : {}),
   };
 }

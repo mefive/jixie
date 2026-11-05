@@ -15,6 +15,12 @@ import { isObservationDate } from '#market/synchronization/date.js';
  * --limit：最近运行条数，默认 5，允许 1 至 100；仅返回 id、status、startedAt、finishedAt。
  * --limit: recent run count, default 5, range 1–100; returns only id/status/startedAt/finishedAt.
  * 示例 / Example: pnpm data runs --limit 1
+ * pnpm data runs inspect RUN_ID
+ * pnpm data runs accept RUN_ID --expect-candidate HASH
+ * pnpm data runs reject RUN_ID --reason REASON
+ * pnpm data runs recover RUN_ID --confirm-stopped
+ * inspect 返回待审核版本；accept 发布人工核验过的副本。recover 前确认旧进程已退出。
+ * Inspect returns the reviewed version; accept publishes it. Verify the previous process stopped before recover.
  * pnpm data issues RUN_ID
  * RUN_ID：runs 返回的运行 ID；issues 原命令输出该轮全部历史诊断。
  * RUN_ID: a run ID from runs; the original issues command lists all historical diagnostics.
@@ -52,6 +58,9 @@ export type DataRequest =
   | { action: 'ingest'; targetDate?: string }
   | { action: 'reset'; apply: boolean; database?: string }
   | { action: 'runs'; limit: number }
+  | { action: 'inspect-run' | 'recover-run'; runId: string }
+  | { action: 'accept-run'; runId: string; expectedVersion: string }
+  | { action: 'reject-run'; runId: string; reason: string }
   | { action: 'issues'; runId: string }
   | { action: 'reconcile-issues'; runId?: string }
   | { action: 'export-issues'; runId: string; output: string; issueId?: string }
@@ -64,6 +73,10 @@ const usage = [
   'Usage: pnpm data ingest [--to YYYYMMDD]',
   '       pnpm data runs [--limit N]',
   'Runs: default 5, range 1-100; id/status/startedAt/finishedAt only; newest first.',
+  '       pnpm data runs inspect RUN_ID',
+  '       pnpm data runs accept RUN_ID --expect-candidate HASH',
+  '       pnpm data runs reject RUN_ID --reason REASON',
+  '       pnpm data runs recover RUN_ID --confirm-stopped',
   '       pnpm data issues RUN_ID',
   '       pnpm data issues reconcile [RUN_ID]',
   'Reconcile: create missing pending records for finished runs only; never reset handled issues.',
@@ -99,6 +112,32 @@ export function parseDataArguments(args: string[]): DataRequest {
     return { action: 'ingest', targetDate: args[2] };
   }
   if (args[0] === 'runs') {
+    const [, command, runId, option, value] = args;
+    if (runId && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(runId)) {
+      if (command === 'inspect' && args.length === 3) {
+        return { action: 'inspect-run', runId };
+      }
+      if (
+        command === 'accept' &&
+        args.length === 5 &&
+        option === '--expect-candidate' &&
+        /^[a-f0-9]{64}$/.test(value)
+      ) {
+        return { action: 'accept-run', runId, expectedVersion: value };
+      }
+      if (
+        command === 'reject' &&
+        args.length === 5 &&
+        option === '--reason' &&
+        value.trim() &&
+        value.length <= 4000
+      ) {
+        return { action: 'reject-run', runId, reason: value.trim() };
+      }
+      if (command === 'recover' && args.length === 4 && option === '--confirm-stopped') {
+        return { action: 'recover-run', runId };
+      }
+    }
     if (args.length === 1) {
       return { action: 'runs', limit: 5 };
     }

@@ -1,6 +1,9 @@
 import { BusinessError, type BusinessErrorOptions } from '#infra/errors.js';
 
 const definitions = {
+  candidate_state_conflict: { category: 'conflict', messageKey: 'ingestionCandidateConflict' },
+  candidate_baseline_changed: { category: 'conflict', messageKey: 'ingestionCandidateBaseline' },
+  candidate_missing: { category: 'missing', messageKey: 'ingestionCandidateMissing' },
   repair_scope_mismatch: { category: 'invalid', messageKey: 'ingestionRepairScopeMismatch' },
   repair_plan_changed: { category: 'conflict', messageKey: 'ingestionRepairPlanChanged' },
   repair_no_change: { category: 'invalid', messageKey: 'ingestionRepairNoChange' },

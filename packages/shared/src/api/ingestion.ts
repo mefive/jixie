@@ -71,4 +71,5 @@ export interface IngestionStatus {
   retryAfterSeconds: number;
   revision: number;
   health: IngestionHealth;
+  candidate?: { runId: string; targetDate: string; phase: string | null };
 }

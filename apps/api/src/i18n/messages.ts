@@ -5,6 +5,18 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  ingestionCandidateConflict: {
+    zh: '采集副本状态或版本不匹配，请检查 Run 后重试。',
+    en: 'The candidate phase or version does not match. Inspect the run before retrying.',
+  },
+  ingestionCandidateBaseline: {
+    zh: '主库基线已变化，副本已保留，发布需要重新核验。',
+    en: 'The main database baseline changed. The candidate was retained for review.',
+  },
+  ingestionCandidateMissing: {
+    zh: '工作副本缺失，请核对文件与 Run 后决定如何恢复。',
+    en: 'The candidate database is missing. Check the file and run before recovery.',
+  },
   repairPriceRange: {
     zh: '修复后的最高、最低、开盘与收盘价不一致。',
     en: 'The corrected OHLC range is inconsistent.',

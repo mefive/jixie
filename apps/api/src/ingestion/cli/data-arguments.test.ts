@@ -96,3 +96,23 @@ it.each([
 ])('rejects invalid or duplicate run listing limits: %j', (...args) => {
   expect(() => parseDataArguments(args)).toThrow('Usage: pnpm data');
 });
+
+it('requires explicit candidate version and explicit recovery acknowledgement', () => {
+  const runId = '01M6F8ZGFR17X3ZMAX5Z7GD1DY';
+  const hash = 'a'.repeat(64);
+  expect(parseDataArguments(['runs', 'accept', runId, '--expect-candidate', hash])).toEqual({
+    action: 'accept-run',
+    runId,
+    expectedVersion: hash,
+  });
+  expect(parseDataArguments(['runs', 'reject', runId, '--reason', 'Bad source'])).toEqual({
+    action: 'reject-run',
+    runId,
+    reason: 'Bad source',
+  });
+  expect(() => parseDataArguments(['runs', 'recover', runId])).toThrow('Usage:');
+  expect(parseDataArguments(['runs', 'recover', runId, '--confirm-stopped'])).toEqual({
+    action: 'recover-run',
+    runId,
+  });
+});

@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { link, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { IngestionError } from '../errors.js';
 import type { DiagnosticBundle, IssueExportInput } from '../issue-export-schema.js';
 
@@ -64,7 +64,11 @@ export async function writeIssueExportFile(
       `${path}-shm`,
       `${path}-journal`,
     ]);
-    if (protectedPaths.includes(canonicalOutput)) {
+    const candidateRoot = join(dirname(databasePaths[0]), 'ingestion-candidates');
+    if (
+      protectedPaths.includes(canonicalOutput) ||
+      canonicalOutput.startsWith(candidateRoot + sep)
+    ) {
       throw new IngestionError('export_path_is_database');
     }
   }

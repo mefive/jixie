@@ -84,7 +84,11 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
             datasets.add(context.dataset);
           }
           const handling = handlingById.get(item.issue.id)!;
-          const templates = repairIssueTemplates(item, context, finished);
+          const templates = repairIssueTemplates(
+            item,
+            context,
+            finished && request.dataLocation !== 'published',
+          );
           items.push({
             issue: {
               id: item.issue.id,
@@ -180,6 +184,7 @@ export async function exportIngestionIssues(input: IssueExportInput): Promise<Di
             snapshotConsistency: 'single_transaction',
             code: request.code,
             codeIdentityScope: 'exporting_workspace_not_historical_attempts',
+            dataLocation: request.dataLocation ?? 'published',
             marketRevision: revision?.revision ?? null,
             redacted: true,
           },

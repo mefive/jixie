@@ -19,8 +19,9 @@ type Mutation = Awaited<ReturnType<typeof prepareMarketRepair>>;
 
 interface RepairOptions {
   expectedHash?: string;
-  backup: () => Promise<string>;
+  backup?: () => Promise<string>;
   signal?: AbortSignal;
+  candidatePath?: string;
 }
 
 function receiptOf(issue: ActiveIssue) {
@@ -37,6 +38,7 @@ async function prepare(
   database: Prisma.TransactionClient,
   plan: IssueRepairPlan,
   expectedHash?: string,
+  candidatePath?: string,
 ) {
   const { run, active } = await readRunIssueState(database, plan.runId);
   if (!run.finishedAt || run.status === 'running') {
@@ -53,7 +55,7 @@ async function prepare(
     return issue;
   });
   const revision = await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } });
-  const requestHash = fingerprint({ database: databaseFilename(), plan });
+  const requestHash = fingerprint({ database: candidatePath ?? databaseFilename(), plan });
   if (
     expectedHash &&
     issues.every((issue) => {
@@ -194,15 +196,17 @@ export async function repairIngestionIssues(plan: IssueRepairPlan, options: Repa
   const database = getDatabase();
   const expectedHash = options.expectedHash;
   if (!expectedHash) {
-    const result = await database.$transaction((transaction) => prepare(transaction, plan));
+    const result = await database.$transaction((transaction) =>
+      prepare(transaction, plan, undefined, options.candidatePath),
+    );
 
     return result.mode === 'preview' ? previewResult(result) : result;
   }
 
-  return withMaintenanceLock(async () => {
+  const execute = async () => {
     options.signal?.throwIfAborted();
     const candidate = await database.$transaction((transaction) =>
-      prepare(transaction, plan, expectedHash),
+      prepare(transaction, plan, expectedHash, options.candidatePath),
     );
     if (candidate.mode === 'already_applied') {
       return candidate;
@@ -210,13 +214,17 @@ export async function repairIngestionIssues(plan: IssueRepairPlan, options: Repa
     if (candidate.planHash !== expectedHash) {
       throw new IngestionError('repair_plan_changed');
     }
-    const backup = candidate.changes.length ? await options.backup() : null;
+    const needsBackup = candidate.changes.length > 0 && !options.candidatePath;
+    if (needsBackup && !options.backup) {
+      throw new Error('A verified backup is required before repairing published data');
+    }
+    const backup = needsBackup ? await options.backup!() : null;
 
     const apply = () =>
       database.$transaction(
         async (transaction) => {
           options.signal?.throwIfAborted();
-          const current = await prepare(transaction, plan, expectedHash);
+          const current = await prepare(transaction, plan, expectedHash, options.candidatePath);
           if (current.mode === 'already_applied') {
             return current;
           }
@@ -285,6 +293,10 @@ export async function repairIngestionIssues(plan: IssueRepairPlan, options: Repa
         { timeout: 120_000 },
       );
 
-    return candidate.changes.length ? withMarketPublication(apply) : apply();
-  });
+    return candidate.changes.length && !options.candidatePath
+      ? withMarketPublication(apply)
+      : apply();
+  };
+
+  return options.candidatePath ? execute() : withMaintenanceLock(execute);
 }

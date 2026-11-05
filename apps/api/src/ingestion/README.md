@@ -38,3 +38,6 @@ OHLC 范围矛盾作为来源 warning：股票和 ETF 保留原始正值有限�
 采集结束后，按 [修复 Agent Prompt](../../../../docs/prompts/ingestion-issue-repair.md) 使用 `pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]` 一次取得诊断、业务字段和修复契约。Agent 生成业务 JSON 计划，调用 `pnpm data issues repair --plan FILE` 预览，获准后加 `--apply --expect-plan PLAN_HASH` 提交。完整流程见 [导出与修复设计](../../../../docs/design/ingestion-issue-export.md)。
 
 [问题处理与数据状态](../../../../docs/design/ingestion-issue-resolution.md)：Run 结束时同事务补齐有效问题的 pending。历史运行通过 `pnpm data issues reconcile [RUN_ID]` 幂等补齐。CLI 在修复事务内登记 resolved／accepted 或重开为 pending，前端和导出共同读取处理结果。已经修复的字段被覆盖时提示复核。
+
+
+副本采集使用同一 Run ID 串联采集、候选修复和人工发布。使用 `pnpm data runs inspect RUN_ID` 查看候选版本。维护者核验后用 `pnpm data runs accept RUN_ID --expect-candidate HASH` 发布，或用 `pnpm data runs reject RUN_ID --reason REASON` 拒绝。进程异常退出时，确认旧命令已结束后运行 `pnpm data runs recover RUN_ID --confirm-stopped`。详见 [副本采集计划](../../../../docs/design/ingestion-replica-plan.md)。

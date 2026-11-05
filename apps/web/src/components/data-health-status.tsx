@@ -22,25 +22,41 @@ export const DataHealthStatus = observer(() => {
   const latest = health?.latestRun;
   const loader = maintenanceStore.issuesLoader;
   const pending = health?.handling.pending;
-  const label = status?.running
-    ? 'updating'
-    : ['failed', 'interrupted'].includes(latest?.status)
-      ? 'failed'
-      : pending?.error
-        ? 'pendingErrors'
-        : pending?.warning
-          ? 'pendingWarnings'
-          : health?.unknownValidity
-            ? 'review'
-            : latest
-              ? 'updated'
-              : 'uninitialized';
+  const candidatePhase = status?.candidate?.phase;
+  const candidateLabels: Record<string, string> = {
+    running: 'updating',
+    awaiting_repair: 'candidateRepair',
+    repairing: 'candidateRepairing',
+    awaiting_publish: 'candidateReview',
+    publishing: 'candidatePublishing',
+    interrupted: 'candidateInterrupted',
+  };
+  const candidateLabel = candidatePhase ? candidateLabels[candidatePhase] : undefined;
+  const label =
+    candidateLabel ??
+    (status?.running || candidatePhase === 'running'
+      ? 'updating'
+      : ['failed', 'interrupted'].includes(latest?.status)
+        ? 'failed'
+        : pending?.error
+          ? 'pendingErrors'
+          : pending?.warning
+            ? 'pendingWarnings'
+            : health?.unknownValidity
+              ? 'review'
+              : latest
+                ? 'updated'
+                : 'uninitialized');
   const color =
-    label === 'failed'
+    label === 'failed' || label === 'candidateInterrupted'
       ? 'error'
       : label === 'pendingErrors' || label === 'pendingWarnings'
         ? 'warning'
-        : label === 'updating'
+        : label === 'updating' ||
+            label === 'candidateRepair' ||
+            label === 'candidateReview' ||
+            label === 'candidateRepairing' ||
+            label === 'candidatePublishing'
           ? 'processing'
           : label === 'review'
             ? 'default'
@@ -73,6 +89,14 @@ export const DataHealthStatus = observer(() => {
       <Drawer title={t('dataHealth.title')} open={open} onClose={() => setOpen(false)} size="large">
         <div className="jx-dataHealth-content">
           <p className="jx-dataHealth-note">{t('dataHealth.description')}</p>
+          {status?.candidate && (
+            <p className="jx-dataHealth-note">
+              {t('dataHealth.candidateDetails', {
+                runId: status.candidate.runId,
+                targetDate: status.candidate.targetDate,
+              })}
+            </p>
+          )}
           {latest ? (
             <Descriptions
               size="small"

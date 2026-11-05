@@ -4,6 +4,7 @@ const identifierSchema = z.string().regex(/^[A-Za-z0-9_-]+$/);
 export const issueExportInputSchema = z.object({
   runId: identifierSchema,
   issueId: identifierSchema.optional(),
+  dataLocation: z.enum(['candidate', 'published']).optional(),
   code: z.object({ commit: z.string().nullable(), sourceDirty: z.boolean().nullable() }),
 });
 export type IssueExportInput = z.output<typeof issueExportInputSchema>;
@@ -31,6 +32,7 @@ export const diagnosticBundleSchema = z.object({
     snapshotConsistency: z.literal('single_transaction'),
     code: issueExportInputSchema.shape.code,
     codeIdentityScope: z.literal('exporting_workspace_not_historical_attempts'),
+    dataLocation: z.enum(['candidate', 'published']).optional(),
     marketRevision: z.number().nullable(),
     redacted: z.literal(true),
   }),

@@ -124,6 +124,9 @@ it(
           message: 'Fixture',
         },
       });
+      await database.ingestionReplicaChange.create({
+        data: { model: 'daily', key: '["600000.SH","20181231"]' },
+      });
       const auth = () =>
         Promise.all([
           database.user.findMany(),
@@ -162,6 +165,7 @@ it(
         database.ingestionRun.count(),
         database.ingestionBatch.count(),
         database.ingestionIssue.count(),
+        database.ingestionReplicaChange.count(),
       ]);
       expect(counts).toEqual(counts.map(() => 0));
     }),
@@ -175,12 +179,13 @@ it('accounts for every non-auth model, including receipt tables cleared through 
     (match) => match[1][0].toLowerCase() + match[1].slice(1),
   );
   const cleared = new Set(
-    [...source.matchAll(/database\.(\w+)\.deleteMany/g)].map((match) => match[1]),
+    [...source.matchAll(/(?:database|transaction)\.(\w+)\.deleteMany/g)].map((match) => match[1]),
   );
   expect(models.filter((model) => !cleared.has(model)).sort()).toEqual([
     'emailLoginChallenge',
     'ingestionBatch',
     'ingestionIssue',
+    'ingestionIssueResolution',
     'inviteCode',
     'session',
     'user',

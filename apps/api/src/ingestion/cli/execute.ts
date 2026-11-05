@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { loadEnvFile } from 'node:process';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -42,18 +42,58 @@ export async function executeDataCommand(
   try {
     const result = await withDatabase(database, async () => {
       const { listDownloads, changeDownloadList } = await import('#market/downloads/lists.js');
+      const readRun = async <Result>(
+        runId: string,
+        read: (
+          connection: typeof database,
+          dataLocation: 'candidate' | 'published',
+        ) => Promise<Result>,
+      ) => {
+        const run = await database.ingestionRun.findUnique({ where: { id: runId } });
+        if (run?.activeReplica) {
+          const { withCandidate } = await import('../replica-files.js');
+
+          return withCandidate(runId, (candidate) => read(candidate, 'candidate'));
+        }
+
+        return read(database, 'published');
+      };
       switch (request.action) {
         case 'list':
           return listDownloads(request.assetType);
         case 'add':
         case 'remove':
           return changeDownloadList(request.assetType, request.action, request.code);
-        case 'runs':
-          return database.ingestionRun.findMany({
-            select: { id: true, status: true, startedAt: true, finishedAt: true },
+        case 'runs': {
+          const rows = await database.ingestionRun.findMany({
+            select: {
+              id: true,
+              status: true,
+              startedAt: true,
+              finishedAt: true,
+              replicaPhase: true,
+            },
             orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
             take: request.limit,
           });
+
+          return rows.map(({ replicaPhase, ...row }) => ({
+            ...row,
+            status: replicaPhase ?? row.status,
+          }));
+        }
+        case 'inspect-run':
+          return (await import('../replica.js')).inspectCandidate(request.runId);
+        case 'accept-run':
+          return (await import('../replica.js')).acceptCandidate(
+            request.runId,
+            request.expectedVersion,
+            controller.signal,
+          );
+        case 'reject-run':
+          return (await import('../replica.js')).rejectCandidate(request.runId, request.reason);
+        case 'recover-run':
+          return (await import('../replica.js')).recoverCandidate(request.runId);
         case 'reconcile-issues': {
           const { reconcileIssueResolutions } = await import('../resolutions.js');
 
@@ -70,23 +110,17 @@ export async function executeDataCommand(
             JSON.parse(await readFile(request.plan, 'utf8')),
           );
 
-          return repairIngestionIssues(plan, {
-            expectedHash: request.expectedHash,
-            signal: controller.signal,
-            backup: async () => {
-              const filename = databaseFilename();
-              const root = join(dirname(filename), 'ingestion-backups');
-              await mkdir(root, { recursive: true });
-              const destination = await mkdtemp(join(root, 'before-issue-repair-'));
-              await promisify(execFile)(
-                process.execPath,
-                [fileURLToPath(new URL('scripts/backup-db.mjs', apiDirectory))],
-                { env: { ...process.env, JIXIE_DB_PATH: filename, JIXIE_BACKUP_DIR: destination } },
-              );
+          const { repairCandidate } = await import('../replica.js');
+          const { candidateFilename } = await import('../replica-files.js');
+          const path = candidateFilename(plan.runId);
 
-              return destination;
-            },
-          });
+          return repairCandidate(plan.runId, Boolean(request.expectedHash), () =>
+            repairIngestionIssues(plan, {
+              candidatePath: path,
+              expectedHash: request.expectedHash,
+              signal: controller.signal,
+            }),
+          );
         }
         case 'export-issues': {
           const { exportIngestionIssues } = await import('../issue-export.js');
@@ -94,39 +128,44 @@ export async function executeDataCommand(
             await import('./issue-export-file.js');
           const project = fileURLToPath(new URL('../../', apiDirectory));
           const code = await diagnosticCodeIdentity(project);
-          const bundle = await exportIngestionIssues({
-            runId: request.runId,
-            issueId: request.issueId,
-            code,
-          });
+          const bundle = await readRun(request.runId, (_connection, dataLocation) =>
+            exportIngestionIssues({
+              runId: request.runId,
+              issueId: request.issueId,
+              code,
+              dataLocation,
+            }),
+          );
           controller.signal.throwIfAborted();
           const output = await writeIssueExportFile(request.output, bundle, databaseFilename());
 
           return { output, counts: bundle.counts, limitations: bundle.limitations };
         }
         case 'issues':
-          return database.ingestionIssue.findMany({
-            where: { runId: request.runId },
-            include: {
-              resolution: {
-                select: { status: true, reason: true, resolvedAt: true, marketRevision: true },
-              },
-              batch: {
-                select: {
-                  dataset: true,
-                  scope: true,
-                  period: true,
-                  api: true,
-                  request: true,
-                  rangeStart: true,
-                  rangeEnd: true,
-                  responseComplete: true,
-                  status: true,
+          return readRun(request.runId, (connection) =>
+            connection.ingestionIssue.findMany({
+              where: { runId: request.runId },
+              include: {
+                resolution: {
+                  select: { status: true, reason: true, resolvedAt: true, marketRevision: true },
+                },
+                batch: {
+                  select: {
+                    dataset: true,
+                    scope: true,
+                    period: true,
+                    api: true,
+                    request: true,
+                    rangeStart: true,
+                    rangeEnd: true,
+                    responseComplete: true,
+                    status: true,
+                  },
                 },
               },
-            },
-            orderBy: { createdAt: 'asc' },
-          });
+              orderBy: { createdAt: 'asc' },
+            }),
+          );
         case 'reset': {
           const { resetBusinessData } = await import('../reset.js');
           const filename = databaseFilename();
@@ -157,29 +196,48 @@ export async function executeDataCommand(
       }
       const { TushareClient } = await import('#market/providers/tushare/tushare-client.js');
       const { loadTushareConfig } = await import('#market/providers/tushare/config.js');
-      const config = loadTushareConfig();
-      const source = new TushareClient({
-        ...config,
-        minIntervalMs: Math.max(800, config.minIntervalMs),
-        maxRetries: 2,
-      });
+      let client: InstanceType<typeof TushareClient> | undefined;
+      const source: import('#market/synchronization/source.js').SyncSource = {
+        call: (...args) => {
+          if (!client) {
+            const config = loadTushareConfig();
+            client = new TushareClient({
+              ...config,
+              minIntervalMs: Math.max(800, config.minIntervalMs),
+              maxRetries: 2,
+            });
+          }
+          return client.call(...args);
+        },
+      };
       if (request.action === 'select-top') {
         const { selectTopEtfs } = await import('#market/downloads/select-etfs.js');
 
         return selectTopEtfs({ source, limit: request.limit });
       }
-      const { ingest } = await import('../ingest.js');
+      if (request.action !== 'ingest') {
+        throw new Error('Unsupported data action');
+      }
+      const { ingestCandidate } = await import('../replica.js');
 
-      return ingest({
-        targetDate: request.targetDate ?? localDate(new Date()),
-        source,
-        signal: controller.signal,
-        trigger: process.env.JIXIE_INGESTION_TRIGGER === 'timer' ? 'timer' : 'manual',
-      });
+      return ingestCandidate(
+        {
+          targetDate: request.targetDate ?? localDate(new Date()),
+          source,
+          signal: controller.signal,
+          trigger: process.env.JIXIE_INGESTION_TRIGGER === 'timer' ? 'timer' : 'manual',
+        },
+        Boolean(request.targetDate),
+      );
     });
     console.log(JSON.stringify(result, null, 2));
 
-    return result && !Array.isArray(result) && 'status' in result && result.status !== 'completed'
+    return request.action === 'ingest' &&
+      result &&
+      'mode' in result &&
+      result.mode === 'candidate' &&
+      'phase' in result &&
+      result.phase === 'interrupted'
       ? 1
       : 0;
   } catch (error) {

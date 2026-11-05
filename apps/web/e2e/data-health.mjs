@@ -14,6 +14,7 @@ const page = await context.newPage();
 const failures = [];
 page.on('pageerror', (error) => failures.push(error.message));
 let scenario = 'pending';
+let candidate;
 let detailsFail = false;
 let detailCalls = 0;
 const allHandled = () => scenario === 'review' || scenario === 'archived';
@@ -35,6 +36,7 @@ const status = () => ({
   error: null,
   retryAfterSeconds: 0,
   revision: 34962,
+  candidate,
   health: {
     latestRun: {
       id: 'finished-run',
@@ -157,6 +159,16 @@ try {
   await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).click();
   await page.getByText('后续采集已覆盖 20 条历史诊断。', { exact: true }).waitFor();
   await page.screenshot({ path: `${output}/covered-history-zh.png`, animations: 'disabled' });
+  await page.locator('.ant-drawer-close').click();
+  candidate = { runId: 'reviewed-candidate', targetDate: '20190120', phase: 'awaiting_publish' };
+  await page.getByText('副本待接收', { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).click();
+  await page
+    .getByText('工作副本 reviewed-candidate，目标日期 20190120。审核和修复使用 CLI。', {
+      exact: true,
+    })
+    .waitFor();
+  await page.screenshot({ path: `${output}/candidate-review-zh.png`, animations: 'disabled' });
   assert.deepEqual(failures, []);
   console.log(
     JSON.stringify({
@@ -166,6 +178,7 @@ try {
         'repaired-zh.png',
         'repaired-en-mobile.png',
         'covered-history-zh.png',
+        'candidate-review-zh.png',
       ],
       detailCalls,
     }),

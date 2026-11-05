@@ -8,9 +8,11 @@ import { withSyncDatabase } from '../../tests/sync-database.js';
 import { exportIngestionIssues } from './issue-export.js';
 import { issueRepairPlanSchema, type IssueRepairPlan } from './repair-schema.js';
 import { repairIngestionIssues } from './repair.js';
+import { candidateFilename, createCandidateFile, withCandidate } from './replica-files.js';
+import { installReplicaJournal } from './replica-changes.js';
 
 const code = { commit: 'test', sourceDirty: false };
-const runId = 'repair-run';
+const runId = '01M6F8ZGFR17X3ZMAX5Z7GD1DY';
 const key = { tsCode: '000003.SZ', tradeDate: '19920131' };
 const reportKey = {
   tsCode: key.tsCode,
@@ -153,6 +155,12 @@ it(
           { ...(await template('dividend-error', 'accept')) },
         ],
       });
+      await database.ingestionRun.update({
+        where: { id: runId },
+        data: { activeReplica: 1, replicaPhase: 'awaiting_repair', replicaReadyAt: new Date() },
+      });
+      await createCandidateFile(candidateFilename(runId));
+      await withCandidate(runId, (candidate) => candidate.$transaction(installReplicaJournal));
       const filename = join(directory, 'repair.json');
       await writeFile(filename, JSON.stringify(plan));
       const invoke = async (...args: string[]) => {
@@ -186,14 +194,20 @@ it(
         mode: 'applied',
         changedRecords: 1,
         marketRevision: 41,
-        backup: expect.any(String),
+        backup: null,
       });
-      expect((await database.daily.findFirstOrThrow()).low).toBe(20.15);
+      expect((await database.daily.findFirstOrThrow()).low).toBe(20.81);
+      expect(
+        await withCandidate(
+          runId,
+          async (candidate) => (await candidate.daily.findFirstOrThrow()).low,
+        ),
+      ).toBe(20.15);
       expect(await invoke('--apply', '--expect-plan', proposal.planHash)).toMatchObject({
         mode: 'already_applied',
         marketRevision: 41,
       });
-      const bundle = await exportIngestionIssues({ runId, code });
+      const bundle = await withCandidate(runId, () => exportIngestionIssues({ runId, code }));
       expect(bundle.run.status).toBe('completed_with_issues');
       expect(bundle.counts.handling).toMatchObject({
         resolved: { warning: 1 },

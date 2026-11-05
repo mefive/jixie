@@ -4,7 +4,7 @@
 
 ## 获取问题
 
-若用户提供了诊断包，先核对其中的 Run ID、目标日期和数据 revision。若需导出，在仓库根目录执行：
+若用户提供了诊断包，先核对其中的 Run ID、目标日期、数据 revision 和 `manifest.dataLocation`。修复须以待审核工作副本的导出为依据。若需导出，在仓库根目录执行：
 
 ```bash
 pnpm data runs --limit 1
@@ -42,5 +42,7 @@ pnpm data issues repair --plan /absolute/path/repair.json --apply --expect-plan 
 ```
 
 第一条命令校验计划和当前数据，并返回业务前后值、影响条数、Issue 状态变化与 `planHash`。向维护者交付来源依据、具体字段和预览结果，说明复采是否可能重新产生问题。只有用户已明确授权执行这份具体修复时，才可运行第二条，使用同一文件和预览返回的摘要。计划或数据发生变化时，重新导出和预览。执行由 CLI 备份必要数据、完成事务并登记状态。不要手工改 Issue 或 Run。
+
+修复只写工作副本。整轮接收和拒绝由维护者使用 `pnpm data runs inspect RUN_ID` 后明确决定。
 
 执行后用相同 Run ID 重新导出到新文件，核对业务记录及 `handling.status`、`handling.verification`、`counts.handling` 和 revision。未应用时标明「已预览，未应用」。原采集 Issue、批次及 Run 继续保留当时的结果。重复提交已应用的原计划时，应检查 CLI 返回的回执与当前状态。

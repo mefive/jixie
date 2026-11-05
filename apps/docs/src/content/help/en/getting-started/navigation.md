@@ -66,6 +66,8 @@ Select the data status in the top bar to view the target date, ingestion outcome
 
 The issue list separates errors and warnings. Expand a row for its security/date, reason, and handling notes. A new successful update does not hide older pending issues; repaired fields that change again require review. Source issues do not automatically block research or backtesting. Refresh to retry if details fail to load.
 
+The data status also shows when a working candidate needs repair or awaits acceptance. Research and backtesting continue using published data during review.
+
 ## System maintenance
 
 While publishing a release or validating new market data, the product may temporarily show **System maintenance**. The page displays the current stage, completion progress, and latest available data date.
