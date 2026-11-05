@@ -16,7 +16,7 @@ import {
   hasCandidateFile,
   withCandidate,
 } from './replica-files.js';
-import type { IngestionInput } from './schema.js';
+import type { IngestionInput, IngestionRetryInput } from './schema.js';
 import { IngestionError } from './errors.js';
 
 const transactionOptions = { timeout: 120_000 };
@@ -89,18 +89,29 @@ async function reviewCandidate(runId: string) {
 }
 
 /** 主库保留活跃名额，副本持有批次数据和采集游标。 / Reserve the active slot in main and keep batch data and cursors in the candidate. */
-export async function ingestCandidate(input: IngestionInput, explicitTarget: boolean) {
+export async function ingestCandidate(
+  input: IngestionInput,
+  explicitTarget: boolean,
+  retryRunId?: string,
+) {
   if (!isObservationDate(input.targetDate)) {
     throw new IngestionError('invalid_target_date');
   }
   const main = getDatabase();
   let run = await main.ingestionRun.findUnique({ where: { activeReplica: 1 } });
+  if (retryRunId && run?.id !== retryRunId) {
+    throw new IngestionError('candidate_state_conflict');
+  }
   const operation = randomUUID();
   if (run) {
     if (explicitTarget && input.targetDate !== run.targetDate) {
       throw new IngestionError('candidate_state_conflict');
     }
-    if (run.replicaPhase !== 'interrupted') {
+    const retryRepair = retryRunId && run.replicaPhase === 'awaiting_repair';
+    if (run.replicaPhase !== 'interrupted' && !retryRepair) {
+      if (retryRunId) {
+        throw new IngestionError('candidate_state_conflict');
+      }
       return {
         mode: 'existing_candidate',
         runId: run.id,
@@ -108,7 +119,11 @@ export async function ingestCandidate(input: IngestionInput, explicitTarget: boo
         phase: run.replicaPhase,
       };
     }
-    const token = await claim(run.id, ['interrupted'], 'running');
+    const token = await claim(
+      run.id,
+      retryRepair ? ['awaiting_repair'] : ['interrupted'],
+      'running',
+    );
     run = { ...run, replicaOperation: token };
   } else {
     try {
@@ -205,6 +220,20 @@ export async function ingestCandidate(input: IngestionInput, explicitTarget: boo
     await finishOperation(id, token, { status: 'interrupted', replicaPhase: 'interrupted' });
     throw error;
   }
+}
+
+/**
+ * 显式重试同一副本，保留固定计划和所有成功批次。
+ *
+ * Explicitly retry the same candidate while retaining its frozen plan and successful batches.
+ */
+export async function retryCandidate(runId: string, input: IngestionRetryInput) {
+  const run = await getDatabase().ingestionRun.findUnique({ where: { id: runId } });
+  if (!run?.activeReplica || !['awaiting_repair', 'interrupted'].includes(run.replicaPhase ?? '')) {
+    throw new IngestionError('candidate_state_conflict');
+  }
+
+  return ingestCandidate({ ...input, targetDate: run.targetDate }, true, runId);
 }
 
 export async function inspectCandidate(runId: string) {

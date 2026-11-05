@@ -17,4 +17,6 @@
 
 正式下载只通过 `sync-partition.ts` 的领域准备和 `write.ts` 的类型化写入。旧的独立下载／替换实现已移除，测试使用同一入口。
 
+`index_weight` 按明确的 `trade_date` 获取月度快照。月度窗口先核对完整 SSE 日历，使用窗口内最后交易日；来源空响应保留已有快照，返回其他日期则记录范围错误。所有分页完成后才写入。[Tushare 指数成分和权重](https://tushare.pro/document/2?doc_id=96)
+
 成分表的 `sourceTsCode` 保存原始成分代码，`conCode` 保存规范证券身份。写入保护已知新来源，并再次校验合并后快照的权重总和；不满足完整性时整日拒收。旧的未调用 `prepare-membership` 下载路径及其专属测试已移除，正式路径回归见 [source-selection.test.ts](source-selection.test.ts)。

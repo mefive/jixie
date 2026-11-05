@@ -29,7 +29,7 @@ export const INGESTION_SOURCE_REQUESTS: Readonly<
   etf_share_size: { parameters: ['trade_date'] },
   index_daily: { parameters: ['ts_code', 'start_date', 'end_date'] },
   index_dailybasic: { parameters: ['ts_code', 'start_date', 'end_date'] },
-  index_weight: { parameters: ['index_code', 'start_date', 'end_date'] },
+  index_weight: { parameters: ['index_code', 'trade_date'] },
   income_vip: {
     parameters: ['period', 'report_type', 'ts_code', 'ann_date', 'f_ann_date'],
     pageSize: 5000,

@@ -9,6 +9,7 @@ import {
   rejectCandidate,
   repairCandidate,
   recoverCandidate,
+  retryCandidate,
 } from './replica.js';
 import { withCandidate } from './replica-files.js';
 import { exportIngestionIssues } from './issue-export.js';
@@ -23,6 +24,74 @@ const input = {
   clock: () => ingestionTime,
   onLog: () => {},
 };
+
+it(
+  'explicitly retries only failed candidate batches and keeps the original diagnostics as history',
+  async () =>
+    withSyncDatabase(async (main) => {
+      await emptySelections(main);
+      await main.ingestionSelection.update({
+        where: { assetType: 'index' },
+        data: { codes: ['000300.SH'] },
+      });
+      let fail = true;
+      const calls: Array<{ api: string; params: Record<string, unknown> }> = [];
+      const fallback = ingestionSource();
+      const source = {
+        call: async (api: string, params: Record<string, unknown> = {}, fields?: string) => {
+          calls.push({ api, params });
+          if (api === 'index_weight' && params.trade_date === targetDate && fail) {
+            throw new Error('Controlled index-weight rejection');
+          }
+
+          return fallback.call(api, params, fields);
+        },
+      };
+      const first = await ingestCandidate({ ...input, source }, true);
+      expect(first.phase).toBe('awaiting_repair');
+      expect(await main.daily.count()).toBe(0);
+      const before = await withCandidate(first.runId, (candidate) =>
+        candidate.ingestionBatch.findMany({ where: { runId: first.runId, status: 'succeeded' } }),
+      );
+      expect(before.length).toBeGreaterThan(0);
+      fail = false;
+      calls.length = 0;
+      const retried = await retryCandidate(first.runId, {
+        source,
+        clock: input.clock,
+        onLog: input.onLog,
+      });
+
+      expect(retried).toMatchObject({ runId: first.runId, phase: 'awaiting_publish', pending: 0 });
+      expect(calls).toEqual([
+        {
+          api: 'index_weight',
+          params: { index_code: '000300.SH', trade_date: targetDate, limit: 1000, offset: 0 },
+        },
+      ]);
+      await withCandidate(first.runId, async (candidate) => {
+        expect(await candidate.ingestionIssue.count({ where: { runId: first.runId } })).toBe(1);
+        expect(
+          await candidate.ingestionBatch.count({
+            where: { id: { in: before.map(({ id }) => id) }, status: 'succeeded' },
+          }),
+        ).toBe(before.length);
+        const bundle = await exportIngestionIssues({
+          runId: first.runId,
+          dataLocation: 'candidate',
+          code: { commit: 'fixture', sourceDirty: false },
+        });
+        expect(bundle.counts).toMatchObject({
+          currentDiagnostics: { error: 0 },
+          historicalDiagnostics: { error: 1 },
+        });
+      });
+      await expect(retryCandidate(first.runId, { source })).rejects.toMatchObject({
+        reason: 'candidate_state_conflict',
+      });
+    }),
+  60_000,
+);
 
 it(
   'stages data, requires the reviewed version, atomically publishes and preserves concurrent user writes',

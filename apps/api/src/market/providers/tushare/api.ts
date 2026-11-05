@@ -773,14 +773,13 @@ export interface IndexWeightRow {
 }
 
 /**
- * 读取月度指数成分权重；调用方须按区间拆分避免行数上限。
+ * 读取明确交易日的月度指数成分权重；调用方须完整处理分页。
  *
- * Index constituents + weights (monthly snapshots). A wide date range can exceed the per-call row
- * cap, so callers should fetch in chunks (e.g. by quarter).
+ * Read monthly constituent snapshots for an explicit session and consume all response pages.
  */
 export async function indexWeight(
   client: Pick<TushareClient, 'call'>,
-  params: { index_code: string; start_date: TradeDate; end_date: TradeDate },
+  params: { index_code: string; trade_date: TradeDate },
 ): Promise<IndexWeightRow[]> {
   const rows = await client.call('index_weight', params, 'index_code,con_code,trade_date,weight');
   return rows as unknown as IndexWeightRow[];

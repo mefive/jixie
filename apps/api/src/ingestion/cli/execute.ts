@@ -215,6 +215,11 @@ export async function executeDataCommand(
 
         return selectTopEtfs({ source, limit: request.limit });
       }
+      if (request.action === 'retry-run') {
+        const { retryCandidate } = await import('../replica.js');
+
+        return retryCandidate(request.runId, { source, signal: controller.signal });
+      }
       if (request.action !== 'ingest') {
         throw new Error('Unsupported data action');
       }
@@ -232,7 +237,7 @@ export async function executeDataCommand(
     });
     console.log(JSON.stringify(result, null, 2));
 
-    return request.action === 'ingest' &&
+    return (request.action === 'ingest' || request.action === 'retry-run') &&
       result &&
       'mode' in result &&
       result.mode === 'candidate' &&

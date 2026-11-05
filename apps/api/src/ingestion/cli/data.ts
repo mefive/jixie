@@ -19,6 +19,9 @@ import { isObservationDate } from '#market/synchronization/date.js';
  * pnpm data runs accept RUN_ID --expect-candidate HASH
  * pnpm data runs reject RUN_ID --reason REASON
  * pnpm data runs recover RUN_ID --confirm-stopped
+ * pnpm data runs retry RUN_ID
+ * retry 在同一副本重试未成功批次，保留已成功批次和原始诊断。
+ * Retry unsuccessful batches in the same candidate, retaining successes and original diagnostics.
  * inspect 返回待审核版本；accept 发布人工核验过的副本。recover 前确认旧进程已退出。
  * Inspect returns the reviewed version; accept publishes it. Verify the previous process stopped before recover.
  * pnpm data issues RUN_ID
@@ -58,7 +61,7 @@ export type DataRequest =
   | { action: 'ingest'; targetDate?: string }
   | { action: 'reset'; apply: boolean; database?: string }
   | { action: 'runs'; limit: number }
-  | { action: 'inspect-run' | 'recover-run'; runId: string }
+  | { action: 'inspect-run' | 'recover-run' | 'retry-run'; runId: string }
   | { action: 'accept-run'; runId: string; expectedVersion: string }
   | { action: 'reject-run'; runId: string; reason: string }
   | { action: 'issues'; runId: string }
@@ -77,6 +80,8 @@ const usage = [
   '       pnpm data runs accept RUN_ID --expect-candidate HASH',
   '       pnpm data runs reject RUN_ID --reason REASON',
   '       pnpm data runs recover RUN_ID --confirm-stopped',
+  '       pnpm data runs retry RUN_ID',
+  'Retry: retry unsuccessful candidate batches while retaining successful receipts.',
   '       pnpm data issues RUN_ID',
   '       pnpm data issues reconcile [RUN_ID]',
   'Reconcile: create missing pending records for finished runs only; never reset handled issues.',
@@ -116,6 +121,9 @@ export function parseDataArguments(args: string[]): DataRequest {
     if (runId && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(runId)) {
       if (command === 'inspect' && args.length === 3) {
         return { action: 'inspect-run', runId };
+      }
+      if (command === 'retry' && args.length === 3) {
+        return { action: 'retry-run', runId };
       }
       if (
         command === 'accept' &&

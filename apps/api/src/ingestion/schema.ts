@@ -84,6 +84,8 @@ export interface IngestionInput {
   onLog?: (line: string) => void;
 }
 
+export type IngestionRetryInput = Omit<IngestionInput, 'targetDate'>;
+
 export interface IngestionResult {
   runId: string;
   targetDate: string;

@@ -32,6 +32,8 @@ pnpm data issues export RUN_ID --issue ISSUE_ID --out /absolute/path/one-issue.j
 
 没有证据时留为待处理。请求失败、分页截断及范围缺失通常需要通过正式采集入口补采，不用手工造业务行。未支持写入的业务数据集应说明具体需要的能力，不绕过 CLI。由采集规则导致的系统性错误应单列，不能靠删除诊断或修改 Run 历史消除。
 
+来源请求问题处理后，可调用 `pnpm data runs retry RUN_ID` 在同一待修复副本重试未成功批次。该命令保留成功收据和原始诊断，补采后重新导出诊断包，核对新尝试和历史覆盖分类。采集适配代码变更遵循仓库代码审阅流程。
+
 ## 预览、提交与核验
 
 保存一份 JSON 修复计划，只包含 `runId` 和 `actions`。每个 action 按导出契约填写 `op`、`issueIds`、`reason`、`evidence`，以及该操作需要的业务参数。不要发送模板中的空占位值。

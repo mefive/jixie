@@ -1,6 +1,7 @@
 import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferStockSources } from '../instruments/source-selection.js';
-import { isObservationDate } from '../synchronization/date.js';
+import { calendarDay, isObservationDate } from '../synchronization/date.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import type {
   MarketPartition,
@@ -118,10 +119,37 @@ async function prepareIndexWeights(
   source: SyncSource,
   partition: MarketPartition,
 ): Promise<PreparedMarketPartition> {
+  if (
+    !isObservationDate(partition.startDate) ||
+    !isObservationDate(partition.endDate) ||
+    partition.startDate > partition.endDate ||
+    partition.startDate.slice(0, 6) !== partition.endDate.slice(0, 6)
+  ) {
+    throw new Error('Index weights require a valid monthly window');
+  }
+  const calendar = await getDatabase().tradeCal.findMany({
+    where: {
+      exchange: 'SSE',
+      calDate: { gte: partition.startDate, lte: partition.endDate },
+    },
+    orderBy: { calDate: 'desc' },
+    select: { calDate: true, isOpen: true },
+  });
+  let expectedDays = 0;
+  for (let date = partition.startDate; date <= partition.endDate; date = calendarDay(date, 1)) {
+    expectedDays++;
+  }
+  if (!expectedDays || calendar.length !== expectedDays) {
+    throw new Error('Index weights require a complete verified SSE calendar window');
+  }
+
+  // 月度来源按明确交易日查询；未结束月份只查询目标范围内的日期。
+  // Query monthly source snapshots by an explicit session within the fixed target window.
+  const tradeDate = calendar.find((day) => day.isOpen === 1)?.calDate ?? partition.endDate;
   const pages = await fetchSourcePages(
     source,
     'index_weight',
-    { index_code: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
+    { index_code: partition.scope, trade_date: tradeDate },
     'index_code,con_code,trade_date,weight',
   );
   const groups = new Map<string, typeof pages.rows>();
@@ -156,6 +184,7 @@ async function prepareIndexWeights(
       !pages.complete ||
       snapshot.errors.length > 0 ||
       !isObservationDate(date) ||
+      date !== tradeDate ||
       date < partition.startDate ||
       date > partition.endDate ||
       codes.size !== rows.length ||

@@ -115,4 +115,10 @@ it('requires explicit candidate version and explicit recovery acknowledgement', 
     action: 'recover-run',
     runId,
   });
+  expect(parseDataArguments(['runs', 'retry', runId])).toEqual({
+    action: 'retry-run',
+    runId,
+  });
+  expect(() => parseDataArguments(['runs', 'retry'])).toThrow('Usage:');
+  expect(() => parseDataArguments(['runs', 'retry', runId, '--force'])).toThrow('Usage:');
 });
