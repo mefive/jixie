@@ -11,6 +11,7 @@ await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
+const issueTable = page.locator('.jx-dataHealth-issues');
 const failures = [];
 page.on('pageerror', (error) => failures.push(error.message));
 let scenario = 'pending';
@@ -23,6 +24,10 @@ let publicationCalls = 0;
 let rejectVersionOnce = true;
 let candidateVersion = 'a'.repeat(64);
 const candidateRunId = '01M6NTTSCH4423N5VQ2F2CG8R6';
+const dividendHash = '56cce440712ebe1a91a0001efd0b7d279af61950f0a5f387bdb2a3fdf8da9cc0';
+const dividendKey = JSON.stringify(JSON.stringify([dividendHash]));
+const dividendMessage = `Duplicate or conflicting business key ${JSON.stringify([dividendHash])}`;
+const priceKey = JSON.stringify({ tsCode: '000003.SZ', tradeDate: '19920131' });
 const allHandled = () => scenario === 'review' || scenario === 'archived';
 const counts = () => ({
   pending: { error: allHandled() ? 0 : 3, warning: scenario === 'pending' ? 8 : 0 },
@@ -145,11 +150,12 @@ try {
               targetDate: '20181231',
               severity: index < 3 ? 'error' : 'warning',
               dataset: index < 3 ? 'dividends' : 'stock-prices',
-              scope: index < 3 ? '300587.SZ' : '000003.SZ',
-              period: '19920131',
-              businessKey: index < 3 ? '20181231' : '19920131',
+              scope: index < 3 ? '300587.SZ' : 'SSE,SZSE',
+              period: index < 3 ? 'all' : '19920131',
+              businessKey:
+                index < 3 ? dividendKey : index === 3 ? JSON.stringify(priceKey) : priceKey,
               reasonCode: index < 3 ? 'conflicting_business_key' : 'ohlc_range_inconsistent',
-              message: index < 3 ? 'Conflicting cash values' : 'Inconsistent OHLC range',
+              message: index < 3 ? dividendMessage : 'Inconsistent OHLC range',
               status:
                 scenario !== 'pending' && index >= 3
                   ? 'resolved'
@@ -158,8 +164,15 @@ try {
                     : 'pending',
               verification: scenario === 'repaired' && index >= 3 ? 'verified' : null,
               handlingReason:
-                scenario === 'repaired' && index >= 3 ? '采用对齐口径的第三方实际报价' : null,
-              resolvedAt: scenario === 'repaired' && index >= 3 ? '2026-11-04T06:00:00Z' : null,
+                scenario !== 'pending' && index >= 3
+                  ? '采用对齐口径的第三方实际报价'
+                  : allHandled() && index < 3
+                    ? '保留来源诊断，沿用已接纳的数据'
+                    : null,
+              resolvedAt:
+                (scenario !== 'pending' && index >= 3) || (allHandled() && index < 3)
+                  ? '2026-11-04T06:00:00Z'
+                  : null,
             })),
           };
           break;
@@ -178,7 +191,9 @@ try {
   assert.equal(detailCalls, 0);
   await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).click();
   await page.getByText('待处理错误 3 · 待处理警告 8 · 已修复 0 · 确认保留 0').first().waitFor();
-  await page.getByText('Inconsistent OHLC range', { exact: true }).last().waitFor();
+  await issueTable.getByText('OHLC 价格范围不一致', { exact: true }).last().waitFor();
+  assert.equal(await issueTable.getByText('000003.SZ · 1992-01-31 · 股票行情').count(), 8);
+  assert.equal(await issueTable.getByText(dividendHash, { exact: false }).count(), 0);
   await page.screenshot({ path: `${output}/pending-zh.png`, animations: 'disabled' });
   scenario = 'repaired';
   await page.getByRole('button', { name: /^刷\s*新$/ }).click();
@@ -202,7 +217,23 @@ try {
     .getByText('Pending errors 3 · Pending warnings 0 · Repaired 8 · Accepted 0')
     .first()
     .waitFor();
+  const mobileDividend = issueTable
+    .getByRole('row')
+    .filter({ hasText: 'Conflicting business key' })
+    .first();
+  await mobileDividend
+    .locator('.jx-dataHealth-issueTags')
+    .getByText('Pending', { exact: true })
+    .waitFor();
+  await assertIssueTableFits();
+  await mobileDividend.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${output}/repaired-en-mobile.png`, animations: 'disabled' });
+  await mobileDividend.locator('.ant-table-row-expand-icon').click();
+  await issueTable.getByText(dividendMessage, { exact: true }).waitFor();
+  await assertIssueTableFits();
+  await issueTable.getByText(dividendMessage, { exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${output}/issue-details-en-mobile.png`, animations: 'disabled' });
+  await mobileDividend.locator('.ant-table-row-expand-icon').click();
   await page.locator('.ant-drawer-close').click();
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByText('中', { exact: true }).click();
@@ -217,6 +248,21 @@ try {
   await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).click();
   await page.getByText('后续采集已覆盖 20 条历史诊断。', { exact: true }).waitFor();
   await page.screenshot({ path: `${output}/covered-history-zh.png`, animations: 'disabled' });
+  const desktopDividend = issueTable.getByRole('row').filter({ hasText: '业务键冲突' }).first();
+  await desktopDividend.getByText('确认保留', { exact: true }).waitFor();
+  await assertIssueTableFits();
+  await desktopDividend.locator('.ant-table-row-expand-icon').click();
+  await issueTable.getByText(dividendMessage, { exact: true }).waitFor();
+  const key = issueTable.getByText(dividendKey, { exact: true });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await key.locator('.ant-typography-copy').click();
+  await page.waitForFunction(
+    async (value) => (await navigator.clipboard.readText()) === value,
+    dividendKey,
+  );
+  await assertIssueTableFits();
+  await key.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${output}/issue-details-zh.png`, animations: 'disabled' });
   await page.locator('.ant-drawer-close').click();
   candidate = { runId: 'reviewed-candidate', targetDate: '20190120', phase: 'awaiting_publish' };
   await page.getByText('副本待接收', { exact: true }).waitFor({ timeout: 15000 });
@@ -288,7 +334,9 @@ try {
         'pending-zh.png',
         'repaired-zh.png',
         'repaired-en-mobile.png',
+        'issue-details-en-mobile.png',
         'covered-history-zh.png',
+        'issue-details-zh.png',
         'candidate-review-zh.png',
         'candidate-accept-zh.png',
         'candidate-accept-en-mobile.png',
@@ -312,6 +360,28 @@ try {
 } finally {
   await context.close();
   await browser.close();
+}
+
+async function assertIssueTableFits() {
+  await page.waitForFunction(() => {
+    const drawer = document.querySelector('.ant-drawer-content-wrapper');
+
+    return drawer && !/(?:appear|enter|leave)(?:-|\s|$)/.test(drawer.className);
+  });
+  const widths = await issueTable.locator('.ant-table-content').evaluate((element) => {
+    const right = element.getBoundingClientRect().right;
+    const drawerRight = element.closest('.ant-drawer-body').getBoundingClientRect().right;
+
+    return {
+      content: element.clientWidth,
+      scroll: element.scrollWidth,
+      overhang: Math.round(right - Math.min(drawerRight, document.documentElement.clientWidth)),
+    };
+  });
+  assert.ok(
+    widths.content > 0 && widths.scroll <= widths.content && widths.overhang <= 0,
+    JSON.stringify(widths),
+  );
 }
 
 // 等待弹窗进入动画结束，避免截图捕获透明的准备帧。
