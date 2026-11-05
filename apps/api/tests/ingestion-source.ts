@@ -25,20 +25,26 @@ export function ingestionSource(
     prices?: (date: string, offset: number) => TushareRow[];
     incomeAvailable?: () => boolean;
     incomePeriod?: string;
+    incomeAnnDate?: string;
+    incomeActualAnnDate?: string;
     onCall?: (api: string, params: Record<string, unknown>) => void;
   } = {},
 ): SyncSource {
   return {
     call: async (api, params = {}) => {
       options.onCall?.(api, params);
+      const statementQuery =
+        api !== 'fina_indicator_vip' &&
+        ['ann_date', 'f_ann_date', 'ts_code'].some((key) => typeof params[key] === 'string');
       if (
         api.endsWith('_vip') &&
-        (typeof params.period !== 'string' ||
-          params.ts_code ||
+        ((typeof params.period !== 'string' && !statementQuery) ||
           params.start_date ||
           params.end_date)
       ) {
-        throw new Error('Financial ingestion must request one whole-market report period');
+        throw new Error(
+          'Financial ingestion must request a report period, disclosure date or security history',
+        );
       }
       const date = String(params.trade_date ?? '19910104');
       switch (api) {
@@ -122,16 +128,20 @@ export function ingestionSource(
         case 'income_vip': {
           if (
             !options.incomeAvailable?.() ||
-            params.period !== (options.incomePeriod ?? '19901231') ||
+            (params.period && params.period !== (options.incomePeriod ?? '19901231')) ||
+            (params.ann_date && params.ann_date !== (options.incomeAnnDate ?? '19910103')) ||
+            (params.f_ann_date &&
+              params.f_ann_date !==
+                (options.incomeActualAnnDate ?? options.incomeAnnDate ?? '19910103')) ||
             params.report_type !== '1'
           ) {
             return [];
           }
           const row: TushareRow = {
-            ts_code: '600000.SH',
+            ts_code: String(params.ts_code ?? '600000.SH'),
             end_date: options.incomePeriod ?? '19901231',
-            ann_date: '19910103',
-            f_ann_date: '19910103',
+            ann_date: options.incomeAnnDate ?? '19910103',
+            f_ann_date: options.incomeActualAnnDate ?? options.incomeAnnDate ?? '19910103',
             report_type: '1',
             comp_type: '1',
             update_flag: '0',

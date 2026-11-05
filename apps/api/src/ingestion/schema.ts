@@ -32,6 +32,7 @@ const unitSchema = z.object({
   startDate: z.string(),
   endDate: z.string(),
   fullHistory: z.boolean().optional(),
+  announcementField: z.enum(['ann_date', 'f_ann_date']).optional(),
   exchanges: z.array(z.string()).readonly().optional(),
   catalogThrough: z.string().optional(),
 });
@@ -49,6 +50,7 @@ export const runPlanSchema = z.object({
     .object({
       units: z.array(unitSchema),
       blocked: z.array(z.object({ dataset: z.string(), scope: z.string(), message: z.string() })),
+      statementCodes: z.array(z.string()).optional(),
     })
     .optional(),
 });

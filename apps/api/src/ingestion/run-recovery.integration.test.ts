@@ -5,6 +5,7 @@ import { ingest, jsonValue } from './ingest.js';
 import { referenceUnits } from './plan.js';
 import { getIngestionStatus } from './status.js';
 import { runPlanSchema } from './schema.js';
+import { financialStatementSourceFields } from '#market/fundamentals/source-contract.js';
 
 it(
   'waits for a complete stock catalog before quarterly financial requests and rebuilds the dependent plan on recovery',
@@ -88,7 +89,7 @@ it(
 );
 
 it(
-  'resumes financial successes in the same run, then refreshes only after completion creates a new run',
+  'resumes financial successes and reuses their quarterly history in the next run',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -168,7 +169,7 @@ it(
       ).toBe(true);
       expect(
         calls.some((call) => call.api === 'income_vip' && call.params.period === '19901231'),
-      ).toBe(true);
+      ).toBe(false);
       expect((await database.financialIncomeStatement.findFirstOrThrow()).observedAt).toEqual(
         saved.observedAt,
       );
@@ -371,7 +372,13 @@ it(
             api: 'income_vip',
             rangeStart: '19880331',
             rangeEnd: '19880331',
-            request: {},
+            request: [
+              {
+                api: 'income_vip',
+                params: { period: '19880331', report_type: '1' },
+                fields: financialStatementSourceFields('income').join(','),
+              },
+            ],
             status: 'succeeded',
             responseComplete: true,
           },

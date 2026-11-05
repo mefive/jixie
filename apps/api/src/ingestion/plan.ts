@@ -16,6 +16,7 @@ import { readDownloadCodes } from '#market/downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '#market/registry/index-presets.js';
 import { quarterlyReportPeriods } from '#market/fundamentals/reference-periods.js';
 import { planDividendUnits } from './dividend-plan.js';
+import { FINANCIAL_HISTORY_START, planStatementUnits } from './statement-plan.js';
 import type { IngestionUnit } from './schema.js';
 
 /**
@@ -25,11 +26,12 @@ import type { IngestionUnit } from './schema.js';
  */
 export const CALENDAR_ORIGINS = { SSE: '19901219', SZSE: '19910703', BSE: '20211115' } as const;
 const ETF_CALENDARS: Readonly<Record<string, string>> = { SH: 'SSE', SZ: 'SZSE' };
-export const FINANCIAL_HISTORY_START = '19880101';
+export { FINANCIAL_HISTORY_START };
 
 export interface IngestionPlan {
   units: IngestionUnit[];
   blocked: Array<{ dataset: string; scope: string; message: string }>;
+  statementCodes?: string[];
 }
 
 export function referenceUnits(targetDate: string, startedAt: Date): IngestionUnit[] {
@@ -324,7 +326,12 @@ export async function planIngestion(
     })
     .sort();
   if (codes.length) {
-    streams.push(financialUnits(targetDate, startedAt));
+    streams.push([
+      ...(await planStatementUnits(codes, targetDate, startedAt, runId)),
+      ...financialUnits(targetDate, startedAt).filter(
+        (unit) => unit.dataset === 'financial-indicators',
+      ),
+    ]);
   }
   streams.push(await planDividendUnits(codes, targetDate, startedAt, runId));
   const units: IngestionUnit[] = [];
@@ -337,7 +344,7 @@ export async function planIngestion(
     }
   }
 
-  return { units, blocked };
+  return { units, blocked, statementCodes: codes };
 }
 
 /**

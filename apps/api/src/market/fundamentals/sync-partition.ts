@@ -6,9 +6,13 @@ import {
   DIVIDEND_SOURCE_FIELDS,
   dividendDistributionKind,
   dividendIdentityResolver,
-  dividendSourceCodes,
 } from './dividend-identity.js';
 import { financialStockCodes } from './scope.js';
+import {
+  FINANCIAL_ANNOUNCEMENT_FIELDS,
+  FINANCIAL_REPORT_TYPES,
+  FINANCIAL_STATEMENT_APIS,
+} from './statement-requests.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
@@ -17,7 +21,7 @@ import { getDatabase } from '#infra/database/prisma.js';
 import {
   canonicalStockCode,
   hasStockCodePredecessor,
-  STOCK_CODE_CHANGES,
+  stockSourceCodes,
 } from '../instruments/stock-identity.js';
 import { calendarDay, isObservationDate, localDate } from '../synchronization/date.js';
 import { fingerprint } from '../synchronization/rows.js';
@@ -82,18 +86,19 @@ async function prepareStatementPartition(
   fetchedAt: Date,
 ): Promise<PreparedMarketPartition> {
   const [kind, reportType, historyCode] = partition.scope.split('|');
+  const announcementField = partition.announcementField;
   if (
     !['income', 'balance_sheet', 'cash_flow'].includes(kind) ||
-    !['1', '4', '5'].includes(reportType)
+    !FINANCIAL_REPORT_TYPES.some((value) => value === reportType) ||
+    (announcementField &&
+      (historyCode ||
+        !FINANCIAL_ANNOUNCEMENT_FIELDS.includes(announcementField) ||
+        partition.startDate !== partition.endDate))
   ) {
     throw new Error('Invalid financial statement partition');
   }
   const statementKind = kind as FinancialStatementKind;
-  const api = {
-    income: 'income_vip',
-    balance_sheet: 'balancesheet_vip',
-    cash_flow: 'cashflow_vip',
-  }[statementKind];
+  const api = FINANCIAL_STATEMENT_APIS[statementKind];
   const table = {
     income: 'FinancialIncomeStatement',
     balance_sheet: 'FinancialBalanceSheet',
@@ -105,7 +110,10 @@ async function prepareStatementPartition(
     : await fetchSourcePages(
         source,
         api,
-        { period: partition.startDate, report_type: reportType },
+        {
+          [announcementField ?? 'period']: partition.startDate,
+          report_type: reportType,
+        },
         fields,
         5000,
       );
@@ -120,7 +128,8 @@ async function prepareStatementPartition(
       typeof row.comp_type !== 'string' ||
       !['1', '2', '3', '4', '7'].includes(row.comp_type) ||
       !isObservationDate(row.end_date) ||
-      (!historyCode && row.end_date !== partition.startDate) ||
+      (!historyCode && !announcementField && row.end_date !== partition.startDate) ||
+      (announcementField && row[announcementField] !== partition.startDate) ||
       (historyCode && canonicalStockCode(String(row.ts_code)) !== historyCode) ||
       row.report_type !== reportType,
   );
@@ -137,7 +146,10 @@ async function prepareStatementPartition(
   let calendarIncomplete = false;
   const candidates = scopedRows.filter(
     (row) =>
-      row.comp_type === '1' && !rejected.includes(row) && String(row.end_date) <= partition.endDate,
+      row.comp_type === '1' &&
+      !rejected.includes(row) &&
+      String(row.end_date) >= '19880101' &&
+      String(row.end_date) <= (partition.catalogThrough ?? partition.endDate),
   );
   const periods = [...new Set(candidates.map((row) => String(row.end_date)))];
   for (const period of periods) {
@@ -172,6 +184,15 @@ async function prepareStatementPartition(
     allowEmpty: true,
     observedDates: [...new Set(mapped.records.map((record) => String(record.values.endDate)))],
   });
+  result.hasDeferredRecords = Boolean(
+    announcementField &&
+    scopedRows.some(
+      (row) =>
+        row.comp_type === '1' &&
+        !rejected.includes(row) &&
+        String(row.end_date) > (partition.catalogThrough ?? partition.endDate),
+    ),
+  );
   if (calendarIncomplete) {
     result.status = result.errors.length ? 'error' : 'partial';
     result.gaps.push('Statement values retained; availability calendar is incomplete');
@@ -193,7 +214,7 @@ async function prepareDividendPartition(
     : null;
   const requests = dateField
     ? [{ [dateField]: partition.startDate }]
-    : dividendSourceCodes(partition.scope).map((ts_code) => ({ ts_code }));
+    : stockSourceCodes(partition.scope).map((ts_code) => ({ ts_code }));
   const valuesOf = (row: TushareRow): MarketRow => {
     const values = {
       ...sourceValues(row, DIVIDEND_SOURCE_COLUMNS),
@@ -415,7 +436,9 @@ async function loadStatementContext(identity: StatementPartitionIdentity, rows: 
   const where = {
     endDate: period,
     reportType,
-    ...(identity.tsCode ? { tsCode: identity.tsCode } : {}),
+    tsCode: identity.tsCode ?? {
+      in: [...new Set(rows.map((row) => canonicalStockCode(String(row.ts_code))))],
+    },
   };
   const existing = await loadStoredStatements(database, statementKind, where);
   const fields = FINANCIAL_STATEMENT_FIELDS.filter(
@@ -568,7 +591,7 @@ function mapStatementVersion(
 async function loadStoredStatements(
   database: ReturnType<typeof getDatabase>,
   kind: FinancialStatementKind,
-  where: { endDate: string; reportType: string; tsCode?: string },
+  where: { endDate: string; reportType: string; tsCode?: string | { in: string[] } },
 ) {
   switch (kind) {
     case 'income':
@@ -593,12 +616,7 @@ async function fetchFinancialHistory(
   fields: string,
   extra: Record<string, unknown> = {},
 ): Promise<SourcePages> {
-  const codes = [
-    code,
-    ...STOCK_CODE_CHANGES.filter((change) => canonicalStockCode(change.oldTsCode) === code).map(
-      (change) => change.oldTsCode,
-    ),
-  ];
+  const codes = stockSourceCodes(code);
   const pages: SourcePages = { rows: [], complete: true, pages: 0, errors: [] };
   for (const tsCode of codes) {
     const response = await fetchSourcePages(

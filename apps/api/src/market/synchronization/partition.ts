@@ -11,6 +11,12 @@ export type MarketRow = Record<string, MarketValue>;
 export interface MarketPartition {
   fullHistory?: boolean;
   /**
+   * 财报公告查询字段；省略时按报告期或证券历史获取。
+   *
+   * Statement announcement filter; omitted for report-period or security-history requests.
+   */
+  announcementField?: 'ann_date' | 'f_ann_date';
+  /**
    * 批量财务查询的标的准入截止日，与报告期边界分开。
    *
    * Listing cutoff for bulk financial queries, separate from the report-period boundary.

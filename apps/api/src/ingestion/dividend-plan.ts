@@ -1,12 +1,11 @@
-import type { IngestionBatch } from '@prisma/client';
 import { getDatabase } from '#infra/database/prisma.js';
 import {
   DIVIDEND_DATE_FIELDS,
   dividendReceiptMatchesRequests,
-  dividendSourceCodes,
 } from '#market/fundamentals/dividend-identity.js';
+import { stockSourceCodes } from '#market/instruments/stock-identity.js';
 import { calendarDay, isObservationDate, localDate } from '#market/synchronization/date.js';
-import { readIssueHandling } from './resolutions.js';
+import { isSettledReceipt } from './receipts.js';
 import type { IngestionUnit } from './schema.js';
 
 const FIRST_DATED_DIVIDEND = '20000101';
@@ -48,7 +47,7 @@ export async function planDividendUnits(
           batch.rangeStart === batch.period &&
           batch.rangeEnd === batch.period &&
           dividendReceiptMatchesRequests(batch.request, [{ [dateField]: batch.period }]);
-        dates.set(key, coversDate && (await isSettled(batch)));
+        dates.set(key, coversDate && (await isSettledReceipt(batch)));
       }
       continue;
     }
@@ -64,8 +63,11 @@ export async function planDividendUnits(
     if (covered <= (coveredThrough.get(batch.scope) ?? '')) {
       continue;
     }
-    const requests = dividendSourceCodes(batch.scope).map((ts_code) => ({ ts_code }));
-    if (dividendReceiptMatchesRequests(batch.request, requests) && (await isSettled(batch))) {
+    const requests = stockSourceCodes(batch.scope).map((ts_code) => ({ ts_code }));
+    if (
+      dividendReceiptMatchesRequests(batch.request, requests) &&
+      (await isSettledReceipt(batch))
+    ) {
       coveredThrough.set(batch.scope, covered);
     }
   }
@@ -109,40 +111,4 @@ export async function planDividendUnits(
   }
 
   return units;
-}
-
-async function isSettled(batch: IngestionBatch): Promise<boolean> {
-  if (!batch.responseComplete) {
-    return false;
-  }
-  if (batch.status === 'succeeded') {
-    return batch.rejectedCount === 0;
-  }
-  if (batch.status !== 'partial') {
-    return false;
-  }
-
-  const database = getDatabase();
-  const issues = await database.ingestionIssue.findMany({
-    where: { batchId: batch.id, severity: 'error' },
-    include: { resolution: true },
-  });
-  if (!issues.length) {
-    return false;
-  }
-  for (const { resolution, ...issue } of issues) {
-    const handling = await readIssueHandling(database, {
-      issue,
-      batch,
-      resolution,
-      classification: 'current',
-      reason: 'dividend_receipt_review',
-      coverage: null,
-    });
-    if (handling.status !== 'accepted' && handling.status !== 'resolved') {
-      return false;
-    }
-  }
-
-  return true;
 }

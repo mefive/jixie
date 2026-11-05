@@ -67,6 +67,20 @@ export function hasStockCodePredecessor(tsCode: string): boolean {
 }
 
 /**
+ * 查询规范代码及其已确认的历史来源代码。
+ *
+ * Query a canonical code together with its confirmed historical source codes.
+ */
+export function stockSourceCodes(tsCode: string): string[] {
+  return [
+    tsCode,
+    ...STOCK_CODE_CHANGES.filter((change) => canonicalStockCode(change.oldTsCode) === tsCode).map(
+      (change) => change.oldTsCode,
+    ),
+  ];
+}
+
+/**
  * 已确认接续链中越新的来源优先；未知历史来源排在最后。
  *
  * Rank newer sources first within confirmed chains; unknown legacy origins rank last.

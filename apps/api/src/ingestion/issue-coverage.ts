@@ -7,6 +7,7 @@ import {
 import { quarterlyReportPeriods } from '#market/fundamentals/reference-periods.js';
 import { isObservationDate } from '#market/synchronization/date.js';
 import { canonicalStockCode } from '#market/instruments/stock-identity.js';
+import { statementReceiptMatchesBatch } from '#market/fundamentals/statement-requests.js';
 import { FINANCIAL_HISTORY_START } from './plan.js';
 
 const receiptFields = {
@@ -20,6 +21,7 @@ const receiptFields = {
   rangeEnd: true,
   rejectedCount: true,
   filteredCount: true,
+  scope: true,
 } satisfies Prisma.IngestionBatchSelect;
 
 type Receipt = Prisma.IngestionBatchGetPayload<{ select: typeof receiptFields }>;
@@ -147,6 +149,7 @@ export function issueCoverageReader(
     if (
       !receipt ||
       !complete(receipt) ||
+      (batch.dataset === 'financial-statements' && !statementReceiptMatchesBatch(receipt)) ||
       !coversRange(batch, receipt, run.targetDate) ||
       (batch.dataset === 'dividends' && !dividendReceiptHasCompleteFields(receipt.request))
     ) {

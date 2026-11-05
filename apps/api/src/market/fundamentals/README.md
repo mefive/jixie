@@ -21,7 +21,7 @@ resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并�
 
 ## 维护调用的数据能力
 
-正式入口使用 [sync-partition.ts](sync-partition.ts) 准备一个来源报告期的全市场报表／指标窗口或单股完整分红历史，再由 [write.ts](write.ts) 显式写对应表。报表对象按版本指纹追加，财务指标保留捕获版本；日常不写通用来源证据表。分红当前值的 `observedAt`／`availabilityQuality` 随业务行保存，同值重复抓取和代码接续保留时间，真实修订更新捕获时间。Research 的经济除权日与可得日期继续分开。
+正式入口使用 [sync-partition.ts](sync-partition.ts) 准备报告期窗口、公告日期窗口或单证券历史，再由 [write.ts](write.ts) 显式写对应表。三张报表的 `ann_date`／`f_ann_date` 查询使用与季度查询相同的完整字段和版本映射；日期筛选与返回报告期分别验证，按公告记录涉及的证券和报告期读取已有版本。报表对象按版本指纹追加，财务指标保留捕获版本；日常不写通用来源证据表。分红当前值的 `observedAt`／`availabilityQuality` 随业务行保存，同值重复抓取和代码接续保留时间，真实修订更新捕获时间。Research 的经济除权日与可得日期继续分开。
 
 [audit.ts](audit.ts) 拥有财报可得时间、会计勾稽与指标覆盖检查，测试包括 [真实临时 SQLite](audit.integration.test.ts)。升级搬移和中断恢复见 [升级测试](../../../tests/minimal-sync-migration.test.ts)。
 
@@ -52,7 +52,7 @@ resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并�
 十表迁移只新增可空来源列，旧值默认 null；Prisma schema 的内部字段不增加 Research SDK 列。财报 resolver 版本提升至 3，消费者继续通过现有显式映射读取。
 
 
-Ingestion 固定从 1988 年枚举季度，使用 VIP 按期下载全市场，不扫描财务目录。[scope.ts](scope.ts) 只按最终截止日筛选证券，`catalogThrough` 与窗口自身报告期分开，允许已上市证券保存这一覆盖范围内的上市前财务。财报、指标的版本与公告时间规则保持原样。
+Ingestion 的财报历史基线从 1988 年枚举季度，通过 VIP 获取全市场；后续按公告日及实际公告日增量获取，新纳入证券补齐 1988 年起历史。[scope.ts](scope.ts) 按最终截止日筛选证券，`catalogThrough` 与请求日期或报告期分别保存，允许已上市证券保存这一覆盖范围内的上市前财务。[statement-requests.ts](statement-requests.ts) 声明报表类型、日期入口和完整收据匹配规则。
 
 
 ## 分红独立方案与现金实施记录

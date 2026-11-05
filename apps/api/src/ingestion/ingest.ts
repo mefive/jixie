@@ -1,4 +1,5 @@
 import { ulid } from 'ulid';
+import { statementReceiptMatchesBatch } from '#market/fundamentals/statement-requests.js';
 import {
   DIVIDEND_DATE_FIELDS,
   dividendReceiptHasCompleteFields,
@@ -127,6 +128,14 @@ async function collect(input: IngestionInput, replicaRunId?: string): Promise<In
     }
     const attempted = new Set<string>();
     const reusable = (batch: (typeof history)[number]) => {
+      if (batch.dataset === 'financial-statements') {
+        return (
+          batch.status === 'succeeded' &&
+          batch.responseComplete &&
+          batch.rejectedCount === 0 &&
+          statementReceiptMatchesBatch(batch, batch.runId === runId)
+        );
+      }
       if (batch.status !== 'succeeded' || batch.dataset !== 'dividends') {
         return batch.status === 'succeeded';
       }
@@ -215,9 +224,8 @@ async function collect(input: IngestionInput, replicaRunId?: string): Promise<In
           startedAt: clock(),
         },
       });
-      log(
-        `[ingestion] ${unit.dataset}/${unit.scope} ${unit.fullHistory ? 'all' : unit.startDate}..${unit.endDate}`,
-      );
+      const logScope = [unit.dataset, unit.scope, unit.announcementField].filter(Boolean).join('/');
+      log(`[ingestion] ${logScope} ${unit.fullHistory ? 'all' : unit.startDate}..${unit.endDate}`);
       let prepared: PreparedMarketPartition | undefined;
       let selection: string[] | undefined;
       let succeeded = false;

@@ -30,9 +30,18 @@ export const INGESTION_SOURCE_REQUESTS: Readonly<
   index_daily: { parameters: ['ts_code', 'start_date', 'end_date'] },
   index_dailybasic: { parameters: ['ts_code', 'start_date', 'end_date'] },
   index_weight: { parameters: ['index_code', 'start_date', 'end_date'] },
-  income_vip: { parameters: ['period', 'report_type', 'ts_code'], pageSize: 5000 },
-  balancesheet_vip: { parameters: ['period', 'report_type', 'ts_code'], pageSize: 5000 },
-  cashflow_vip: { parameters: ['period', 'report_type', 'ts_code'], pageSize: 5000 },
+  income_vip: {
+    parameters: ['period', 'report_type', 'ts_code', 'ann_date', 'f_ann_date'],
+    pageSize: 5000,
+  },
+  balancesheet_vip: {
+    parameters: ['period', 'report_type', 'ts_code', 'ann_date', 'f_ann_date'],
+    pageSize: 5000,
+  },
+  cashflow_vip: {
+    parameters: ['period', 'report_type', 'ts_code', 'ann_date', 'f_ann_date'],
+    pageSize: 5000,
+  },
   fina_indicator_vip: { parameters: ['period', 'ts_code'], pageSize: 10000 },
   dividend: {
     parameters: ['ts_code', 'ann_date', 'imp_ann_date'],

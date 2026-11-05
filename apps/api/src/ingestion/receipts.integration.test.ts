@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { DIVIDEND_SOURCE_FIELDS } from '#market/fundamentals/dividend-identity.js';
+import { financialStatementSourceFields } from '#market/fundamentals/source-contract.js';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { compactSuccessfulReceipts } from './receipts.js';
 
@@ -38,6 +39,13 @@ it('never compacts successful receipts belonging to an unfinished logical run', 
 
 it('compacts superseded success detail while retaining issues and wider successful ranges', async () =>
   withSyncDatabase(async (database) => {
+    const statementRequest = [
+      {
+        api: 'income_vip',
+        params: { period: '20260630', report_type: '1' },
+        fields: financialStatementSourceFields('income').join(','),
+      },
+    ];
     for (let index = 0; index < 23; index++) {
       const runId = `run-${index}`;
       await database.ingestionRun.create({
@@ -58,8 +66,9 @@ it('compacts superseded success detail while retaining issues and wider successf
           scope: 'income|1',
           period: '20260630',
           api: 'income_vip',
-          request: {},
+          request: statementRequest,
           status: 'succeeded',
+          responseComplete: true,
           rangeStart: '20260630',
           rangeEnd: '20260630',
           startedAt: new Date(index * 1000),
@@ -85,8 +94,9 @@ it('compacts superseded success detail while retaining issues and wider successf
         scope: 'income|1',
         period: '20260630',
         api: 'income_vip',
-        request: {},
+        request: statementRequest,
         status: 'succeeded',
+        responseComplete: true,
         rangeStart: '20260630',
         rangeEnd: '20260630',
         startedAt: new Date(1),

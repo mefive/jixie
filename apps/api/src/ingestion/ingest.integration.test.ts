@@ -35,7 +35,8 @@ it(
       expect(calls).not.toContain('adj_factor');
       expect(calls).toContain('stock_basic');
       expect(calls).not.toContain('dividend');
-      expect(calls).toContain('income_vip');
+      expect(calls).not.toContain('income_vip');
+      expect(calls).toContain('fina_indicator_vip');
       expect(await database.daily.count()).toBe(rows);
       expect(
         (await database.marketDataState.findUniqueOrThrow({ where: { key: 'global' } })).revision,
@@ -45,23 +46,34 @@ it(
 );
 
 it(
-  'fetches late-disclosed financial rows again and preserves the first capture on duplicates',
+  'acquires a later disclosure of an old report and preserves its first capture on repeated targets',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
       let available = false;
       const input = {
         targetDate: '19910104',
-        source: ingestionSource({ incomeAvailable: () => available }),
+        source: ingestionSource({
+          incomeAvailable: () => available,
+          incomeAnnDate: '19910105',
+        }),
         clock: () => ingestionTime,
         onLog: () => {},
       };
       await ingest(input);
       expect(await database.financialIncomeStatement.count()).toBe(0);
       available = true;
-      await ingest(input);
+      await ingest({
+        ...input,
+        targetDate: '19910105',
+        clock: () => new Date('1991-01-06T10:00:00Z'),
+      });
       const saved = await database.financialIncomeStatement.findFirstOrThrow();
-      await ingest({ ...input, clock: () => new Date('1991-01-06T10:00:00Z') });
+      await ingest({
+        ...input,
+        targetDate: '19910105',
+        clock: () => new Date('1991-01-07T10:00:00Z'),
+      });
       expect(await database.financialIncomeStatement.count()).toBe(1);
       expect((await database.financialIncomeStatement.findFirstOrThrow()).observedAt).toEqual(
         saved.observedAt,
@@ -266,7 +278,7 @@ it(
 );
 
 it(
-  'fetches pre-IPO reports from fixed 1988 quarters in each new run',
+  'bootstraps pre-IPO reports from fixed 1988 quarters and reuses them in later runs',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -283,8 +295,6 @@ it(
       const input = { targetDate: '19910104', clock: () => ingestionTime, source, onLog: () => {} };
       await ingest(input);
       expect((await database.financialIncomeStatement.findFirstOrThrow()).endDate).toBe('19881231');
-      requests.length = 0;
-      await ingest(input);
       expect(requests.some((request) => request.period === '19881231')).toBe(true);
       expect(
         requests.every(
@@ -296,6 +306,9 @@ it(
         expect(request).not.toHaveProperty('end_date');
         expect(request).not.toHaveProperty('ts_code');
       }
+      requests.length = 0;
+      await ingest(input);
+      expect(requests).toEqual([]);
       expect(await database.financialIncomeStatement.count()).toBe(1);
     }),
   60_000,

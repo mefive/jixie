@@ -1,6 +1,5 @@
 import { fingerprint, hasValueConflict } from '../synchronization/rows.js';
 import type { MarketRow } from '../synchronization/partition.js';
-import { canonicalStockCode, STOCK_CODE_CHANGES } from '../instruments/stock-identity.js';
 
 export const DIVIDEND_DATE_FIELDS = ['ann_date', 'imp_ann_date'] as const;
 export const DIVIDEND_SOURCE_COLUMNS = {
@@ -22,15 +21,6 @@ export const DIVIDEND_SOURCE_COLUMNS = {
   shareListingDate: 'div_listdate',
 } as const;
 export const DIVIDEND_SOURCE_FIELDS = Object.values(DIVIDEND_SOURCE_COLUMNS).join(',');
-
-export function dividendSourceCodes(tsCode: string): string[] {
-  return [
-    tsCode,
-    ...STOCK_CODE_CHANGES.map((change) => change.oldTsCode).filter(
-      (code) => canonicalStockCode(code) === tsCode,
-    ),
-  ];
-}
 
 /**
  * 分配形态只区分同次响应中的现金、送转与混合记录，不冒充稳定方案编号。
