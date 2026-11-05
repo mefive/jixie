@@ -17,6 +17,7 @@ import {
   withCandidate,
 } from './replica-files.js';
 import type { IngestionInput, IngestionRetryInput } from './schema.js';
+import { ingestionExecutionSchema } from './schema.js';
 import { IngestionError } from './errors.js';
 
 const transactionOptions = { timeout: 120_000 };
@@ -237,7 +238,10 @@ export async function retryCandidate(runId: string, input: IngestionRetryInput) 
 }
 
 export async function inspectCandidate(runId: string) {
-  const run = await getDatabase().ingestionRun.findUniqueOrThrow({ where: { id: runId } });
+  const run = await getDatabase().ingestionRun.findUnique({ where: { id: runId } });
+  if (!run) {
+    throw new IngestionError('candidate_missing');
+  }
   if (!run.activeReplica || !run.replicaReadyAt || !editable.includes(run.replicaPhase ?? '')) {
     return {
       runId,
@@ -250,6 +254,7 @@ export async function inspectCandidate(runId: string) {
     };
   }
   const review = await withCandidate(runId, () => reviewCandidate(runId));
+  const execution = ingestionExecutionSchema.safeParse(review.run.summary);
 
   return {
     runId,
@@ -257,6 +262,9 @@ export async function inspectCandidate(runId: string) {
     phase: run.replicaPhase,
     pending: review.pending,
     candidateVersion: review.candidateVersion,
+    status: review.run.status,
+    finishedAt: review.run.finishedAt?.toISOString() ?? null,
+    execution: execution.success ? execution.data : null,
   };
 }
 
@@ -341,10 +349,13 @@ export async function acceptCandidate(
   signal?: AbortSignal,
 ) {
   const main = getDatabase();
-  const run = await main.ingestionRun.findUniqueOrThrow({ where: { id: runId } });
+  const run = await main.ingestionRun.findUnique({ where: { id: runId } });
+  if (!run) {
+    throw new IngestionError('candidate_missing');
+  }
   if (run.publishedAt) {
     return {
-      mode: 'already_published',
+      mode: 'already_published' as const,
       runId,
       revision: run.publishedRevision,
       cleaned: await cleanupCandidate(runId),
@@ -394,7 +405,7 @@ export async function acceptCandidate(
               },
             });
 
-            return { mode: 'published', runId, changes, revision: state.revision };
+            return { mode: 'published' as const, runId, changes, revision: state.revision };
           }, transactionOptions),
         ),
       );

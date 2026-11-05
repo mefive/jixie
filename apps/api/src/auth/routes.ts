@@ -7,11 +7,14 @@ import { requestEmailLogin, verifyEmailLogin } from './email-login.js';
 import { emailLoginRequestSchema } from './schema.js';
 import { developmentLoginSchema, emailLoginVerifySchema } from '@jixie/shared/api/auth';
 import { destroySession, getSessionUser } from './session.js';
+import { describeAuthUser } from './permissions.js';
 
 export const authRoute = new Hono();
 
 authRoute.get('/me', async (context) => {
-  return context.json({ user: await getSessionUser(getSessionId(context)) });
+  const user = await getSessionUser(getSessionId(context));
+
+  return context.json({ user: user ? describeAuthUser(user) : null });
 });
 
 authRoute.post('/logout', async (context) => {
@@ -31,7 +34,7 @@ authRoute.post('/email/request', validateJson(emailLoginRequestSchema), async (c
 authRoute.post('/email/verify', validateJson(emailLoginVerifySchema), async (context) => {
   const result = await verifyEmailLogin(context.req.valid('json'));
   setSessionCookie(context, result.session.id, result.session.expiresAt);
-  return context.json({ user: result.user });
+  return context.json({ user: describeAuthUser(result.user) });
 });
 
 // Production never registers this development-only route.
@@ -39,6 +42,6 @@ if (process.env.NODE_ENV !== 'production') {
   authRoute.post('/dev/login', validateJson(developmentLoginSchema), async (context) => {
     const result = await developmentLogin(context.req.valid('json').email);
     setSessionCookie(context, result.session.id, result.session.expiresAt);
-    return context.json({ user: result.user });
+    return context.json({ user: describeAuthUser(result.user) });
   });
 }

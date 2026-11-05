@@ -17,6 +17,12 @@ let scenario = 'pending';
 let candidate;
 let detailsFail = false;
 let detailCalls = 0;
+let publisher = false;
+let published = false;
+let publicationCalls = 0;
+let rejectVersionOnce = true;
+let candidateVersion = 'a'.repeat(64);
+const candidateRunId = '01M6NTTSCH4423N5VQ2F2CG8R6';
 const allHandled = () => scenario === 'review' || scenario === 'archived';
 const counts = () => ({
   pending: { error: allHandled() ? 0 : 3, warning: scenario === 'pending' ? 8 : 0 },
@@ -27,9 +33,9 @@ const status = () => ({
   active: false,
   running: false,
   phase: 'idle',
-  runId: 'finished-run',
+  runId: published ? candidateRunId : 'finished-run',
   kind: 'ingestion',
-  targetDate: '20181231',
+  targetDate: published ? '20190120' : '20181231',
   stage: null,
   startedAt: '2026-11-02T23:19:43Z',
   heartbeatAt: null,
@@ -39,11 +45,13 @@ const status = () => ({
   candidate,
   health: {
     latestRun: {
-      id: 'finished-run',
-      status: 'completed_with_issues',
-      targetDate: '20181231',
+      id: published ? candidateRunId : 'finished-run',
+      status: published ? 'completed' : 'completed_with_issues',
+      targetDate: published ? '20190120' : '20181231',
       finishedAt: '2026-11-03T19:44:05Z',
-      execution: { succeeded: 32310, partial: 2, failed: 0, rejected: 6 },
+      execution: published
+        ? { succeeded: 835, partial: 0, failed: 0, rejected: 0 }
+        : { succeeded: 32310, partial: 2, failed: 0, rejected: 6 },
       handling: counts(),
     },
     handling: counts(),
@@ -55,66 +63,116 @@ const status = () => ({
 
 try {
   await page.addInitScript(() => localStorage.setItem('jx-locale', 'zh'));
-  await page.route('**/api/**', async (route) => {
-    const url = new URL(route.request().url());
-    let body;
-    switch (url.pathname) {
-      case '/api/auth/me':
-        body = { user: { id: 'viewer', email: 'viewer@example.test', name: null } };
-        break;
-      case '/api/ingestion/status':
-        body = status();
-        break;
-      case '/api/ingestion/version':
-        body = { revision: 'reviewed-fixture' };
-        break;
-      case '/api/ingestion/issues':
-        detailCalls++;
-        if (detailsFail) {
-          await route.fulfill({
-            status: 500,
-            contentType: 'application/json',
-            body: JSON.stringify({ error: { code: 'INTERNAL', message: 'fixture failure' } }),
-          });
-          return;
+  await page.route(
+    (url) => url.pathname.startsWith('/api/'),
+    async (route) => {
+      const url = new URL(route.request().url());
+      let body;
+      switch (url.pathname) {
+        case '/api/auth/me':
+          body = {
+            user: {
+              id: 'viewer',
+              email: 'viewer@example.test',
+              name: null,
+              capabilities: { publishIngestion: publisher },
+            },
+          };
+          break;
+        case `/api/ingestion/runs/${candidateRunId}`:
+          body = {
+            runId: candidateRunId,
+            targetDate: '20190120',
+            phase: 'awaiting_publish',
+            status: 'completed',
+            pending: 0,
+            candidateVersion,
+            finishedAt: '2026-11-05T09:05:00Z',
+            execution: {
+              succeeded: 835,
+              partial: 0,
+              failed: 0,
+              rejected: 0,
+              issues: 0,
+              warnings: 0,
+            },
+          };
+          break;
+        case `/api/ingestion/runs/${candidateRunId}/accept`: {
+          publicationCalls++;
+          assert.equal(route.request().method(), 'POST');
+          assert.equal(route.request().postDataJSON().expectedCandidateVersion, candidateVersion);
+          if (rejectVersionOnce) {
+            rejectVersionOnce = false;
+            candidateVersion = 'b'.repeat(64);
+            await route.fulfill({
+              status: 409,
+              contentType: 'application/json',
+              body: JSON.stringify({
+                error: { code: 'CONFLICT', message: '副本版本已变化，请重新核验。' },
+              }),
+            });
+            return;
+          }
+          published = true;
+          candidate = undefined;
+          body = { mode: 'published', runId: candidateRunId, revision: 34963 };
+          break;
         }
-        body = {
-          total: 11,
-          offset: 0,
-          limit: 20,
-          items: Array.from({ length: 11 }, (_value, index) => ({
-            id: `issue-${index}`,
-            runId: 'finished-run',
-            targetDate: '20181231',
-            severity: index < 3 ? 'error' : 'warning',
-            dataset: index < 3 ? 'dividends' : 'stock-prices',
-            scope: index < 3 ? '300587.SZ' : '000003.SZ',
-            period: '19920131',
-            businessKey: index < 3 ? '20181231' : '19920131',
-            reasonCode: index < 3 ? 'conflicting_business_key' : 'ohlc_range_inconsistent',
-            message: index < 3 ? 'Conflicting cash values' : 'Inconsistent OHLC range',
-            status:
-              scenario !== 'pending' && index >= 3
-                ? 'resolved'
-                : allHandled()
-                  ? 'accepted'
-                  : 'pending',
-            verification: scenario === 'repaired' && index >= 3 ? 'verified' : null,
-            handlingReason:
-              scenario === 'repaired' && index >= 3 ? '采用对齐口径的第三方实际报价' : null,
-            resolvedAt: scenario === 'repaired' && index >= 3 ? '2026-11-04T06:00:00Z' : null,
-          })),
-        };
-        break;
-      default:
-        body = [];
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify(body),
-    });
-  });
+        case '/api/ingestion/status':
+          body = status();
+          break;
+        case '/api/ingestion/version':
+          body = { revision: 'reviewed-fixture' };
+          break;
+        case '/api/ingestion/issues':
+          detailCalls++;
+          if (detailsFail) {
+            await route.fulfill({
+              status: 500,
+              contentType: 'application/json',
+              body: JSON.stringify({ error: { code: 'INTERNAL', message: 'fixture failure' } }),
+            });
+            return;
+          }
+          body = {
+            total: 11,
+            offset: 0,
+            limit: 20,
+            items: Array.from({ length: 11 }, (_value, index) => ({
+              id: `issue-${index}`,
+              runId: 'finished-run',
+              targetDate: '20181231',
+              severity: index < 3 ? 'error' : 'warning',
+              dataset: index < 3 ? 'dividends' : 'stock-prices',
+              scope: index < 3 ? '300587.SZ' : '000003.SZ',
+              period: '19920131',
+              businessKey: index < 3 ? '20181231' : '19920131',
+              reasonCode: index < 3 ? 'conflicting_business_key' : 'ohlc_range_inconsistent',
+              message: index < 3 ? 'Conflicting cash values' : 'Inconsistent OHLC range',
+              status:
+                scenario !== 'pending' && index >= 3
+                  ? 'resolved'
+                  : allHandled()
+                    ? 'accepted'
+                    : 'pending',
+              verification: scenario === 'repaired' && index >= 3 ? 'verified' : null,
+              handlingReason:
+                scenario === 'repaired' && index >= 3 ? '采用对齐口径的第三方实际报价' : null,
+              resolvedAt: scenario === 'repaired' && index >= 3 ? '2026-11-04T06:00:00Z' : null,
+            })),
+          };
+          break;
+        default:
+          body = [];
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
+    },
+  );
   await page.goto(`${base}/strategy`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).waitFor();
   assert.equal(detailCalls, 0);
@@ -164,11 +222,64 @@ try {
   await page.getByText('副本待接收', { exact: true }).waitFor({ timeout: 15000 });
   await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).click();
   await page
-    .getByText('工作副本 reviewed-candidate，目标日期 20190120。审核和修复使用 CLI。', {
+    .getByText('工作副本 reviewed-candidate，目标日期 20190120。问题修复使用 CLI。', {
       exact: true,
     })
     .waitFor();
   await page.screenshot({ path: `${output}/candidate-review-zh.png`, animations: 'disabled' });
+  assert.equal(await page.getByRole('button', { name: '接收副本', exact: true }).count(), 0);
+  candidate = { runId: candidateRunId, targetDate: '20190120', phase: 'awaiting_repair' };
+  publisher = true;
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).click();
+  assert.equal(
+    await page.getByRole('button', { name: '接收副本', exact: true }).isDisabled(),
+    true,
+  );
+  candidate.phase = 'awaiting_publish';
+  await page.getByRole('button', { name: '接收副本', exact: true }).click();
+  const dialog = page.locator('.ant-modal');
+  await dialog.getByText('成功 835 · 部分接纳 0 · 失败 0 · 未接纳记录 0').waitFor();
+  await settleDialog();
+  await page.screenshot({ path: `${output}/candidate-accept-zh.png`, animations: 'disabled' });
+  await dialog.getByRole('button', { name: /^取\s*消$/ }).click();
+  await page.locator('.ant-drawer-close').click();
+  await page.getByText('EN', { exact: true }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'View data updates and issue handling' }).click();
+  await page.getByRole('button', { name: 'Accept candidate', exact: true }).click();
+  await dialog.getByText('Succeeded 835 · Partial 0 · Failed 0 · Rejected records 0').waitFor();
+  await settleDialog();
+  await page.screenshot({
+    path: `${output}/candidate-accept-en-mobile.png`,
+    animations: 'disabled',
+  });
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.locator('.ant-drawer-close').click();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByText('中', { exact: true }).click();
+  await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).click();
+  await page.getByRole('button', { name: '接收副本', exact: true }).click();
+  const refreshedReview = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/ingestion/runs/${candidateRunId}` &&
+      response.request().method() === 'GET',
+  );
+  await dialog.getByRole('button', { name: '接收并发布', exact: true }).click();
+  await dialog.getByText('副本版本已变化，请重新核验。', { exact: true }).waitFor();
+  await refreshedReview;
+  await dialog.locator('.ant-btn-loading-icon').waitFor({ state: 'detached' });
+  assert.equal(publicationCalls, 1);
+  await settleDialog();
+  await page.screenshot({
+    path: `${output}/candidate-version-conflict-zh.png`,
+    animations: 'disabled',
+  });
+  await dialog.getByRole('button', { name: '接收并发布', exact: true }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  await page.getByText(candidateRunId, { exact: true }).waitFor();
+  assert.equal(publicationCalls, 2);
+  await page.screenshot({ path: `${output}/candidate-published-zh.png`, animations: 'disabled' });
   assert.deepEqual(failures, []);
   console.log(
     JSON.stringify({
@@ -179,6 +290,10 @@ try {
         'repaired-en-mobile.png',
         'covered-history-zh.png',
         'candidate-review-zh.png',
+        'candidate-accept-zh.png',
+        'candidate-accept-en-mobile.png',
+        'candidate-version-conflict-zh.png',
+        'candidate-published-zh.png',
       ],
       detailCalls,
     }),
@@ -188,10 +303,27 @@ try {
     url: page.url(),
     failures,
     visibleText: (await page.locator('body').innerText()).slice(0, 2000),
+    dialogButtons: await page
+      .locator('.ant-modal button')
+      .evaluateAll((buttons) => buttons.map((button) => button.outerHTML)),
   });
   await page.screenshot({ path: `${output}/failure.png` });
   throw error;
 } finally {
   await context.close();
   await browser.close();
+}
+
+// 等待弹窗进入动画结束，避免截图捕获透明的准备帧。
+// Wait for modal entry motion to finish instead of capturing its transparent preparation frame.
+async function settleDialog() {
+  await page.waitForFunction(() => {
+    const modal = document.querySelector('.ant-modal');
+    if (!modal) {
+      return false;
+    }
+    const moving = /(?:appear|enter|leave)(?:-|\s|$)/.test(modal.className);
+
+    return !moving && getComputedStyle(modal).opacity === '1';
+  });
 }

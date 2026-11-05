@@ -46,6 +46,8 @@ OHLC 范围矛盾作为来源 warning：股票和 ETF 保留原始正值有限�
 
 副本采集使用同一 Run ID 串联采集、候选修复和人工发布。使用 `pnpm data runs inspect RUN_ID` 查看候选版本。维护者核验后用 `pnpm data runs accept RUN_ID --expect-candidate HASH` 发布，或用 `pnpm data runs reject RUN_ID --reason REASON` 拒绝。进程异常退出时，确认旧命令已结束后运行 `pnpm data runs recover RUN_ID --confirm-stopped`。详见 [副本采集计划](../../../../docs/design/ingestion-replica-plan.md)。
 
+管理员或开发环境用户也可从数据状态弹窗接收副本。`GET /api/ingestion/runs/:runId` 返回候选版本和采集摘要，`POST /api/ingestion/runs/:runId/accept` 接受 `expectedCandidateVersion`。两个入口校验会话和服务端发布权限，发布入口位于业务读取门禁之外，复用 `acceptCandidate` 的版本校验、并发状态切换及发布锁。
+
 `pnpm data runs retry RUN_ID` 显式重试待修复或已中断副本的未成功批次，复用固定目标、计划和成功收据。源请求失败修正后用该命令补采，旧诊断作为历史保留。重试完成后重新检查副本并由维护者接收。
 
 指数权重保留按月的计划单元，请求使用该窗口内经完整 SSE 日历核实的最后交易日 `trade_date`。月中截止时查询范围内日期，完整空响应保留之前的权重快照。分页全部完成后才接纳完整快照。

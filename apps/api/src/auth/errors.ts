@@ -5,6 +5,10 @@ import {
 } from '#infra/errors.js';
 
 const definitions = {
+  administrator_required: {
+    category: 'forbidden',
+    messageKey: 'administratorRequired',
+  },
   login_required: {
     category: 'unauthorized',
     messageKey: 'loginRequired',

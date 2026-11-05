@@ -1,5 +1,40 @@
 import { z } from 'zod';
 
+export const ingestionRunParamsSchema = z.object({
+  runId: z.string().regex(/^[0-9A-HJKMNP-TV-Z]{26}$/),
+});
+export const acceptIngestionCandidateSchema = z.strictObject({
+  expectedCandidateVersion: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export type IngestionRunParams = z.input<typeof ingestionRunParamsSchema>;
+export type AcceptIngestionCandidateRequest = z.input<typeof acceptIngestionCandidateSchema>;
+
+export type IngestionExecutionSummary = {
+  succeeded: number;
+  partial: number;
+  failed: number;
+  rejected: number;
+  issues?: number;
+  warnings?: number;
+};
+
+export interface IngestionCandidateReview {
+  runId: string;
+  targetDate: string;
+  phase: string | null;
+  status: string;
+  pending: number;
+  candidateVersion: string;
+  finishedAt: string | null;
+  execution: IngestionExecutionSummary | null;
+}
+
+export interface IngestionCandidatePublication {
+  mode: 'published' | 'already_published';
+  runId: string;
+  revision: number;
+}
+
 export interface IssueHandlingCounts {
   pending: { error: number; warning: number };
   resolved: { error: number; warning: number };
@@ -12,14 +47,7 @@ export interface IngestionHealth {
     status: string;
     targetDate: string;
     finishedAt: string | null;
-    execution: {
-      succeeded: number;
-      partial: number;
-      failed: number;
-      rejected: number;
-      issues?: number;
-      warnings?: number;
-    } | null;
+    execution: IngestionExecutionSummary | null;
     handling: IssueHandlingCounts;
   } | null;
   handling: IssueHandlingCounts;

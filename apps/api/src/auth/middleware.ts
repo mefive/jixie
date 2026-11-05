@@ -2,6 +2,7 @@ import type { MiddlewareHandler } from 'hono';
 import { getSessionId } from './cookies.js';
 import { AuthError } from './errors.js';
 import { resolveSession } from './session.js';
+import { canPublishIngestion } from './permissions.js';
 
 // Let every route handler access the current user via c.var.userId / c.var.user.
 // Globally extend Hono's ContextVariableMap via module augmentation — the recommended Hono 4 way.
@@ -38,4 +39,17 @@ export const requireAuth: MiddlewareHandler = async (context, next) => {
       context.set('user', resolution.user);
       await next();
   }
+};
+
+/**
+ * 发布操作使用服务端身份再次核验权限。
+ *
+ * Recheck publication permission from the server-resolved identity.
+ */
+export const requireIngestionPublisher: MiddlewareHandler = async (context, next) => {
+  if (!canPublishIngestion(context.var.user)) {
+    throw new AuthError('administrator_required');
+  }
+
+  await next();
 };

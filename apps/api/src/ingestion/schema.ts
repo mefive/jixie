@@ -17,6 +17,15 @@ export const batchStatusSchema = z.enum([
   'interrupted',
 ]);
 
+export const ingestionExecutionSchema = z.object({
+  succeeded: z.number(),
+  partial: z.number(),
+  failed: z.number(),
+  rejected: z.number(),
+  issues: z.number().optional(),
+  warnings: z.number().optional(),
+});
+
 export interface IngestionUnit extends MarketPartition {
   period: string;
   api: string;

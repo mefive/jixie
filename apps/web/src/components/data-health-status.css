@@ -8,6 +8,14 @@
   @apply flex flex-col gap-4;
 }
 
+.jx-dataHealth-candidate {
+  @apply flex flex-wrap items-center justify-between gap-3;
+}
+
+.jx-dataHealth-review {
+  @apply flex flex-col gap-3;
+}
+
 .jx-dataHealth-summary {
   @apply flex flex-col gap-1;
 }

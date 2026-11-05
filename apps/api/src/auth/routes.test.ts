@@ -98,6 +98,8 @@ describe('authentication HTTP contract with an isolated database', () => {
   }, 30_000);
 
   beforeEach(async () => {
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('JIXIE_ADMIN_EMAILS', '');
     fixture.sendEmail.mockReset().mockResolvedValue(undefined);
     fixture.isEmailConfigured.mockReset().mockReturnValue(true);
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -131,7 +133,12 @@ describe('authentication HTTP contract with an isolated database', () => {
     const response = await post('/email/verify', challenge);
     expect(response.status).toBe(200);
     const { user } = await response.json();
-    expect(user).toEqual({ id: expect.any(String), email: 'reader@example.com', name: null });
+    expect(user).toEqual({
+      id: expect.any(String),
+      email: 'reader@example.com',
+      name: null,
+      capabilities: { publishIngestion: false },
+    });
     const cookie = response.headers.get('set-cookie')!;
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Lax');
@@ -148,7 +155,9 @@ describe('authentication HTTP contract with an isolated database', () => {
     const me = await app.request('/api/auth/me', { headers: { cookie } });
     expect(await me.json()).toEqual({ user });
     const protectedResponse = await app.request('/protected', { headers: { cookie } });
-    expect(await protectedResponse.json()).toEqual({ user });
+    expect(await protectedResponse.json()).toEqual({
+      user: { id: user.id, email: user.email, name: user.name },
+    });
   });
 
   it('rejects replay and deletes a session on idempotent logout', async () => {
@@ -227,8 +236,12 @@ describe('authentication HTTP contract with an isolated database', () => {
     expect(extraInvite.status).toBe(400);
     const challenge = await requestCode('reader@example.com', null);
     vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('JIXIE_ADMIN_EMAILS', 'reader@example.com');
     const verification = await post('/email/verify', challenge);
     expect(verification.status).toBe(200);
+    expect(await verification.json()).toMatchObject({
+      user: { capabilities: { publishIngestion: true } },
+    });
     expect(verification.headers.get('set-cookie')).toContain('Secure');
     expect(await prisma.user.count()).toBe(1);
     expect(await prisma.inviteCode.findUnique({ where: { code: INVITE_CODE } })).toMatchObject({

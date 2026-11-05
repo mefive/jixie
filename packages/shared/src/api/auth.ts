@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  capabilities: { publishIngestion: boolean };
+}
+
 // Email login.
 const emailField = z
   .string()

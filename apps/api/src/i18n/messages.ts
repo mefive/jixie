@@ -5,6 +5,10 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  administratorRequired: {
+    zh: '此操作需要管理员或开发环境权限。',
+    en: 'This action requires administrator or development-environment permission.',
+  },
   ingestionCandidateConflict: {
     zh: '采集副本状态或版本不匹配，请检查 Run 后重试。',
     en: 'The candidate phase or version does not match. Inspect the run before retrying.',

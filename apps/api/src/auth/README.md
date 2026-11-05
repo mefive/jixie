@@ -4,6 +4,8 @@
 
 本模块拥有用户登录、邀请码消费、验证码 challenge 与 Session 生命周期，供登录 HTTP 和需要检查会话的入口使用。
 
+服务端以 `JIXIE_ADMIN_EMAILS` 配置可发布采集副本的管理员邮箱，按逗号拆分并以规范化后的完整邮箱匹配。API 明确设置 `NODE_ENV=development` 时，已登录且有效的用户也具有发布权限。`permissions.ts` 为登录和 `/me` 返回同一 `capabilities.publishIngestion` 标志；发布路由在 `requireAuth` 后使用 `requireIngestionPublisher` 再次校验当前权限。配置变更重启 API 生效。
+
 - `email-login.ts`：请求验证码与验证登录；包含发送失败清理、重放保护和用户/邀请码事务。
 - `session.ts`：创建、删除、查询会话；返回业务状态，不接收 Hono Context。
 - `development-login.ts`：开发登录操作，仅由非生产路由注册后暴露。

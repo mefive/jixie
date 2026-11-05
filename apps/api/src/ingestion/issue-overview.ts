@@ -1,5 +1,4 @@
 import type { Prisma } from '@prisma/client';
-import { z } from 'zod';
 import { getDatabase } from '#infra/database/prisma.js';
 import type {
   IngestionHealth,
@@ -10,6 +9,7 @@ import type {
 import { readRunIssueState } from './issue-state.js';
 import { readIssueHandling } from './resolutions.js';
 import { diagnosticJson } from './diagnostic-json.js';
+import { ingestionExecutionSchema } from './schema.js';
 
 export function emptyIssueCounts(): IssueHandlingCounts {
   return {
@@ -28,15 +28,6 @@ export function addIssueHandling(
     counts[status][severity === 'warning' ? 'warning' : 'error']++;
   }
 }
-
-const executionSchema = z.object({
-  succeeded: z.number(),
-  partial: z.number(),
-  failed: z.number(),
-  rejected: z.number(),
-  issues: z.number().optional(),
-  warnings: z.number().optional(),
-});
 
 /**
  * 旧问题有覆盖证据才归档，待复核单独计数。
@@ -108,7 +99,7 @@ export async function readIssueOverview(
       }
     }
     if (run.id === latestRunId) {
-      const execution = executionSchema.safeParse(state.run.summary);
+      const execution = ingestionExecutionSchema.safeParse(state.run.summary);
       health.latestRun = {
         id: run.id,
         status: state.run.status,

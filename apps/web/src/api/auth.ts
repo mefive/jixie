@@ -2,6 +2,7 @@ import type {
   EmailLoginRequest,
   VerifyEmailLoginRequest,
   DevelopmentLoginRequest,
+  AuthUser,
 } from '@jixie/shared/api/auth';
 import { request } from './client';
 
@@ -10,11 +11,7 @@ import { request } from './client';
  *
  * Supply authenticated identity for access and account rendering.
  */
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string | null;
-}
+export type { AuthUser } from '@jixie/shared/api/auth';
 
 // Current auth state. The backend deliberately always returns 200: when not logged in it returns { user: null }
 export function fetchMe(): Promise<{ user: AuthUser | null }> {

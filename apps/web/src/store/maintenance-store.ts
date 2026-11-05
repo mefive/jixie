@@ -2,14 +2,25 @@ import { action, makeObservable, observable, runInAction } from 'mobx';
 import {
   fetchIngestionStatus,
   fetchIngestionIssues,
+  fetchIngestionCandidate,
+  acceptIngestionCandidate,
   type IngestionStatus,
 } from '@src/api/maintenance';
-import type { IngestionIssueList } from '@jixie/shared/api/ingestion';
+import type {
+  IngestionIssueList,
+  IngestionCandidateReview,
+  IngestionCandidatePublication,
+  AcceptIngestionCandidateRequest,
+} from '@jixie/shared/api/ingestion';
 import { LoaderModel, PollingModel } from '@src/lib';
+import { authStore } from './auth-store';
+import { ApiError } from '@src/api/client';
 
 class MaintenanceStore {
   public loader = new LoaderModel<IngestionStatus>();
   public issuesLoader = new LoaderModel<IngestionIssueList>();
+  public candidateLoader = new LoaderModel<IngestionCandidateReview>();
+  public publishLoader = new LoaderModel<IngestionCandidatePublication>();
 
   public polling = new PollingModel();
 
@@ -27,6 +38,19 @@ class MaintenanceStore {
     this.loader.setup({ request: () => fetchIngestionStatus() });
     this.issuesLoader.setup({
       request: (offset: number, signal) => fetchIngestionIssues(offset, signal),
+    });
+    this.candidateLoader.setup({
+      request: (runId: string, signal) => fetchIngestionCandidate(runId, signal),
+      clearResultOnError: true,
+    });
+    this.publishLoader.setup({
+      request: async (input: { runId: string; body: AcceptIngestionCandidateRequest }) => {
+        const published = await acceptIngestionCandidate(input.runId, input.body);
+        await this.load();
+        await this.loadIssues();
+
+        return published;
+      },
     });
     this.polling.setup({
       interval: 5_000,
@@ -51,6 +75,38 @@ class MaintenanceStore {
     } catch {
       // Loader 保留错误状态供弹层展示；关闭弹层时的取消无需额外通知。
       // The loader retains errors for the drawer; cancellation on close needs no extra notification.
+    }
+  }
+
+  public async loadCandidate(runId: string): Promise<void> {
+    try {
+      await this.candidateLoader.run(runId);
+    } catch {
+      // 弹窗直接展示 Loader 中的错误。 / The dialog displays the loader error.
+    }
+  }
+
+  public async publishCandidate(runId: string, expectedCandidateVersion: string): Promise<boolean> {
+    if (this.publishLoader.loading) {
+      return false;
+    }
+    try {
+      await this.publishLoader.run({ runId, body: { expectedCandidateVersion } });
+
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 403) {
+        await authStore.load();
+      }
+      await this.load();
+      if (!this.status?.candidate && this.status?.health.latestRun?.id === runId) {
+        await this.loadIssues();
+
+        return true;
+      }
+      await this.loadCandidate(runId);
+
+      return false;
     }
   }
 

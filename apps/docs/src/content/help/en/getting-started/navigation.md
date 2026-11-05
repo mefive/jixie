@@ -68,6 +68,8 @@ The issue list separates errors and warnings. Expand a row for its security/date
 
 The data status also shows when a working candidate needs repair or awaits acceptance. Research and backtesting continue using published data during review.
 
+Administrators and signed-in users in the development environment can select **Accept candidate** when a candidate awaits acceptance. Check the candidate target date, collection results and pending issue count, then choose **Accept and publish**. The data status refreshes after publication. Review the candidate again if its version changes.
+
 ## System maintenance
 
 While publishing a release or validating new market data, the product may temporarily show **System maintenance**. The page displays the current stage, completion progress, and latest available data date.

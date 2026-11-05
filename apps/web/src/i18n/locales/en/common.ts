@@ -64,7 +64,20 @@ export const enCommon: typeof zhCommon = {
     diagnosticSummary: 'Errors {{issues}} · Warnings {{warnings}}',
     severities: { error: 'Error', warning: 'Warning' },
     candidateDetails:
-      'Working candidate {{runId}} targets {{targetDate}}. Review and repair through the CLI.',
+      'Working candidate {{runId}} targets {{targetDate}}. Repair issues through the CLI.',
+    acceptCandidate: 'Accept candidate',
+    candidateNotReady: 'Wait for collection to finish or complete issue handling.',
+    acceptTitle: 'Confirm candidate acceptance',
+    acceptAndPublish: 'Accept and publish',
+    cancel: 'Cancel',
+    acceptDescription:
+      'Research and backtests will use this data after publication. Check the candidate target date and collection results.',
+    candidatePending: 'Pending issues',
+    candidateLoadFailed: 'Could not load the candidate. Close this dialog and try again.',
+    candidateChanged: 'The candidate state changed. Review it again before accepting.',
+    acceptFailed: 'Could not accept the candidate. Check its state and try again.',
+    accepted: 'Candidate accepted and published.',
+    publishingHint: 'Waiting for existing work to finish and publishing. Please wait.',
     latestHandling: 'Handling for this run',
     allRuns: 'Current issues across all runs',
     handlingSummary:

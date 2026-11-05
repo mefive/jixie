@@ -1,11 +1,24 @@
 import { useEffect, useState } from 'react';
 import { observer } from 'mobx-react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Descriptions, Drawer, Empty, Table, Tag } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Descriptions,
+  Drawer,
+  Empty,
+  Modal,
+  Spin,
+  Table,
+  Tag,
+  Tooltip,
+} from 'antd';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDatabase } from '@fortawesome/free-solid-svg-icons';
 import type { IssueHandlingCounts, IngestionIssueList } from '@jixie/shared/api/ingestion';
 import { maintenanceStore } from '@src/store';
+import { authStore } from '@src/store/auth-store';
 import './data-health-status.css';
 
 /**
@@ -90,12 +103,15 @@ export const DataHealthStatus = observer(() => {
         <div className="jx-dataHealth-content">
           <p className="jx-dataHealth-note">{t('dataHealth.description')}</p>
           {status?.candidate && (
-            <p className="jx-dataHealth-note">
-              {t('dataHealth.candidateDetails', {
-                runId: status.candidate.runId,
-                targetDate: status.candidate.targetDate,
-              })}
-            </p>
+            <div className="jx-dataHealth-candidate">
+              <p className="jx-dataHealth-note">
+                {t('dataHealth.candidateDetails', {
+                  runId: status.candidate.runId,
+                  targetDate: status.candidate.targetDate,
+                })}
+              </p>
+              <CandidateAcceptance />
+            </div>
           )}
           {latest ? (
             <Descriptions
@@ -267,6 +283,153 @@ export const DataHealthStatus = observer(() => {
 });
 
 // —— 子组件／帮助函数 / Helpers ——
+
+/**
+ * 接收前加载候选版本，确认后提交同一版本摘要。
+ *
+ * Load the candidate version before confirmation and submit that same version on acceptance.
+ */
+const CandidateAcceptance = observer(() => {
+  const { t } = useTranslation();
+  const { message } = App.useApp();
+  const [reviewedRunId, setReviewedRunId] = useState<string | null>(null);
+  const canPublish = Boolean(authStore.user?.capabilities?.publishIngestion);
+  const candidate = maintenanceStore.status?.candidate;
+  const loader = maintenanceStore.candidateLoader;
+  const publishing = maintenanceStore.publishLoader;
+  const review = loader.result;
+  const ready = Boolean(
+    candidate?.phase === 'awaiting_publish' &&
+    review?.phase === 'awaiting_publish' &&
+    review.pending === 0 &&
+    review.runId === reviewedRunId &&
+    candidate.runId === reviewedRunId &&
+    review.candidateVersion &&
+    loader.loaded,
+  );
+
+  useEffect(() => {
+    if (!canPublish) {
+      setReviewedRunId(null);
+      return;
+    }
+    if (!reviewedRunId) {
+      return;
+    }
+    publishing.reset();
+    void maintenanceStore.loadCandidate(reviewedRunId);
+
+    return () => loader.abort();
+  }, [reviewedRunId, canPublish, loader, publishing]);
+
+  if (!canPublish || !candidate) {
+    return null;
+  }
+
+  return (
+    <>
+      <Tooltip
+        title={
+          candidate.phase === 'awaiting_publish' ? undefined : t('dataHealth.candidateNotReady')
+        }
+      >
+        <Button
+          type="primary"
+          disabled={candidate.phase !== 'awaiting_publish' || publishing.loading}
+          onClick={() => {
+            loader.abort();
+            loader.reset();
+            setReviewedRunId(candidate.runId);
+          }}
+        >
+          {t('dataHealth.acceptCandidate')}
+        </Button>
+      </Tooltip>
+      <Modal
+        title={t('dataHealth.acceptTitle')}
+        open={Boolean(reviewedRunId)}
+        okText={t('dataHealth.acceptAndPublish')}
+        cancelText={t('dataHealth.cancel')}
+        confirmLoading={publishing.loading}
+        okButtonProps={{ disabled: !ready || publishing.loading }}
+        cancelButtonProps={{ disabled: publishing.loading }}
+        closable={!publishing.loading}
+        maskClosable={!publishing.loading}
+        onCancel={() => setReviewedRunId(null)}
+        onOk={async () => {
+          if (!ready || publishing.loading) {
+            return;
+          }
+          const accepted = await maintenanceStore.publishCandidate(
+            review.runId,
+            review.candidateVersion,
+          );
+          if (accepted) {
+            setReviewedRunId(null);
+            void message.success(t('dataHealth.accepted'));
+          }
+        }}
+      >
+        <div className="jx-dataHealth-review">
+          <p>{t('dataHealth.acceptDescription')}</p>
+          {loader.loading && <Spin />}
+          {loader.error && (
+            <Alert
+              type="error"
+              showIcon
+              title={loader.errorObject?.message ?? t('dataHealth.candidateLoadFailed')}
+            />
+          )}
+          {review?.runId === reviewedRunId && !loader.loading && !loader.error && (
+            <Descriptions
+              size="small"
+              bordered
+              column={1}
+              items={[
+                { key: 'run', label: t('dataHealth.run'), children: review.runId },
+                { key: 'target', label: t('dataHealth.target'), children: review.targetDate },
+                {
+                  key: 'status',
+                  label: t('dataHealth.execution'),
+                  children: t(`dataHealth.runStates.${review.status}`, {
+                    defaultValue: review.status,
+                  }),
+                },
+                ...(review.execution
+                  ? [
+                      {
+                        key: 'batches',
+                        label: t('dataHealth.batchCounts'),
+                        children: t('dataHealth.batchSummary', review.execution),
+                      },
+                    ]
+                  : []),
+                {
+                  key: 'pending',
+                  label: t('dataHealth.candidatePending'),
+                  children: review.pending,
+                },
+              ]}
+            />
+          )}
+          {review && !ready && !loader.loading && !loader.error && !publishing.loading && (
+            <Alert type="warning" showIcon title={t('dataHealth.candidateChanged')} />
+          )}
+          {publishing.error && (
+            <Alert
+              type="error"
+              showIcon
+              title={publishing.errorObject?.message ?? t('dataHealth.acceptFailed')}
+            />
+          )}
+          {publishing.loading && (
+            <p className="jx-dataHealth-note">{t('dataHealth.publishingHint')}</p>
+          )}
+        </div>
+      </Modal>
+    </>
+  );
+});
 
 type IssueRow = IngestionIssueList['items'][number];
 
