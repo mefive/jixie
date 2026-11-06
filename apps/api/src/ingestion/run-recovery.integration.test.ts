@@ -8,7 +8,7 @@ import { runPlanSchema } from './schema.js';
 import { financialStatementSourceFields } from '#market/fundamentals/source-contract.js';
 
 it(
-  'waits for a complete stock catalog before quarterly financial requests and rebuilds the dependent plan on recovery',
+  'waits for a complete stock catalog before financial requests and rebuilds the dependent plan on recovery',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -89,7 +89,7 @@ it(
 );
 
 it(
-  'resumes financial successes and reuses their quarterly history in the next run',
+  'resumes financial successes and reuses completed announcement dates in the next run',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -165,11 +165,12 @@ it(
       expect(
         calls
           .filter((call) => call.api.endsWith('_vip'))
-          .every((call) => typeof call.params.period === 'string'),
+          .every((call) =>
+            call.api === 'fina_indicator_vip'
+              ? typeof call.params.period === 'string'
+              : call.params.start_date === '19910105' && call.params.end_date === '19910110',
+          ),
       ).toBe(true);
-      expect(
-        calls.some((call) => call.api === 'income_vip' && call.params.period === '19901231'),
-      ).toBe(false);
       expect((await database.financialIncomeStatement.findFirstOrThrow()).observedAt).toEqual(
         saved.observedAt,
       );
@@ -223,7 +224,7 @@ it(
 );
 
 it(
-  'retries only the failed report quarter in the original run and preserves completed empty quarters',
+  'retries only the failed statement window and preserves completed empty windows',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -240,7 +241,7 @@ it(
             if (
               api === 'income_vip' &&
               params.report_type === '1' &&
-              params.period === '19901231' &&
+              params.start_date === '19910101' &&
               fail
             ) {
               throw new Error('Controlled report-quarter failure');
@@ -261,7 +262,7 @@ it(
             status: 'succeeded',
           },
         }),
-      ).toBe(119);
+      ).toBe(344);
       fail = false;
       calls.length = 0;
       expect(await ingest(input)).toMatchObject({
@@ -272,7 +273,13 @@ it(
       expect(calls).toEqual([
         {
           api: 'income_vip',
-          params: { period: '19901231', report_type: '1', limit: 5000, offset: 0 },
+          params: {
+            start_date: '19910101',
+            end_date: '19910105',
+            report_type: '1',
+            limit: 5000,
+            offset: 0,
+          },
         },
       ]);
       expect(await database.financialIncomeStatement.count()).toBe(1);
@@ -281,12 +288,12 @@ it(
 );
 
 it(
-  'rolls report data back with its success receipt and recovers the same quarter',
+  'rolls report data back with its success receipt and recovers the same window',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
       await database.$executeRawUnsafe(
-        `CREATE TRIGGER refuse_report_receipt BEFORE UPDATE ON "IngestionBatch" WHEN NEW.dataset='financial-statements' AND NEW.scope='income|1' AND NEW.period='19901231' AND NEW.status='succeeded' BEGIN SELECT RAISE(ABORT, 'controlled report receipt failure'); END`,
+        `CREATE TRIGGER refuse_report_receipt BEFORE UPDATE ON "IngestionBatch" WHEN NEW.dataset='financial-statements' AND NEW.scope='income|1' AND NEW.period='ann_range/19910101/19910105' AND NEW.status='succeeded' BEGIN SELECT RAISE(ABORT, 'controlled report receipt failure'); END`,
       );
       const input = {
         targetDate: '19910104',
@@ -310,7 +317,7 @@ it(
             runId: first.runId,
             dataset: 'financial-statements',
             scope: 'income|1',
-            period: '19901231',
+            period: 'ann_range/19910101/19910105',
             status: 'interrupted',
           },
         }),
@@ -320,7 +327,7 @@ it(
 );
 
 it(
-  'replaces obsolete catalog plans without retrying their failures or re-fetching a successful quarter',
+  'replaces obsolete catalog plans while preserving their earlier attempts and diagnostics',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -413,10 +420,14 @@ it(
       });
       expect(result).toMatchObject({ runId, status: 'completed', issues: 0 });
       const financialCalls = calls.filter((call) => call.api.endsWith('_vip'));
-      expect(financialCalls).toHaveLength(119);
+      expect(financialCalls).toHaveLength(345);
       expect(
         financialCalls.every(
-          (call) => typeof call.params.period === 'string' && !call.params.ts_code,
+          (call) =>
+            !call.params.ts_code &&
+            (call.api === 'fina_indicator_vip'
+              ? typeof call.params.period === 'string'
+              : typeof call.params.start_date === 'string'),
         ),
       ).toBe(true);
       expect(
@@ -427,6 +438,9 @@ it(
             call.params.period === '19880331',
         ),
       ).toBe(false);
+      expect(
+        await database.ingestionBatch.findUnique({ where: { id: 'completed-quarter' } }),
+      ).toMatchObject({ status: 'succeeded', period: '19880331' });
       expect(
         await database.ingestionBatch.count({ where: { runId, dataset: 'financial-periods' } }),
       ).toBe(1);
@@ -441,7 +455,7 @@ it(
         runPlanSchema
           .parse(saved)
           .plan?.units.filter((unit) => unit.dataset.startsWith('financial-')),
-      ).toHaveLength(120);
+      ).toHaveLength(345);
       expect(await getIngestionStatus()).toMatchObject({ error: null });
     }),
   60_000,
@@ -491,7 +505,7 @@ it(
             runId: result.runId,
             dataset: 'financial-statements',
             scope: 'income|1',
-            period: '19901231',
+            period: 'ann_range/19910101/19910105',
           },
         }),
       ).toMatchObject({ status: 'succeeded' });

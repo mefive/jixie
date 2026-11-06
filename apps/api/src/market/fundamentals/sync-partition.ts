@@ -12,6 +12,7 @@ import {
   FINANCIAL_ANNOUNCEMENT_FIELDS,
   FINANCIAL_REPORT_TYPES,
   FINANCIAL_STATEMENT_APIS,
+  splitStatementAnnouncementWindow,
 } from './statement-requests.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
@@ -25,6 +26,7 @@ import {
 } from '../instruments/stock-identity.js';
 import { calendarDay, isObservationDate, localDate } from '../synchronization/date.js';
 import { fingerprint } from '../synchronization/rows.js';
+import { MarketSyncBudgetError, TushareError } from '../errors.js';
 import {
   finaIndicatorSchema,
   finaIndicatorVersionSchema,
@@ -38,6 +40,7 @@ import type {
 } from '../synchronization/partition.js';
 import {
   completeResponse,
+  fetchSourceFirstPage,
   fetchSourcePages,
   mapSourceRecords,
   sourceString,
@@ -87,13 +90,20 @@ async function prepareStatementPartition(
 ): Promise<PreparedMarketPartition> {
   const [kind, reportType, historyCode] = partition.scope.split('|');
   const announcementField = partition.announcementField;
+  const announcementRange = partition.announcementRange;
   if (
     !['income', 'balance_sheet', 'cash_flow'].includes(kind) ||
     !FINANCIAL_REPORT_TYPES.some((value) => value === reportType) ||
+    (announcementRange &&
+      (historyCode ||
+        announcementField !== 'ann_date' ||
+        !isObservationDate(partition.startDate) ||
+        !isObservationDate(partition.endDate) ||
+        partition.startDate > partition.endDate)) ||
     (announcementField &&
       (historyCode ||
         !FINANCIAL_ANNOUNCEMENT_FIELDS.includes(announcementField) ||
-        partition.startDate !== partition.endDate))
+        (!announcementRange && partition.startDate !== partition.endDate)))
   ) {
     throw new Error('Invalid financial statement partition');
   }
@@ -105,18 +115,22 @@ async function prepareStatementPartition(
     cash_flow: 'FinancialCashFlowStatement',
   }[statementKind];
   const fields = financialStatementSourceFields(statementKind).join(',');
-  const pages = historyCode
-    ? await fetchFinancialHistory(source, api, historyCode, fields, { report_type: reportType })
-    : await fetchSourcePages(
-        source,
-        api,
-        {
-          [announcementField ?? 'period']: partition.startDate,
-          report_type: reportType,
-        },
-        fields,
-        5000,
-      );
+  let pages: SourcePages;
+  if (historyCode) {
+    pages = await fetchFinancialHistory(source, api, historyCode, fields, {
+      report_type: reportType,
+    });
+  } else if (announcementRange) {
+    pages = await fetchStatementAnnouncementRange(source, api, partition, fields, reportType);
+  } else {
+    pages = await fetchSourcePages(
+      source,
+      api,
+      { [announcementField ?? 'period']: partition.startDate, report_type: reportType },
+      fields,
+      5000,
+    );
+  }
   const codes = partition.catalogThrough
     ? await financialStockCodes(partition.catalogThrough)
     : undefined;
@@ -129,7 +143,8 @@ async function prepareStatementPartition(
       !['1', '2', '3', '4', '7'].includes(row.comp_type) ||
       !isObservationDate(row.end_date) ||
       (!historyCode && !announcementField && row.end_date !== partition.startDate) ||
-      (announcementField && row[announcementField] !== partition.startDate) ||
+      (announcementRange && !isObservationDate(row.ann_date)) ||
+      (announcementField && !announcementRange && row[announcementField] !== partition.startDate) ||
       (historyCode && canonicalStockCode(String(row.ts_code)) !== historyCode) ||
       row.report_type !== reportType,
   );
@@ -185,7 +200,7 @@ async function prepareStatementPartition(
     observedDates: [...new Set(mapped.records.map((record) => String(record.values.endDate)))],
   });
   result.hasDeferredRecords = Boolean(
-    announcementField &&
+    (announcementField || historyCode) &&
     scopedRows.some(
       (row) =>
         row.comp_type === '1' &&
@@ -196,6 +211,70 @@ async function prepareStatementPartition(
   if (calendarIncomplete) {
     result.status = result.errors.length ? 'error' : 'partial';
     result.gaps.push('Statement values retained; availability calendar is incomplete');
+  }
+
+  return result;
+}
+
+/**
+ * 区间满页时用无重叠子区间重取；偏移分页在来源上实测可能遗漏版本。
+ *
+ * Replace saturated windows with disjoint child queries because provider offset paging can omit versions.
+ */
+async function fetchStatementAnnouncementRange(
+  source: SyncSource,
+  api: string,
+  partition: MarketPartition,
+  fields: string,
+  reportType: string,
+): Promise<SourcePages> {
+  const pageSize = 5000;
+  const result: SourcePages = { rows: [], complete: false, pages: 0, errors: [] };
+  const fetchWindow = async (startDate: string, endDate: string): Promise<void> => {
+    const rows = await fetchSourceFirstPage(
+      source,
+      api,
+      { start_date: startDate, end_date: endDate, report_type: reportType },
+      fields,
+      pageSize,
+    );
+    result.pages++;
+    if (
+      rows.some(
+        ({ ann_date }) =>
+          isObservationDate(ann_date) && (ann_date < startDate || ann_date > endDate),
+      )
+    ) {
+      throw new Error(`${api}: returned a disclosure outside ${startDate}–${endDate}`);
+    }
+    if (rows.length < pageSize) {
+      result.rows.push(...rows);
+      return;
+    }
+    if (startDate === endDate) {
+      throw new Error(`${api}: disclosure date ${startDate} reached the single-page limit`);
+    }
+
+    const { leftEnd, rightStart } = splitStatementAnnouncementWindow(startDate, endDate);
+    await fetchWindow(startDate, leftEnd);
+    await fetchWindow(rightStart, endDate);
+  };
+  try {
+    await fetchWindow(partition.startDate, partition.endDate);
+    result.complete = true;
+  } catch (error) {
+    if (error instanceof MarketSyncBudgetError) {
+      result.deferred = true;
+      return result;
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    result.errors.push(message);
+    recordImportIssue({
+      category: 'request',
+      reasonCode: error instanceof TushareError ? 'source_rejected_request' : 'incomplete_response',
+      message,
+    });
   }
 
   return result;

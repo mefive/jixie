@@ -16,6 +16,7 @@ export interface MarketPartition {
    * Statement announcement filter; omitted for report-period or security-history requests.
    */
   announcementField?: 'ann_date' | 'f_ann_date';
+  announcementRange?: true;
   /**
    * 批量财务查询的标的准入截止日，与报告期边界分开。
    *

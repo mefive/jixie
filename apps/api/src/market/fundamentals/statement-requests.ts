@@ -1,6 +1,6 @@
 import { financialStatementSourceFields, type FinancialStatementKind } from './source-contract.js';
 import { stockSourceCodes } from '../instruments/stock-identity.js';
-import { isObservationDate } from '../synchronization/date.js';
+import { calendarDay, isObservationDate } from '../synchronization/date.js';
 
 export const FINANCIAL_STATEMENT_APIS = {
   income: 'income_vip',
@@ -9,6 +9,68 @@ export const FINANCIAL_STATEMENT_APIS = {
 } as const;
 export const FINANCIAL_REPORT_TYPES = ['1', '4', '5'] as const;
 export const FINANCIAL_ANNOUNCEMENT_FIELDS = ['ann_date', 'f_ann_date'] as const;
+export const STATEMENT_HISTORY_SNAPSHOT = 'history_snapshot';
+
+export function statementAnnouncementWindow(period: string) {
+  const [mode, startDate, endDate, extra] = period.split('/');
+  if (
+    mode !== 'ann_range' ||
+    !isObservationDate(startDate) ||
+    !isObservationDate(endDate) ||
+    startDate > endDate ||
+    extra !== undefined
+  ) {
+    return undefined;
+  }
+
+  return { startDate, endDate };
+}
+
+/** 满页窗口按自然日二分，子区间无重叠。 / Bisect saturated windows into disjoint calendar ranges. */
+export function splitStatementAnnouncementWindow(startDate: string, endDate: string) {
+  const dayTime = (date: string) =>
+    Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6)));
+  const midpoint = Math.floor((dayTime(endDate) - dayTime(startDate)) / (2 * 86_400_000));
+  const leftEnd = calendarDay(startDate, midpoint);
+
+  return { leftEnd, rightStart: calendarDay(leftEnd, 1) };
+}
+
+function matchesStatementAnnouncementRange(
+  request: unknown,
+  kind: FinancialStatementKind,
+  reportType: string,
+  startDate: string,
+  endDate: string,
+): boolean {
+  if (!Array.isArray(request)) {
+    return false;
+  }
+
+  const expected: Record<string, string>[] = [];
+  const visit = (start: string, end: string): boolean => {
+    const params = { start_date: start, end_date: end, report_type: reportType };
+    const current = request[expected.length]?.params;
+    if (current?.start_date !== start || current?.end_date !== end) {
+      return false;
+    }
+    expected.push(params);
+
+    if (start < end && request[expected.length]?.params?.start_date === start) {
+      const { leftEnd, rightStart } = splitStatementAnnouncementWindow(start, end);
+
+      return visit(start, leftEnd) && visit(rightStart, end);
+    }
+
+    return true;
+  };
+
+  return (
+    visit(startDate, endDate) &&
+    expected.length === request.length &&
+    statementReceiptMatchesRequests(request, kind, expected)
+  );
+}
 
 /**
  * 只复用请求参数和完整字段都匹配的来源收据。
@@ -76,7 +138,7 @@ export function statementReceiptMatchesBatch(
   const statementKind = kind as FinancialStatementKind;
   if (code) {
     return (
-      batch.period === 'all' &&
+      (batch.period === 'all' || batch.period === STATEMENT_HISTORY_SNAPSHOT) &&
       statementReceiptMatchesRequests(
         batch.request,
         statementKind,
@@ -84,6 +146,22 @@ export function statementReceiptMatchesBatch(
       )
     );
   }
+
+  const window = statementAnnouncementWindow(batch.period);
+  if (window) {
+    return (
+      batch.rangeStart === window.startDate &&
+      (batch.rangeEnd === window.endDate || (allowDeferred && batch.rangeEnd === null)) &&
+      matchesStatementAnnouncementRange(
+        batch.request,
+        statementKind,
+        reportType,
+        window.startDate,
+        window.endDate,
+      )
+    );
+  }
+
   const field = FINANCIAL_ANNOUNCEMENT_FIELDS.find(
     (candidate) => batch.period === `${candidate}/${batch.rangeStart}`,
   );

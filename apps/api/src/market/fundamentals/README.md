@@ -52,7 +52,7 @@ resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并�
 十表迁移只新增可空来源列，旧值默认 null；Prisma schema 的内部字段不增加 Research SDK 列。财报 resolver 版本提升至 3，消费者继续通过现有显式映射读取。
 
 
-Ingestion 的财报历史基线从 1988 年枚举季度，通过 VIP 获取全市场；后续按公告日及实际公告日增量获取，新纳入证券补齐 1988 年起历史。[scope.ts](scope.ts) 按最终截止日筛选证券，`catalogThrough` 与请求日期或报告期分别保存，允许已上市证券保存这一覆盖范围内的上市前财务。[statement-requests.ts](statement-requests.ts) 声明报表类型、日期入口和完整收据匹配规则。
+Ingestion 的三张财报从 1988 年按 `ann_date` 区间扫描。满页用不重叠的子窗口重取，按有效覆盖证据补查 `f_ann_date`，未纳入历史范围的新证券继续定向补采。[scope.ts](scope.ts) 按最终截止日筛选证券，`catalogThrough` 与请求日期或报告期分别保存，允许已上市证券保存这一覆盖范围内的上市前财务。[statement-requests.ts](statement-requests.ts) 声明报表类型、日期入口和完整收据匹配规则。
 
 
 ## 分红独立方案与现金实施记录

@@ -17,6 +17,32 @@ export interface SourcePages {
   errors: string[];
 }
 
+function validateSourceParameters(api: string, params: Record<string, unknown>) {
+  const contract = INGESTION_SOURCE_REQUESTS[api];
+  if (
+    !contract ||
+    Object.keys(params).some((parameter) => !contract.parameters.includes(parameter))
+  ) {
+    throw new Error(`${api}: undeclared ingestion request parameter`);
+  }
+
+  return contract;
+}
+
+/** 单页探测保留实际请求，调用方负责处理满页。 / Record the single-page probe; callers handle saturation. */
+export function fetchSourceFirstPage(
+  source: SyncSource,
+  api: string,
+  params: Record<string, unknown>,
+  fields: string,
+  pageSize: number,
+): Promise<TushareRow[]> {
+  validateSourceParameters(api, params);
+  recordImportRequest(api, params, fields);
+
+  return source.call(api, { ...params, limit: pageSize, offset: 0 }, fields);
+}
+
 /**
  * 分页完整性独立报告；调度器只提交整批下载完成的数据。
  *
@@ -30,13 +56,7 @@ export async function fetchSourcePages(
   requestedPageSize?: number,
   maximumPages = 20,
 ): Promise<SourcePages> {
-  const contract = INGESTION_SOURCE_REQUESTS[api];
-  if (
-    !contract ||
-    Object.keys(params).some((parameter) => !contract.parameters.includes(parameter))
-  ) {
-    throw new Error(`${api}: undeclared ingestion request parameter`);
-  }
+  const contract = validateSourceParameters(api, params);
   recordImportRequest(api, params, fields);
 
   const pageSize = Math.min(

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { emptySelections } from '../../tests/ingestion-source.js';
-import { financialUnits, planEtfSelections, planIngestion } from './plan.js';
+import { financialIndicatorUnits, planEtfSelections, planIngestion } from './plan.js';
 
 it('uses available exchange sessions when listing dates precede calendar history', async () =>
   withSyncDatabase(async (database) => {
@@ -171,15 +171,13 @@ it('plans daily selections from each ETF venue calendar without future or borrow
     ]);
   }));
 
-it('plans exactly 124 quarters and 1240 whole-market financial batches from 1988 through 2018', () => {
-  const units = financialUnits('20181231', new Date('2019-01-01T10:00:00Z'));
-  expect(units).toHaveLength(1240);
-  expect(units.filter((unit) => unit.dataset === 'financial-statements')).toHaveLength(1116);
-  expect(units.filter((unit) => unit.dataset === 'financial-indicators')).toHaveLength(124);
+it('plans exactly 124 quarterly financial-indicator batches from 1988 through 2018', () => {
+  const units = financialIndicatorUnits('20181231', new Date('2019-01-01T10:00:00Z'));
+  expect(units).toHaveLength(124);
   expect(new Set(units.map((unit) => unit.period)).size).toBe(124);
   expect(units[0]).toMatchObject({
-    api: 'income_vip',
-    scope: 'income|1',
+    api: 'fina_indicator_vip',
+    scope: 'all',
     period: '19880331',
     catalogThrough: '20181231',
   });
@@ -193,11 +191,11 @@ it('plans exactly 124 quarters and 1240 whole-market financial batches from 1988
 
 it('respects partial-quarter and fixed-origin boundaries without planning earlier history', () => {
   const clock = new Date('2019-01-01T10:00:00Z');
-  expect(financialUnits('19871231', clock)).toEqual([]);
-  expect(financialUnits('19880330', clock)).toEqual([]);
-  const first = financialUnits('19880331', clock);
-  expect(first).toHaveLength(10);
+  expect(financialIndicatorUnits('19871231', clock)).toEqual([]);
+  expect(financialIndicatorUnits('19880330', clock)).toEqual([]);
+  const first = financialIndicatorUnits('19880331', clock);
+  expect(first).toHaveLength(1);
   expect(first.every((unit) => unit.period === '19880331')).toBe(true);
-  const beforeQuarterEnd = financialUnits('20181231', new Date('2018-12-31T10:00:00Z'));
+  const beforeQuarterEnd = financialIndicatorUnits('20181231', new Date('2018-12-31T10:00:00Z'));
   expect(beforeQuarterEnd.some((unit) => unit.period === '20181231')).toBe(false);
 });

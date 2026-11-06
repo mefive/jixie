@@ -16,7 +16,11 @@ import { readDownloadCodes } from '#market/downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '#market/registry/index-presets.js';
 import { quarterlyReportPeriods } from '#market/fundamentals/reference-periods.js';
 import { planDividendUnits } from './dividend-plan.js';
-import { FINANCIAL_HISTORY_START, planStatementUnits } from './statement-plan.js';
+import {
+  FINANCIAL_HISTORY_START,
+  STATEMENT_STRATEGY,
+  planStatementUnits,
+} from './statement-plan.js';
 import type { IngestionUnit } from './schema.js';
 
 /**
@@ -32,6 +36,7 @@ export interface IngestionPlan {
   units: IngestionUnit[];
   blocked: Array<{ dataset: string; scope: string; message: string }>;
   statementCodes?: string[];
+  statementStrategy?: typeof STATEMENT_STRATEGY;
 }
 
 export function referenceUnits(targetDate: string, startedAt: Date): IngestionUnit[] {
@@ -327,10 +332,8 @@ export async function planIngestion(
     .sort();
   if (codes.length) {
     streams.push([
-      ...(await planStatementUnits(codes, targetDate, startedAt, runId)),
-      ...financialUnits(targetDate, startedAt).filter(
-        (unit) => unit.dataset === 'financial-indicators',
-      ),
+      ...(await planStatementUnits(codes, targetDate, startedAt)),
+      ...financialIndicatorUnits(targetDate, startedAt),
     ]);
   }
   streams.push(await planDividendUnits(codes, targetDate, startedAt, runId));
@@ -344,7 +347,7 @@ export async function planIngestion(
     }
   }
 
-  return { units, blocked, statementCodes: codes };
+  return { units, blocked, statementCodes: codes, statementStrategy: STATEMENT_STRATEGY };
 }
 
 /**
@@ -352,41 +355,19 @@ export async function planIngestion(
  *
  * Fetch whole-market quarterly data from the fixed 1988 origin, including empty quarters.
  */
-export function financialUnits(targetDate: string, startedAt: Date): IngestionUnit[] {
+export function financialIndicatorUnits(targetDate: string, startedAt: Date): IngestionUnit[] {
   const end = [targetDate, calendarDay(localDate(startedAt), -1)].sort()[0];
   const periods = quarterlyReportPeriods(FINANCIAL_HISTORY_START, end);
-  const statements = Object.entries({
-    income: 'income_vip',
-    balance_sheet: 'balancesheet_vip',
-    cash_flow: 'cashflow_vip',
-  }).flatMap(([kind, api]) =>
-    ['1', '4', '5'].flatMap((reportType) =>
-      periods.map((period) => ({
-        dataset: 'financial-statements',
-        scope: `${kind}|${reportType}`,
-        period,
-        startDate: period,
-        endDate: period,
-        catalogThrough: end,
-        api,
-        refresh: true,
-      })),
-    ),
-  );
-
-  return [
-    ...statements,
-    ...periods.map((period) => ({
-      dataset: 'financial-indicators',
-      scope: 'all',
-      period,
-      startDate: period,
-      endDate: period,
-      catalogThrough: end,
-      api: 'fina_indicator_vip',
-      refresh: true,
-    })),
-  ];
+  return periods.map((period) => ({
+    dataset: 'financial-indicators',
+    scope: 'all',
+    period,
+    startDate: period,
+    endDate: period,
+    catalogThrough: end,
+    api: 'fina_indicator_vip',
+    refresh: true,
+  }));
 }
 
 function ingestionEnd(targetDate: string, startedAt: Date): string {

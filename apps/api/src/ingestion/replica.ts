@@ -103,6 +103,7 @@ export async function ingestCandidate(
   }
   const main = getDatabase();
   let run = await main.ingestionRun.findUnique({ where: { activeReplica: 1 } });
+  const upgradeStatements = Boolean(retryRunId && run?.replicaPhase === 'interrupted');
   if (retryRunId && run?.id !== retryRunId) {
     throw new IngestionError('candidate_state_conflict');
   }
@@ -199,7 +200,7 @@ export async function ingestCandidate(
     }
 
     const result = await withCandidate(id, async () => {
-      const execution = await collectInReplica({ ...input, targetDate }, id);
+      const execution = await collectInReplica({ ...input, targetDate }, id, upgradeStatements);
       const review = await reviewCandidate(id);
 
       return { execution, review };

@@ -33,18 +33,23 @@ export function ingestionSource(
   return {
     call: async (api, params = {}) => {
       options.onCall?.(api, params);
-      const statementQuery =
-        api !== 'fina_indicator_vip' &&
-        ['ann_date', 'f_ann_date', 'ts_code'].some((key) => typeof params[key] === 'string');
-      if (
-        api.endsWith('_vip') &&
-        ((typeof params.period !== 'string' && !statementQuery) ||
-          params.start_date ||
-          params.end_date)
-      ) {
-        throw new Error(
-          'Financial ingestion must request a report period, disclosure date or security history',
-        );
+      if (api.endsWith('_vip')) {
+        const indicator = api === 'fina_indicator_vip';
+        const filters = (
+          indicator ? ['period'] : ['period', 'ann_date', 'f_ann_date', 'ts_code']
+        ).filter((key) => typeof params[key] === 'string');
+        const { start_date: start, end_date: end } = params;
+        const valid =
+          start !== undefined || end !== undefined
+            ? !indicator &&
+              filters.length === 0 &&
+              typeof start === 'string' &&
+              typeof end === 'string' &&
+              start <= end
+            : filters.length === 1;
+        if (!valid) {
+          throw new Error('Unexpected financial query filters');
+        }
       }
       const date = String(params.trade_date ?? '19910104');
       switch (api) {
@@ -126,10 +131,13 @@ export function ingestionSource(
             },
           ];
         case 'income_vip': {
+          const announcement = options.incomeAnnDate ?? '19910103';
           if (
             !options.incomeAvailable?.() ||
             (params.period && params.period !== (options.incomePeriod ?? '19901231')) ||
-            (params.ann_date && params.ann_date !== (options.incomeAnnDate ?? '19910103')) ||
+            (params.ann_date && params.ann_date !== announcement) ||
+            (params.start_date && announcement < String(params.start_date)) ||
+            (params.end_date && announcement > String(params.end_date)) ||
             (params.f_ann_date &&
               params.f_ann_date !==
                 (options.incomeActualAnnDate ?? options.incomeAnnDate ?? '19910103')) ||
@@ -140,7 +148,7 @@ export function ingestionSource(
           const row: TushareRow = {
             ts_code: String(params.ts_code ?? '600000.SH'),
             end_date: options.incomePeriod ?? '19901231',
-            ann_date: options.incomeAnnDate ?? '19910103',
+            ann_date: announcement,
             f_ann_date: options.incomeActualAnnDate ?? options.incomeAnnDate ?? '19910103',
             report_type: '1',
             comp_type: '1',

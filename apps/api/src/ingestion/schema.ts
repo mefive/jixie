@@ -42,6 +42,7 @@ const unitSchema = z.object({
   endDate: z.string(),
   fullHistory: z.boolean().optional(),
   announcementField: z.enum(['ann_date', 'f_ann_date']).optional(),
+  announcementRange: z.literal(true).optional(),
   exchanges: z.array(z.string()).readonly().optional(),
   catalogThrough: z.string().optional(),
 });
@@ -60,6 +61,7 @@ export const runPlanSchema = z.object({
       units: z.array(unitSchema),
       blocked: z.array(z.object({ dataset: z.string(), scope: z.string(), message: z.string() })),
       statementCodes: z.array(z.string()).optional(),
+      statementStrategy: z.literal('announcement_range').optional(),
     })
     .optional(),
 });

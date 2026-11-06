@@ -35,7 +35,7 @@ it(
       expect(calls).not.toContain('adj_factor');
       expect(calls).toContain('stock_basic');
       expect(calls).not.toContain('dividend');
-      expect(calls).not.toContain('income_vip');
+      expect(calls.filter((api) => api === 'income_vip')).toHaveLength(3);
       expect(calls).toContain('fina_indicator_vip');
       expect(await database.daily.count()).toBe(rows);
       expect(
@@ -278,7 +278,7 @@ it(
 );
 
 it(
-  'bootstraps pre-IPO reports from fixed 1988 quarters and reuses them in later runs',
+  'bootstraps pre-IPO reports by announcement windows and reuses completed dates',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -295,20 +295,16 @@ it(
       const input = { targetDate: '19910104', clock: () => ingestionTime, source, onLog: () => {} };
       await ingest(input);
       expect((await database.financialIncomeStatement.findFirstOrThrow()).endDate).toBe('19881231');
-      expect(requests.some((request) => request.period === '19881231')).toBe(true);
-      expect(
-        requests.every(
-          (request) => typeof request.period === 'string' && request.period >= '19880101',
-        ),
-      ).toBe(true);
+      expect(requests.some((request) => request.start_date === '19880101')).toBe(true);
+      expect(requests.some((request) => request.end_date === '19910105')).toBe(true);
       for (const request of requests) {
-        expect(request).not.toHaveProperty('start_date');
-        expect(request).not.toHaveProperty('end_date');
+        expect(request).not.toHaveProperty('period');
         expect(request).not.toHaveProperty('ts_code');
       }
       requests.length = 0;
       await ingest(input);
-      expect(requests).toEqual([]);
+      expect(requests).toHaveLength(3);
+      expect(requests.every((request) => request.start_date === '19910105')).toBe(true);
       expect(await database.financialIncomeStatement.count()).toBe(1);
     }),
   60_000,

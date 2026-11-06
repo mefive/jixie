@@ -5,6 +5,7 @@ import {
   dividendReceiptHasCompleteFields,
   dividendReceiptMatchesRequests,
 } from '#market/fundamentals/dividend-identity.js';
+import { financialStockCodes } from '#market/fundamentals/scope.js';
 import { IngestionError } from './errors.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
@@ -26,6 +27,7 @@ import { planEtfSelections, planIngestion, referenceUnits } from './plan.js';
 import { latestAttempts, openIngestionRun, summarizeIngestionRun, unitKey } from './runs.js';
 import { parseRunPlan, type IngestionRunPlan } from './schema.js';
 import type { IngestionInput, IngestionResult, IngestionUnit } from './schema.js';
+import { STATEMENT_STRATEGY, planStatementUnits } from './statement-plan.js';
 
 /**
  * 固定目标、整批下载和短事务接纳；成功批次即恢复依据。
@@ -40,11 +42,16 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
 export async function collectInReplica(
   input: IngestionInput,
   runId: string,
+  upgradeStatements = false,
 ): Promise<IngestionResult> {
-  return collect(input, runId);
+  return collect(input, runId, upgradeStatements);
 }
 
-async function collect(input: IngestionInput, replicaRunId?: string): Promise<IngestionResult> {
+async function collect(
+  input: IngestionInput,
+  replicaRunId?: string,
+  upgradeStatements = false,
+): Promise<IngestionResult> {
   if (!isObservationDate(input.targetDate)) {
     throw new IngestionError('invalid_target_date');
   }
@@ -423,9 +430,12 @@ async function collect(input: IngestionInput, replicaRunId?: string): Promise<In
           }
           await attempt(unit);
         }
+        const saved = runPlan.plan;
         const plan =
-          (dependenciesChanged || runPlan.plan?.blocked.length ? undefined : runPlan.plan) ??
-          (await planIngestion(input.targetDate, startedAt, runId));
+          upgradeStatements && saved && !saved.statementStrategy && stockCatalogReady
+            ? await upgradeStatementPlan(saved, runId, input.targetDate, invokedAt)
+            : ((dependenciesChanged || saved?.blocked.length ? undefined : saved) ??
+              (await planIngestion(input.targetDate, startedAt, runId)));
         await savePlan({ ...runPlan, plan });
         for (const unit of runPlan.plan!.units) {
           required.add(unitKey(unit));
@@ -503,6 +513,47 @@ async function collect(input: IngestionInput, replicaRunId?: string): Promise<In
 
     return result;
   });
+}
+
+/**
+ * 只升级旧计划中尚未完成的财报。保留有诊断的单元，以便继续核验或按原口径重试。
+ *
+ * Upgrade pending statement work only. Keep diagnosed units for review or retry with their original filter.
+ */
+async function upgradeStatementPlan(
+  plan: NonNullable<IngestionRunPlan['plan']>,
+  runId: string,
+  targetDate: string,
+  invokedAt: Date,
+): Promise<NonNullable<IngestionRunPlan['plan']>> {
+  const attempts = await getDatabase().ingestionBatch.findMany({
+    where: {
+      runId,
+      dataset: 'financial-statements',
+      OR: [{ status: 'succeeded' }, { issues: { some: {} } }],
+    },
+    select: { dataset: true, scope: true, period: true },
+  });
+  const retained = new Set(attempts.map(unitKey));
+  const codes = plan.statementCodes ?? [...(await financialStockCodes(targetDate))].sort();
+  const planned = await planStatementUnits(codes, targetDate, invokedAt);
+  const units = new Map(
+    plan.units
+      .filter((unit) => unit.dataset !== 'financial-statements' || retained.has(unitKey(unit)))
+      .map((unit) => [unitKey(unit), unit]),
+  );
+  for (const unit of planned) {
+    if (!units.has(unitKey(unit))) {
+      units.set(unitKey(unit), unit);
+    }
+  }
+
+  return {
+    ...plan,
+    units: [...units.values()],
+    statementCodes: codes,
+    statementStrategy: STATEMENT_STRATEGY,
+  };
 }
 
 /**
