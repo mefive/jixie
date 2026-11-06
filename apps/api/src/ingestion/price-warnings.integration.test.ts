@@ -105,7 +105,7 @@ it(
         businessKey: { tsCode: historicalBar.ts_code, tradeDate: date },
         payload: historicalBar,
       });
-      expect((await getIngestionStatus()).error).toBeNull();
+      expect(await getIngestionStatus()).toMatchObject({ error: null });
       expect(await database.ingestionIssueResolution.count({ where: { status: 'pending' } })).toBe(
         1,
       );
@@ -138,7 +138,7 @@ it(
           where: { runId: result.runId, dataset: 'stock-prices' },
         }),
       ).toMatchObject({ receivedCount: 2, acceptedCount: 1, rejectedCount: 1, status: 'partial' });
-      expect((await getIngestionStatus()).error).toBe('Missing or invalid OHLC price');
+      expect(await getIngestionStatus()).toMatchObject({ error: 'Missing or invalid OHLC price' });
       expect(
         await database.ingestionIssue.count({ where: { runId: result.runId, severity: 'error' } }),
       ).toBe(1);

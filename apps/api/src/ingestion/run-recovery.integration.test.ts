@@ -156,7 +156,7 @@ it(
           },
         }),
       ).toBe(1);
-      expect((await getIngestionStatus()).error).toBeNull();
+      expect(await getIngestionStatus()).toMatchObject({ error: null });
 
       calls.length = 0;
       const next = await ingest(input);
@@ -217,7 +217,7 @@ it(
           where: { runId: first.runId, dataset: 'stock-prices' },
         }),
       ).toBe(2);
-      expect((await getIngestionStatus()).error).toBeNull();
+      expect(await getIngestionStatus()).toMatchObject({ error: null });
     }),
   60_000,
 );
@@ -442,7 +442,7 @@ it(
           .parse(saved)
           .plan?.units.filter((unit) => unit.dataset.startsWith('financial-')),
       ).toHaveLength(120);
-      expect((await getIngestionStatus()).error).toBeNull();
+      expect(await getIngestionStatus()).toMatchObject({ error: null });
     }),
   60_000,
 );

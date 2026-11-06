@@ -15,12 +15,12 @@ it('keeps targets separate and exposes an older logical run while it is being re
     const resumed = await openIngestionRun('20181231', 'manual', new Date('2026-11-03T00:00:00Z'));
     expect(resumed.id).toBe(first.id);
     expect(resumed.startedAt).toEqual(first.startedAt);
-    expect((await getIngestionStatus()).runId).toBe(first.id);
+    expect(await getIngestionStatus()).toMatchObject({ runId: first.id });
     await database.ingestionRun.update({
       where: { id: first.id },
       data: { status: 'interrupted', finishedAt: new Date('2026-11-03T00:01:00Z') },
     });
-    expect((await getIngestionStatus()).runId).toBe(first.id);
+    expect(await getIngestionStatus()).toMatchObject({ runId: first.id });
   }));
 
 it('starts a fresh cycle after the latest completed run instead of resurrecting an older failed one', async () =>

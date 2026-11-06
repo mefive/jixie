@@ -85,12 +85,18 @@ export interface IngestionIssueList {
   }>;
 }
 
-export interface IngestionStatus {
-  active: boolean;
+export interface IngestionPublishingStatus {
+  active: true;
+  phase: 'publishing';
+  retryAfterSeconds: number;
+}
+
+export interface IngestionAvailableStatus {
+  active: false;
   running: boolean;
-  phase: 'idle' | 'preparing' | 'publishing' | 'error' | 'uninitialized';
+  phase: 'idle' | 'preparing' | 'error' | 'uninitialized';
   runId: string | null;
-  kind: 'ingestion' | 'deploy' | null;
+  kind: 'ingestion' | null;
   targetDate: string | null;
   stage: string | null;
   startedAt: string | null;
@@ -101,3 +107,5 @@ export interface IngestionStatus {
   health: IngestionHealth;
   candidate?: { runId: string; targetDate: string; phase: string | null };
 }
+
+export type IngestionStatus = IngestionAvailableStatus | IngestionPublishingStatus;

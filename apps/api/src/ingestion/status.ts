@@ -1,21 +1,43 @@
 import { getDatabase } from '#infra/database/prisma.js';
 import {
   isMaintenanceOwnerActive,
-  isMarketPublicationActive,
+  MarketAccessBusyError,
+  withMarketAccess,
 } from '#infra/coordination/market-access.js';
 import { marketRevision } from '#market/synchronization/readiness.js';
-import type { IngestionStatus } from '@jixie/shared/api/ingestion';
+import type {
+  IngestionAvailableStatus,
+  IngestionPublishingStatus,
+  IngestionStatus,
+} from '@jixie/shared/api/ingestion';
 import { readIssueOverview } from './issue-overview.js';
 
+export const ingestionPublishingStatus = {
+  active: true,
+  phase: 'publishing',
+  retryAfterSeconds: 5,
+} as const satisfies IngestionPublishingStatus;
+
 /**
- * 可用性只由实际发布锁决定，来源问题不关闭产品。
+ * 持共享锁读取完整状态；发布关闭准入时直接返回最小状态。
  *
- * Availability follows the actual publication lock; source issues never close the product.
+ * Hold a shared lock for the full status read and return minimal status when publication closes admission.
  */
 export async function getIngestionStatus(): Promise<IngestionStatus> {
+  try {
+    return await withMarketAccess(readIngestionStatus);
+  } catch (error) {
+    if (!(error instanceof MarketAccessBusyError)) {
+      throw error;
+    }
+
+    return ingestionPublishingStatus;
+  }
+}
+
+async function readIngestionStatus(): Promise<IngestionAvailableStatus> {
   const database = getDatabase();
-  const [active, running, revision, candidate] = await Promise.all([
-    isMarketPublicationActive(),
+  const [running, revision, candidate] = await Promise.all([
     isMaintenanceOwnerActive(),
     marketRevision(),
     database.ingestionRun
@@ -64,27 +86,25 @@ export async function getIngestionStatus(): Promise<IngestionStatus> {
   );
 
   return {
-    active,
+    active: false,
     running,
-    phase: active
-      ? 'publishing'
-      : running
-        ? 'preparing'
-        : run?.status === 'failed' ||
-            run?.status === 'interrupted' ||
-            Boolean(health.latestRun?.handling.pending.error)
-          ? 'error'
-          : run
-            ? 'idle'
-            : 'uninitialized',
+    phase: running
+      ? 'preparing'
+      : run?.status === 'failed' ||
+          run?.status === 'interrupted' ||
+          Boolean(health.latestRun?.handling.pending.error)
+        ? 'error'
+        : run
+          ? 'idle'
+          : 'uninitialized',
     runId: run?.id ?? null,
-    kind: active && !batch ? 'deploy' : run ? 'ingestion' : null,
+    kind: run ? 'ingestion' : null,
     targetDate: run?.targetDate ?? null,
     stage: batch ? `${batch.dataset}:${batch.scope}` : null,
     startedAt: run?.startedAt.toISOString() ?? null,
     heartbeatAt: batch?.startedAt.toISOString() ?? null,
     error: latestError,
-    retryAfterSeconds: active ? 5 : 0,
+    retryAfterSeconds: 0,
     revision,
     health,
     ...(candidate

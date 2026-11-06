@@ -11,9 +11,9 @@ import './maintenance-gate.css';
  */
 export const MaintenanceGate = observer(() => {
   const { t } = useTranslation('common');
-  const status = maintenanceStore.status;
+  const publishing = maintenanceStore.publishing;
   const serviceUnavailable = maintenanceStore.serviceUnavailable;
-  if (!status?.active && !serviceUnavailable) {
+  if (!publishing && !serviceUnavailable) {
     return null;
   }
 
@@ -32,11 +32,7 @@ export const MaintenanceGate = observer(() => {
           <p className="jx-maintenanceGate-description">
             {serviceUnavailable
               ? t('maintenance.serviceUnavailableDescription')
-              : status.error
-                ? t('maintenance.retrying')
-                : status.kind === 'deploy'
-                  ? t('maintenance.deploymentDescription')
-                  : t('maintenance.description')}
+              : t('maintenance.description')}
           </p>
         </div>
         <dl className="jx-maintenanceGate-details">

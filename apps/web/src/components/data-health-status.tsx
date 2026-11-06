@@ -268,10 +268,12 @@ const CandidateAcceptance = observer(() => {
   const [reviewedRunId, setReviewedRunId] = useState<string | null>(null);
   const canPublish = Boolean(authStore.user?.capabilities?.publishIngestion);
   const candidate = maintenanceStore.status?.candidate;
+  const publicationActive = maintenanceStore.publishing;
   const loader = maintenanceStore.candidateLoader;
   const publishing = maintenanceStore.publishLoader;
   const review = loader.result;
   const ready = Boolean(
+    !publicationActive &&
     candidate?.phase === 'awaiting_publish' &&
     review?.phase === 'awaiting_publish' &&
     review.pending === 0 &&
@@ -308,7 +310,9 @@ const CandidateAcceptance = observer(() => {
       >
         <Button
           type="primary"
-          disabled={candidate.phase !== 'awaiting_publish' || publishing.loading}
+          disabled={
+            publicationActive || candidate.phase !== 'awaiting_publish' || publishing.loading
+          }
           onClick={() => {
             loader.abort();
             loader.reset();
@@ -385,9 +389,14 @@ const CandidateAcceptance = observer(() => {
               ]}
             />
           )}
-          {review && !ready && !loader.loading && !loader.error && !publishing.loading && (
-            <Alert type="warning" showIcon title={t('dataHealth.candidateChanged')} />
-          )}
+          {review &&
+            !ready &&
+            !publicationActive &&
+            !loader.loading &&
+            !loader.error &&
+            !publishing.loading && (
+              <Alert type="warning" showIcon title={t('dataHealth.candidateChanged')} />
+            )}
           {publishing.error && (
             <Alert
               type="error"

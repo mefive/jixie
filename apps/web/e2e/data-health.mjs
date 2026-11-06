@@ -20,6 +20,8 @@ let detailsFail = false;
 let detailCalls = 0;
 let publisher = false;
 let published = false;
+let publicationActive = false;
+let publicationReads = 0;
 let publicationCalls = 0;
 let rejectVersionOnce = true;
 let candidateVersion = 'a'.repeat(64);
@@ -28,6 +30,7 @@ const dividendHash = '56cce440712ebe1a91a0001efd0b7d279af61950f0a5f387bdb2a3fdf8
 const dividendKey = JSON.stringify(JSON.stringify([dividendHash]));
 const dividendMessage = `Duplicate or conflicting business key ${JSON.stringify([dividendHash])}`;
 const priceKey = JSON.stringify({ tsCode: '000003.SZ', tradeDate: '19920131' });
+const publishingStatus = { active: true, phase: 'publishing', retryAfterSeconds: 5 };
 const allHandled = () => scenario === 'review' || scenario === 'archived';
 const counts = () => ({
   pending: { error: allHandled() ? 0 : 3, warning: scenario === 'pending' ? 8 : 0 },
@@ -72,6 +75,19 @@ try {
     (url) => url.pathname.startsWith('/api/'),
     async (route) => {
       const url = new URL(route.request().url());
+      if (publicationActive && url.pathname.startsWith('/api/app/')) {
+        publicationReads++;
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          headers: { 'Retry-After': '5' },
+          body: JSON.stringify({
+            error: { code: 'MAINTENANCE', message: '正在发布数据。', details: publishingStatus },
+          }),
+        });
+        return;
+      }
+
       let body;
       switch (url.pathname) {
         case '/api/auth/me':
@@ -125,7 +141,7 @@ try {
           break;
         }
         case '/api/ingestion/status':
-          body = status();
+          body = publicationActive ? publishingStatus : status();
           break;
         case '/api/ingestion/version':
           body = { revision: 'reviewed-fixture' };
@@ -326,6 +342,27 @@ try {
   await page.getByText(candidateRunId, { exact: true }).waitFor();
   assert.equal(publicationCalls, 2);
   await page.screenshot({ path: `${output}/candidate-published-zh.png`, animations: 'disabled' });
+
+  await page.locator('.ant-drawer-close').click();
+  const currentUrl = page.url();
+  publicationActive = true;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: '系统正在维护', exact: true }).waitFor();
+  await page.getByText('发布新版市场数据', { exact: true }).waitFor();
+  assert.equal(await page.getByText('服务暂时不可用', { exact: true }).count(), 0);
+  await page.screenshot({ path: `${output}/publishing-refresh-zh.png`, animations: 'disabled' });
+
+  const resumed = page.waitForEvent('framenavigated', {
+    predicate: (frame) => frame === page.mainFrame(),
+  });
+  publicationActive = false;
+  await resumed;
+  await page.getByRole('button', { name: '查看数据更新与问题处理进度' }).waitFor();
+  await page.locator('.jx-maintenanceGate').waitFor({ state: 'detached' });
+  assert.equal(page.url(), currentUrl);
+  assert.equal(publicationReads, 0);
+  await page.screenshot({ path: `${output}/publishing-recovered-zh.png`, animations: 'disabled' });
+
   assert.deepEqual(failures, []);
   console.log(
     JSON.stringify({
@@ -342,6 +379,8 @@ try {
         'candidate-accept-en-mobile.png',
         'candidate-version-conflict-zh.png',
         'candidate-published-zh.png',
+        'publishing-refresh-zh.png',
+        'publishing-recovered-zh.png',
       ],
       detailCalls,
     }),

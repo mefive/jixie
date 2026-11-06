@@ -9,8 +9,6 @@ import type {
   AcceptIngestionCandidateRequest,
   IngestionRunParams,
 } from '@jixie/shared/api/ingestion';
-export type { IngestionStatus } from '@jixie/shared/api/ingestion';
-
 export function fetchIngestionStatus(): Promise<IngestionStatus> {
   return request('/api/ingestion/status');
 }

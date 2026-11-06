@@ -4,9 +4,11 @@ import {
   fetchIngestionIssues,
   fetchIngestionCandidate,
   acceptIngestionCandidate,
-  type IngestionStatus,
 } from '@src/api/maintenance';
 import type {
+  IngestionStatus,
+  IngestionAvailableStatus,
+  IngestionPublishingStatus,
   IngestionIssueList,
   IngestionCandidateReview,
   IngestionCandidatePublication,
@@ -24,13 +26,15 @@ class MaintenanceStore {
 
   public polling = new PollingModel();
 
-  public status: IngestionStatus | null = null;
+  public status: IngestionAvailableStatus | null = null;
 
+  public publishing = false;
   public serviceUnavailable = false;
 
   public constructor() {
     makeObservable(this, {
       status: observable.ref,
+      publishing: observable.ref,
       serviceUnavailable: observable.ref,
       acceptStatus: action,
       acceptServiceUnavailable: action,
@@ -99,7 +103,11 @@ class MaintenanceStore {
         await authStore.load();
       }
       await this.load();
-      if (!this.status?.candidate && this.status?.health.latestRun?.id === runId) {
+      if (
+        !this.publishing &&
+        !this.status?.candidate &&
+        this.status?.health.latestRun?.id === runId
+      ) {
         await this.loadIssues();
 
         return true;
@@ -120,14 +128,18 @@ class MaintenanceStore {
   }
 
   /**
-   * 接收维护状态并检测部署变化，协调应用门禁与刷新提示。
+   * 发布状态只更新可用性，保留上一次完整状态供确认弹窗使用。
    *
-   * Accept maintenance state and detect deployment changes for availability gating and refresh prompts.
+   * Publishing status updates availability and preserves the last full status for the review dialog.
    */
   public acceptStatus(status: IngestionStatus): void {
-    const wasBlocking = this.status?.active === true || this.serviceUnavailable;
-    this.status = status;
+    const wasBlocking = this.publishing || this.serviceUnavailable;
+    this.publishing = status.active;
     this.serviceUnavailable = false;
+    if (status.active === false) {
+      this.status = status;
+    }
+
     if (!this.polling.running) {
       this.polling.start();
     }
@@ -144,7 +156,7 @@ class MaintenanceStore {
   }
 
   private readonly onMaintenance = (event: Event): void => {
-    const status = (event as CustomEvent<IngestionStatus>).detail;
+    const status = (event as CustomEvent<IngestionPublishingStatus>).detail;
     if (status) {
       this.acceptStatus(status);
     }

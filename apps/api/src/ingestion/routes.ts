@@ -13,10 +13,15 @@ import { inspectCandidate, acceptCandidate } from './replica.js';
 import { IngestionError } from './errors.js';
 import { getIngestionIssueList } from './issue-overview.js';
 import { getDeploymentVersion } from '#infra/deployment-version.js';
+import { ingestionGate } from './middleware.js';
 import { getIngestionStatus } from './status.js';
 
 export const ingestionRoute = new Hono();
-ingestionRoute.get('/status', async (context) => context.json(await getIngestionStatus()));
+ingestionRoute.get('/status', async (context) => {
+  context.header('Cache-Control', 'no-store');
+
+  return context.json(await getIngestionStatus());
+});
 ingestionRoute.get('/version', async (context) => {
   context.header('Cache-Control', 'no-store');
 
@@ -27,6 +32,7 @@ ingestionRoute.get('/version', async (context) => {
 // Require login for details; polling exposes counts without payloads, SQL or internal failure messages.
 ingestionRoute.get(
   '/issues',
+  ingestionGate,
   requireAuth,
   zValidator('query', ingestionIssueListQuerySchema),
   async (context) => {

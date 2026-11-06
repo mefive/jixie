@@ -17,6 +17,9 @@ if (!el) {
 
 // On startup await /me to get auth state before rendering routes — RequireAuth has the right verdict on the first frame, no login-page flash
 await Promise.all([authStore.load(), maintenanceStore.load()]);
+// 发布结束后维护状态会重载当前页面，届时再初始化业务路由。
+// Maintenance reloads the current page after publication, so business routes initialize then.
+const publishingAtStartup = maintenanceStore.publishing;
 void deploymentVersionStore.load();
 
 // antd theme aligned to ink black (matches --color-primary; theme tokens borrowed from marginalia) —
@@ -49,7 +52,7 @@ const Root = observer(() => (
         div wrapper (antd 6 cssVar needs a real component), but jx-appRoot is display:contents so it
         generates no box and doesn't break the html/body/#root height:100% chain. */}
     <App className="jx-appRoot">
-      <AppRoutes />
+      {!publishingAtStartup && <AppRoutes />}
       <MaintenanceGate />
     </App>
   </ConfigProvider>

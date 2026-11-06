@@ -5,7 +5,7 @@
 
 import i18n from '@src/i18n';
 import { localeStore } from '@src/i18n/locale-store';
-import type { IngestionStatus } from './maintenance';
+import type { IngestionPublishingStatus } from '@jixie/shared/api/ingestion';
 
 export class ApiError extends Error {
   public code: string;
@@ -126,8 +126,8 @@ export function notifyMaintenance(
 ): void {
   if (error?.code === 'MAINTENANCE' && error.details) {
     window.dispatchEvent(
-      new CustomEvent<IngestionStatus>('jixie:maintenance', {
-        detail: error.details as IngestionStatus,
+      new CustomEvent<IngestionPublishingStatus>('jixie:maintenance', {
+        detail: error.details as IngestionPublishingStatus,
       }),
     );
   }
