@@ -83,7 +83,9 @@ export async function executeDataCommand(
           }));
         }
         case 'inspect-run':
-          return (await import('../replica.js')).inspectCandidate(request.runId);
+          return (await import('../replica.js')).inspectCandidate(request.runId, {
+            includeBatchTimings: true,
+          });
         case 'accept-run':
           return (await import('../replica.js')).acceptCandidate(
             request.runId,

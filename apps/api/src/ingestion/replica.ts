@@ -1,4 +1,5 @@
 import pkg, { type IngestionRun, type Prisma } from '@prisma/client';
+import type { IngestionExecutionSummary } from '@jixie/shared/api/ingestion';
 import { randomUUID } from 'node:crypto';
 import { ulid } from 'ulid';
 import { getDatabase } from '#infra/database/prisma.js';
@@ -60,7 +61,7 @@ async function finishOperation(
   }
 }
 
-async function reviewCandidate(runId: string) {
+async function reviewCandidate(runId: string, { includeBatchTimings = false } = {}) {
   const database = getDatabase();
   return database.$transaction(async (transaction) => {
     const state = await readRunIssueState(transaction, runId);
@@ -79,12 +80,14 @@ async function reviewCandidate(runId: string) {
         ? 'awaiting_repair'
         : 'awaiting_publish'
       : 'interrupted';
+    const timings = includeBatchTimings ? await readRunTimings(transaction, runId) : {};
 
     return {
       phase,
       pending,
       run: state.run,
       candidateVersion: fingerprint({ runId, market, decisions, finishedAt: state.run.finishedAt }),
+      timings,
     };
   }, transactionOptions);
 }
@@ -237,34 +240,99 @@ export async function retryCandidate(runId: string, input: IngestionRetryInput) 
   return ingestCandidate({ ...input, targetDate: run.targetDate }, true, runId);
 }
 
-export async function inspectCandidate(runId: string) {
-  const run = await getDatabase().ingestionRun.findUnique({ where: { id: runId } });
+async function readRunTimings(database: Prisma.TransactionClient, runId: string) {
+  const { startedAt, finishedAt, batches } = await database.ingestionRun.findUniqueOrThrow({
+    where: { id: runId },
+    select: {
+      startedAt: true,
+      finishedAt: true,
+      batches: {
+        select: {
+          id: true,
+          dataset: true,
+          scope: true,
+          period: true,
+          api: true,
+          rangeStart: true,
+          rangeEnd: true,
+          status: true,
+          startedAt: true,
+          finishedAt: true,
+        },
+        orderBy: [{ startedAt: 'asc' }, { id: 'asc' }],
+      },
+    },
+  });
+
+  return {
+    startedAt: startedAt.toISOString(),
+    finishedAt: finishedAt?.toISOString() ?? null,
+    batches: batches.map((batch) => ({
+      ...batch,
+      elapsedMs: batch.finishedAt ? batch.finishedAt.getTime() - batch.startedAt.getTime() : null,
+    })),
+  };
+}
+
+type CandidateInspection = Partial<Awaited<ReturnType<typeof readRunTimings>>> & {
+  runId: string;
+  targetDate: string;
+  phase: string | null;
+  status: string;
+  pending?: number;
+  candidateVersion?: string;
+  execution?: IngestionExecutionSummary | null;
+  publishedRevision?: number | null;
+  publishedAt?: Date | null;
+  rejectionReason?: string | null;
+};
+
+export async function inspectCandidate(
+  runId: string,
+  { includeBatchTimings = false } = {},
+): Promise<CandidateInspection> {
+  const database = getDatabase();
+  const run = await database.ingestionRun.findUnique({ where: { id: runId } });
   if (!run) {
     throw new IngestionError('candidate_missing');
   }
-  if (!run.activeReplica || !run.replicaReadyAt || !editable.includes(run.replicaPhase ?? '')) {
+
+  const hasReadyReplica = Boolean(run.activeReplica && run.replicaReadyAt);
+  if (hasReadyReplica && editable.includes(run.replicaPhase ?? '')) {
+    const review = await withCandidate(runId, () =>
+      reviewCandidate(runId, { includeBatchTimings }),
+    );
+    const execution = ingestionExecutionSchema.safeParse(review.run.summary);
+
     return {
       runId,
       targetDate: run.targetDate,
       phase: run.replicaPhase,
-      status: run.status,
-      publishedRevision: run.publishedRevision,
-      publishedAt: run.publishedAt,
-      rejectionReason: run.rejectionReason,
+      pending: review.pending,
+      candidateVersion: review.candidateVersion,
+      status: review.run.status,
+      finishedAt: review.run.finishedAt?.toISOString() ?? null,
+      execution: execution.success ? execution.data : null,
+      ...review.timings,
     };
   }
-  const review = await withCandidate(runId, () => reviewCandidate(runId));
-  const execution = ingestionExecutionSchema.safeParse(review.run.summary);
+
+  let timings;
+  if (includeBatchTimings) {
+    timings = hasReadyReplica
+      ? await withCandidate(runId, (candidate) => readRunTimings(candidate, runId))
+      : await readRunTimings(database, runId);
+  }
 
   return {
     runId,
     targetDate: run.targetDate,
     phase: run.replicaPhase,
-    pending: review.pending,
-    candidateVersion: review.candidateVersion,
-    status: review.run.status,
-    finishedAt: review.run.finishedAt?.toISOString() ?? null,
-    execution: execution.success ? execution.data : null,
+    status: run.status,
+    publishedRevision: run.publishedRevision,
+    publishedAt: run.publishedAt,
+    rejectionReason: run.rejectionReason,
+    ...timings,
   };
 }
 

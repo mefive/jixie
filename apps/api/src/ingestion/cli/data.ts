@@ -22,8 +22,9 @@ import { isObservationDate } from '#market/synchronization/date.js';
  * pnpm data runs retry RUN_ID
  * retry 在同一副本重试未成功批次，保留已成功批次和原始诊断。
  * Retry unsuccessful batches in the same candidate, retaining successes and original diagnostics.
- * inspect 返回待审核版本；accept 发布人工核验过的副本。recover 前确认旧进程已退出。
- * Inspect returns the reviewed version; accept publishes it. Verify the previous process stopped before recover.
+ * inspect 返回运行详情和逐次批次耗时；accept 发布人工核验过的副本。recover 前确认旧进程已退出。
+ * Inspect returns run details and per-attempt timings; accept publishes the reviewed version.
+ * Verify the previous process stopped before recover.
  * pnpm data issues RUN_ID
  * RUN_ID：runs 返回的运行 ID；issues 原命令输出该轮全部历史诊断。
  * RUN_ID: a run ID from runs; the original issues command lists all historical diagnostics.
@@ -77,6 +78,7 @@ const usage = [
   '       pnpm data runs [--limit N]',
   'Runs: default 5, range 1-100; id/status/startedAt/finishedAt only; newest first.',
   '       pnpm data runs inspect RUN_ID',
+  'Inspect: run details and per-attempt batch timings in milliseconds.',
   '       pnpm data runs accept RUN_ID --expect-candidate HASH',
   '       pnpm data runs reject RUN_ID --reason REASON',
   '       pnpm data runs recover RUN_ID --confirm-stopped',
