@@ -1,7 +1,7 @@
 import { recordImportIssue, recordImportRequest } from './diagnostics.js';
 import { createHash } from 'node:crypto';
 import { INGESTION_SOURCE_REQUESTS } from '../providers/tushare/request-contract.js';
-import { MarketSyncBudgetError, TushareError } from '../errors.js';
+import { MarketSourceRangeLimitError, MarketSyncBudgetError, TushareError } from '../errors.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import type { MarketRow, PreparedMarketPartition, SourceRecord } from './partition.js';
 
@@ -44,6 +44,55 @@ export function fetchSourceFirstPage(
 }
 
 /**
+ * 连续区间先查一次，满页交回编排层拆分；旧计划继续使用原有分页。
+ *
+ * Query a continuous range once and let orchestration split saturated windows; preserve legacy paging.
+ */
+export async function fetchSourceRange(
+  source: SyncSource,
+  api: string,
+  params: Record<string, unknown>,
+  fields: string,
+  adaptive = false,
+): Promise<SourcePages> {
+  if (!adaptive) {
+    return fetchSourcePages(source, api, params, fields);
+  }
+
+  const contract = validateSourceParameters(api, params);
+  const limit = contract.rangeLimit ?? contract.snapshotLimit;
+  if (!limit) {
+    return fetchSourcePages(source, api, params, fields, undefined, Infinity, true);
+  }
+  let rows: TushareRow[];
+  try {
+    rows = await fetchSourceFirstPage(source, api, params, fields, limit);
+  } catch (error) {
+    if (error instanceof MarketSyncBudgetError) {
+      return { rows: [], complete: false, pages: 0, errors: [], deferred: true };
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    recordImportIssue({
+      category: 'request',
+      reasonCode:
+        error instanceof TushareError ? 'source_rejected_request' : 'source_request_failed',
+      message,
+    });
+
+    return { rows: [], complete: false, pages: 0, errors: [message] };
+  }
+  if (rows.length >= limit) {
+    if (params.start_date !== params.end_date) {
+      throw new MarketSourceRangeLimitError(rows.length);
+    }
+
+    return fetchSourcePages(source, api, params, fields);
+  }
+
+  return { rows, complete: true, pages: 1, errors: [] };
+}
+
+/**
  * 分页完整性独立报告；调度器只提交整批下载完成的数据。
  *
  * Report pagination completeness separately; the orchestrator commits only complete downloads.
@@ -55,6 +104,7 @@ export async function fetchSourcePages(
   fields: string,
   requestedPageSize?: number,
   maximumPages = 20,
+  adaptiveRange = false,
 ): Promise<SourcePages> {
   const contract = validateSourceParameters(api, params);
   recordImportRequest(api, params, fields);
@@ -79,6 +129,9 @@ export async function fetchSourcePages(
       result.pages++;
       const signature = createHash('sha256').update(JSON.stringify(page)).digest('hex');
       if (page.length && signatures.has(signature)) {
+        if (adaptiveRange && params.start_date !== params.end_date) {
+          throw new MarketSourceRangeLimitError(result.rows.length + page.length);
+        }
         throw new Error(`${api}: provider repeated an offset page`);
       }
       signatures.add(signature);
@@ -91,6 +144,9 @@ export async function fetchSourcePages(
         break;
       }
     } catch (error) {
+      if (error instanceof MarketSourceRangeLimitError) {
+        throw error;
+      }
       if (error instanceof MarketSyncBudgetError) {
         result.deferred = true;
         break;
@@ -107,6 +163,9 @@ export async function fetchSourcePages(
     }
   }
   if (!result.complete && !result.deferred && !result.errors.length) {
+    if (adaptiveRange && params.start_date !== params.end_date) {
+      throw new MarketSourceRangeLimitError(result.rows.length);
+    }
     const message = `${api}: finite pagination limit reached`;
     result.errors.push(message);
     recordImportIssue({ category: 'request', reasonCode: 'incomplete_pagination', message });

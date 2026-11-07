@@ -26,7 +26,7 @@ import {
 } from '../instruments/stock-identity.js';
 import { calendarDay, isObservationDate, localDate } from '../synchronization/date.js';
 import { fingerprint } from '../synchronization/rows.js';
-import { MarketSyncBudgetError, TushareError } from '../errors.js';
+import { MarketSourceRangeLimitError, MarketSyncBudgetError, TushareError } from '../errors.js';
 import {
   finaIndicatorSchema,
   finaIndicatorVersionSchema,
@@ -54,6 +54,7 @@ import {
   FINANCIAL_STATEMENT_FIELDS,
   financialStatementSourceFields,
   normalizeFinancialStatementSourceRow,
+  latestFinancialAnnouncementDate,
   resolveFinancialAvailability,
   type FinancialStatementKind,
   type FinancialCorrectionEvidence,
@@ -251,6 +252,9 @@ async function fetchStatementAnnouncementRange(
       result.rows.push(...rows);
       return;
     }
+    if (partition.adaptiveRange && startDate < endDate) {
+      throw new MarketSourceRangeLimitError(rows.length);
+    }
     if (startDate === endDate) {
       throw new Error(`${api}: disclosure date ${startDate} reached the single-page limit`);
     }
@@ -263,6 +267,9 @@ async function fetchStatementAnnouncementRange(
     await fetchWindow(partition.startDate, partition.endDate);
     result.complete = true;
   } catch (error) {
+    if (error instanceof MarketSourceRangeLimitError) {
+      throw error;
+    }
     if (error instanceof MarketSyncBudgetError) {
       result.deferred = true;
       return result;
@@ -568,7 +575,7 @@ async function loadStatementContext(identity: StatementPartitionIdentity, rows: 
         in: [
           ...new Set(
             siblings
-              .map((row) => row.fAnnDate ?? row.annDate)
+              .map(latestFinancialAnnouncementDate)
               .filter((date): date is string => date != null),
           ),
         ],
@@ -611,7 +618,7 @@ function mapStatementVersion(
   if (fields.some((field) => !Object.hasOwn(sourceRow, field.sourceField))) {
     throw new Error(`Incomplete financial version ${row.tsCode}/${row.endDate}`);
   }
-  const announcementDate = row.fAnnDate ?? row.annDate;
+  const announcementDate = latestFinancialAnnouncementDate(row);
   if (!announcementDate) {
     throw new Error('Financial version lacks its source announcement identity');
   }

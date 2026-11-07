@@ -11,6 +11,7 @@ export const INGESTION_SOURCE_REQUESTS: Readonly<
       snapshotLimit?: number;
       snapshotParameter?: string;
       pageSize?: number;
+      rangeLimit?: number;
     }
   >
 > = {
@@ -24,11 +25,11 @@ export const INGESTION_SOURCE_REQUESTS: Readonly<
   suspend_d: { parameters: ['trade_date', 'suspend_type'], snapshotLimit: 5000 },
   etf_basic: { parameters: [], snapshotLimit: 5000 },
   fund_basic: { parameters: ['market'], snapshotLimit: 20000 },
-  fund_daily: { parameters: ['ts_code', 'start_date', 'end_date'] },
-  fund_adj: { parameters: ['ts_code', 'start_date', 'end_date'] },
+  fund_daily: { parameters: ['ts_code', 'start_date', 'end_date'], rangeLimit: 5000 },
+  fund_adj: { parameters: ['ts_code', 'start_date', 'end_date'], rangeLimit: 2000 },
   etf_share_size: { parameters: ['trade_date'] },
   index_daily: { parameters: ['ts_code', 'start_date', 'end_date'] },
-  index_dailybasic: { parameters: ['ts_code', 'start_date', 'end_date'] },
+  index_dailybasic: { parameters: ['ts_code', 'start_date', 'end_date'], rangeLimit: 3000 },
   index_weight: { parameters: ['index_code', 'trade_date'] },
   income_vip: {
     parameters: [

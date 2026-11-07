@@ -1,5 +1,6 @@
 import { ulid } from 'ulid';
 import { statementReceiptMatchesBatch } from '#market/fundamentals/statement-requests.js';
+import { MarketSourceRangeLimitError } from '#market/errors.js';
 import {
   DIVIDEND_DATE_FIELDS,
   dividendReceiptHasCompleteFields,
@@ -28,6 +29,7 @@ import { latestAttempts, openIngestionRun, summarizeIngestionRun, unitKey } from
 import { parseRunPlan, type IngestionRunPlan } from './schema.js';
 import type { IngestionInput, IngestionResult, IngestionUnit } from './schema.js';
 import { STATEMENT_STRATEGY, planStatementUnits } from './statement-plan.js';
+import { replaceRangeUnit, splitRangeUnit, uncoveredRangeUnits } from './ranges.js';
 
 /**
  * 固定目标、整批下载和短事务接纳；成功批次即恢复依据。
@@ -116,6 +118,7 @@ async function collect(
         request: true,
         responseComplete: true,
         rejectedCount: true,
+        startedAt: true,
       },
     });
     const currentAttempts = latestAttempts(history.filter((batch) => batch.runId === runId));
@@ -134,6 +137,7 @@ async function collect(
       byScope.set(key, saved);
     }
     const attempted = new Set<string>();
+    const splitUnits = new Map<string, IngestionUnit[]>();
     const reusable = (batch: (typeof history)[number]) => {
       if (batch.dataset === 'financial-statements') {
         return (
@@ -178,6 +182,7 @@ async function collect(
       const previous = receipts.get(unitKey(unit))?.[0];
       if (
         !current &&
+        !unit.adaptiveRange &&
         !unit.refresh &&
         previous?.status === 'succeeded' &&
         previous.rangeStart &&
@@ -188,7 +193,12 @@ async function collect(
         completed.add(unitKey(unit));
         return true;
       }
-      if (!current && !unit.refresh && (!previous || previous.status === 'succeeded')) {
+      if (
+        !current &&
+        !unit.adaptiveRange &&
+        !unit.refresh &&
+        (!previous || previous.status === 'succeeded')
+      ) {
         const covered = (byScope.get(JSON.stringify([unit.dataset, unit.scope])) ?? []).some(
           (batch) =>
             batch.status === 'succeeded' &&
@@ -265,6 +275,34 @@ async function collect(
             prepared = await prepareMarketPartition({ source }, unit, fetchedAt);
           }
         } catch (error) {
+          if (error instanceof MarketSourceRangeLimitError && unit.adaptiveRange) {
+            const children = splitRangeUnit(unit);
+            const next = replaceRangeUnit(runPlan, unit, children);
+            await database.$transaction(async (transaction) => {
+              await transaction.ingestionBatch.update({
+                where: { id: batchId },
+                data: {
+                  status: 'split',
+                  responseComplete: false,
+                  receivedCount: error.receivedCount,
+                  request: jsonValue(diagnostics.requests),
+                  finishedAt: clock(),
+                },
+              });
+              await transaction.ingestionRun.update({
+                where: { id: runId },
+                data: { scopeSnapshot: jsonValue(next) },
+              });
+            });
+            runPlan = next;
+            required.delete(unitKey(unit));
+            splitUnits.set(unitKey(unit), children);
+            log(
+              `[ingestion] ${logScope}: response limit reached; split into ${children.length} ranges`,
+            );
+
+            return;
+          }
           diagnostics.issues.push({
             category: 'internal',
             reasonCode: 'preparation_failed',
@@ -408,10 +446,37 @@ async function collect(
 
       return succeeded;
     };
+    const executeUnit = async (unit: IngestionUnit): Promise<boolean> => {
+      const key = unitKey(unit);
+      const current = currentAttempts.get(key);
+      const missing = current && reusable(current) ? [unit] : uncoveredRangeUnits(unit, history);
+      if (missing.length !== 1 || unitKey(missing[0]) !== key) {
+        await savePlan(replaceRangeUnit(runPlan, unit, missing));
+        required.delete(key);
+        let succeeded = true;
+        for (const child of missing) {
+          succeeded = (await executeUnit(child)) && succeeded;
+        }
+
+        return succeeded;
+      }
+
+      const succeeded = await attempt(unit);
+      const children = splitUnits.get(key);
+      if (!children) {
+        return succeeded;
+      }
+      let childrenSucceeded = true;
+      for (const child of children) {
+        childrenSucceeded = (await executeUnit(child)) && childrenSucceeded;
+      }
+
+      return childrenSucceeded;
+    };
     try {
       let stockCatalogReady = true;
       for (const unit of runPlan.referenceUnits) {
-        const succeeded = await attempt(unit);
+        const succeeded = await executeUnit(unit);
         if (unit.dataset === 'stock-master' && !succeeded) {
           stockCatalogReady = false;
         }
@@ -428,7 +493,7 @@ async function collect(
           if (signal.aborted) {
             break;
           }
-          await attempt(unit);
+          await executeUnit(unit);
         }
         const saved = runPlan.plan;
         const plan =
@@ -460,7 +525,7 @@ async function collect(
           if (signal.aborted) {
             break;
           }
-          await attempt(unit);
+          await executeUnit(unit);
         }
       }
     } catch (error) {

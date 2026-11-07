@@ -306,11 +306,22 @@ export function appendFinancialStatementSourceRows(
   return [...byFingerprint.values()];
 }
 
+/** 两种公告日期取最晚者，缺失时使用另一项。 / Take the later announcement date, falling back to either field. */
+export function latestFinancialAnnouncementDate(
+  row: Pick<FinancialStatementSourceRow, 'annDate' | 'fAnnDate'>,
+): string | null {
+  return (
+    [row.annDate, row.fAnnDate]
+      .filter((date): date is string => date != null)
+      .sort()
+      .at(-1) ?? null
+  );
+}
+
 /**
- * 按版本规则将日期化披露延迟到下一交易日；修订可得性须有证据，不能以当前抓取日伪造历史。
+ * 最晚披露日之后首个交易日可用；同日无证据修订继续降级。
  *
- * V1 delays every dated release until the next session. CNInfo evidence can prove a correction
- * date; a same-date Tushare content change without such evidence remains reconstructed.
+ * Use the first session after the latest disclosure and downgrade unproven same-date revisions.
  */
 export function resolveFinancialAvailability(
   row: FinancialStatementSourceRow,
@@ -318,7 +329,7 @@ export function resolveFinancialAvailability(
   nextOpenDate: (date: string) => string | undefined,
   correctionEvidence: readonly FinancialCorrectionEvidence[] = [],
 ): FinancialAvailability {
-  const announcementDate = row.fAnnDate ?? row.annDate;
+  const announcementDate = latestFinancialAnnouncementDate(row);
   if (!announcementDate) {
     throw new Error('Financial statement row has no actual or announcement date');
   }

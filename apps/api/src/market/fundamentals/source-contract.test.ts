@@ -27,6 +27,22 @@ const correctionRows = fixture.officialCorrection.rows.map((row) =>
 );
 
 describe('financial source contract', () => {
+  it.each([
+    ['20230505', '20230429'],
+    ['20230429', '20230505'],
+    ['20230505', null],
+    [null, '20230505'],
+  ])('gates on the later announcement date: ann=%s actual=%s', (annDate, fAnnDate) => {
+    const row = { ...vendorRows[0]!, annDate, fAnnDate };
+    const nextOpen = (date: string) => ['20230504', '20230508'].find((session) => session > date);
+
+    expect(resolveFinancialAvailability(row, [row], nextOpen)).toMatchObject({
+      announcementDate: '20230505',
+      availableDate: '20230508',
+      quality: 'conservative',
+    });
+  });
+
   it('creates a stable fingerprint independent of object key order', () => {
     const row = fixture.vendorEnrichment.rows[0]!;
     const reversed = Object.fromEntries(Object.entries(row).reverse());

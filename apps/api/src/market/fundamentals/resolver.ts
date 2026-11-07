@@ -3,9 +3,14 @@ import { createHash } from 'node:crypto';
 
 import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { canonicalStockCode, hasStockCodePredecessor } from '../instruments/stock-identity.js';
-import type { FinancialAvailabilityQuality, FinancialStatementKind } from './source-contract.js';
+import { nextVerifiedSession } from '../calendar/coverage.js';
+import {
+  latestFinancialAnnouncementDate,
+  type FinancialAvailabilityQuality,
+  type FinancialStatementKind,
+} from './source-contract.js';
 
-export const FINANCIAL_RESOLVER_VERSION = 3;
+export const FINANCIAL_RESOLVER_VERSION = 4;
 
 export type FinancialStatementReportType = '1' | '4' | '5';
 
@@ -204,7 +209,11 @@ export interface BatchFinancialMarketSnapshot extends ResolvedFinancialMarketSna
 
 type FinancialResolverDatabase = Pick<
   Prisma,
-  'financialIncomeStatement' | 'financialBalanceSheet' | 'financialCashFlowStatement' | 'dailyBasic'
+  | 'financialIncomeStatement'
+  | 'financialBalanceSheet'
+  | 'financialCashFlowStatement'
+  | 'dailyBasic'
+  | 'tradeCal'
 >;
 const REPORT_TYPE_PRIORITY: Record<FinancialStatementReportType, number> = {
   '1': 2,
@@ -249,9 +258,9 @@ export async function resolveFinancialState(
   return buildFinancialState({
     tsCode,
     asOfDate: input.asOfDate,
-    incomeRows: incomeRows.map(mapIncome),
-    balanceRows: balanceRows.map(mapBalance),
-    cashFlowRows: cashFlowRows.map(mapCashFlow),
+    incomeRows: (await reconcileStoredAvailability(incomeRows, database)).map(mapIncome),
+    balanceRows: (await reconcileStoredAvailability(balanceRows, database)).map(mapBalance),
+    cashFlowRows: (await reconcileStoredAvailability(cashFlowRows, database)).map(mapCashFlow),
     market: market
       ? {
           tradeDate: market.tradeDate,
@@ -302,9 +311,15 @@ export async function resolveFinancialStates(
     database.financialBalanceSheet.findMany({ where: commonWhere }),
     database.financialCashFlowStatement.findMany({ where: commonWhere }),
   ]);
-  const incomeByCode = groupByCode(incomeRows.map(mapIncome));
-  const balanceByCode = groupByCode(balanceRows.map(mapBalance));
-  const cashFlowByCode = groupByCode(cashFlowRows.map(mapCashFlow));
+  const incomeByCode = groupByCode(
+    (await reconcileStoredAvailability(incomeRows, database)).map(mapIncome),
+  );
+  const balanceByCode = groupByCode(
+    (await reconcileStoredAvailability(balanceRows, database)).map(mapBalance),
+  );
+  const cashFlowByCode = groupByCode(
+    (await reconcileStoredAvailability(cashFlowRows, database)).map(mapCashFlow),
+  );
   const marketByCode = new Map(
     (input.markets ?? []).map(({ tsCode, ...market }) => [canonicalStockCode(tsCode), market]),
   );
@@ -319,6 +334,49 @@ export async function resolveFinancialStates(
       market: marketByCode.get(tsCode) ?? null,
     }),
   );
+}
+
+/**
+ * 旧库按实际公告日计算的记录在读取时延后，无须重抓或改写来源版本。
+ *
+ * Delay legacy availability at read time without refetching or rewriting source versions.
+ */
+async function reconcileStoredAvailability<
+  Row extends {
+    annDate: string | null;
+    fAnnDate: string | null;
+    announcementDate: string;
+    availableDate: string;
+    availabilityQuality: string;
+  },
+>(rows: Row[], database: FinancialResolverDatabase): Promise<Row[]> {
+  const sessions = new Map<string, string | null>();
+  const reconciled: Row[] = [];
+  for (const row of rows) {
+    const announcementDate = latestFinancialAnnouncementDate(row);
+    if (
+      !announcementDate ||
+      (row.announcementDate >= announcementDate && row.availableDate > announcementDate)
+    ) {
+      reconciled.push(row);
+      continue;
+    }
+    if (!sessions.has(announcementDate)) {
+      sessions.set(announcementDate, await nextVerifiedSession(announcementDate, database));
+    }
+    const next = sessions.get(announcementDate);
+    reconciled.push({
+      ...row,
+      announcementDate,
+      availableDate: next ? [row.availableDate, next].sort().at(-1)! : row.availableDate,
+      availabilityQuality:
+        !next || row.availabilityQuality === 'reconstructed' ? 'reconstructed' : 'conservative',
+      evidenceSource: 'tushare_statement',
+      evidenceId: null,
+    });
+  }
+
+  return reconciled;
 }
 
 /**
@@ -339,12 +397,24 @@ function buildFinancialState(input: {
   const diagnostics: FinancialDiagnostic[] = [];
   // 来源已按 compType=1 筛选，行业分类不再参与财务计算。
   // Source queries already require compType=1; industry classification is not an input.
-  const applicability =
-    incomeRows.length + balanceRows.length + cashFlowRows.length > 0 ? 'industrial' : 'unknown';
+  const applicability = [...incomeRows, ...balanceRows, ...cashFlowRows].some(
+    (row) => row.availableDate <= asOfDate,
+  )
+    ? 'industrial'
+    : 'unknown';
 
-  const income = selectLatestStatementVersions(incomeRows, diagnostics);
-  const balanceSheets = selectLatestStatementVersions(balanceRows, diagnostics);
-  const cashFlows = selectLatestStatementVersions(cashFlowRows, diagnostics);
+  const income = selectLatestStatementVersions(
+    incomeRows.filter((row) => row.availableDate <= asOfDate),
+    diagnostics,
+  );
+  const balanceSheets = selectLatestStatementVersions(
+    balanceRows.filter((row) => row.availableDate <= asOfDate),
+    diagnostics,
+  );
+  const cashFlows = selectLatestStatementVersions(
+    cashFlowRows.filter((row) => row.availableDate <= asOfDate),
+    diagnostics,
+  );
   const periods = combinePeriods(income, balanceSheets, cashFlows);
   if (periods.length === 0) {
     diagnostics.push({

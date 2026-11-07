@@ -44,13 +44,13 @@ export function referenceUnits(targetDate: string, startedAt: Date): IngestionUn
   const calendarEnd = calendarDay([targetDate, capturedDate].sort().at(-1)!, 31);
   const units: IngestionUnit[] = [];
   for (const [scope, origin] of Object.entries(CALENDAR_ORIGINS)) {
-    for (const range of yearRanges(origin, calendarEnd)) {
+    for (const range of continuousRanges(origin, calendarEnd)) {
       units.push({
         dataset: 'calendar',
         scope,
         ...range,
         api: 'trade_cal',
-        refresh: range.period >= capturedDate.slice(0, 4),
+        refresh: false,
       });
     }
   }
@@ -244,7 +244,7 @@ export async function planIngestion(
     })) {
       streams.push(
         alternate(
-          yearRanges(range.startDate, through).map((dates) => ({
+          continuousRanges(range.startDate, through).map((dates) => ({
             dataset,
             scope: code,
             ...dates,
@@ -275,7 +275,7 @@ export async function planIngestion(
       if (earliest?.sourceStart) {
         streams.push(
           alternate(
-            yearRanges(earliest.sourceStart, end).map((dates) => ({
+            continuousRanges(earliest.sourceStart, end).map((dates) => ({
               ...entry,
               scope: code,
               ...dates,
@@ -290,7 +290,8 @@ export async function planIngestion(
             scope: code,
             period: 'history',
             fullHistory: true,
-            startDate: '',
+            adaptiveRange: true,
+            startDate: CALENDAR_ORIGINS.SSE,
             endDate: end,
             refresh: false,
           },
@@ -313,7 +314,7 @@ export async function planIngestion(
   }
   streams.push(
     alternate(
-      yearRanges(CALENDAR_ORIGINS.SSE, targetDate).map((dates) => ({
+      continuousRanges(CALENDAR_ORIGINS.SSE, targetDate).map((dates) => ({
         dataset: 'stock-names',
         scope: 'all',
         ...dates,
@@ -389,20 +390,17 @@ function alternate<Value>(values: Value[]): Value[] {
   return ordered;
 }
 
-function yearRanges(start: string, end: string) {
-  if (start > end) {
-    return [];
-  }
-  const ranges: Array<{ period: string; startDate: string; endDate: string }> = [];
-  for (let year = Number(start.slice(0, 4)); year <= Number(end.slice(0, 4)); year++) {
-    ranges.push({
-      period: String(year),
-      startDate: [start, `${year}0101`].sort().at(-1)!,
-      endDate: [end, `${year}1231`].sort()[0],
-    });
-  }
-
-  return ranges;
+function continuousRanges(start: string, end: string) {
+  return start > end
+    ? []
+    : [
+        {
+          period: `range/${start}/${end}`,
+          startDate: start,
+          endDate: end,
+          adaptiveRange: true as const,
+        },
+      ];
 }
 
 function monthRanges(start: string, end: string) {

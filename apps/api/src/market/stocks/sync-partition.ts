@@ -17,6 +17,7 @@ import type {
 import {
   completeResponse,
   fetchSourcePages,
+  fetchSourceRange,
   mapSourceRecords,
   sourceString,
   sourceValues,
@@ -276,11 +277,12 @@ export async function prepareStockReference(
     announcementDate: 'ann_date',
     changeReason: 'change_reason',
   };
-  const pages = await fetchSourcePages(
+  const pages = await fetchSourceRange(
     source,
     'namechange',
     { start_date: partition.startDate, end_date: partition.endDate },
     Object.values(columns).join(','),
+    partition.adaptiveRange,
   );
   const selected = preferStockSources(
     pages.rows,

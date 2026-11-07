@@ -1,7 +1,41 @@
 import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { emptySelections } from '../../tests/ingestion-source.js';
-import { financialIndicatorUnits, planEtfSelections, planIngestion } from './plan.js';
+import {
+  financialIndicatorUnits,
+  planEtfSelections,
+  planIngestion,
+  referenceUnits,
+} from './plan.js';
+
+it('plans whole ETF and name-history ranges without calendar-year boundaries', async () =>
+  withSyncDatabase(async (database) => {
+    await emptySelections(database);
+    await database.ingestionSelection.update({
+      where: { assetType: 'etf' },
+      data: { codes: ['510000.SH'] },
+    });
+    await database.etfBasic.create({
+      data: {
+        tsCode: '510000.SH',
+        name: 'Range fixture',
+        exchange: 'SH',
+        listDate: '20100101',
+        listStatus: 'L',
+        sameDayTurnover: false,
+      },
+    });
+    const startedAt = new Date('2026-11-06T10:00:00Z');
+    const plan = await planIngestion('20221001', startedAt);
+
+    expect(plan.units.filter(({ dataset }) => dataset === 'etf-prices')).toMatchObject([
+      { startDate: '20100101', endDate: '20221001', adaptiveRange: true },
+    ]);
+    expect(plan.units.filter(({ dataset }) => dataset === 'stock-names')).toHaveLength(1);
+    expect(
+      referenceUnits('20221001', startedAt).filter(({ dataset }) => dataset === 'calendar'),
+    ).toHaveLength(3);
+  }));
 
 it('uses available exchange sessions when listing dates precede calendar history', async () =>
   withSyncDatabase(async (database) => {

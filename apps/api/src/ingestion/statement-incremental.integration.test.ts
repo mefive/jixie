@@ -43,11 +43,11 @@ it(
           call: async (api: string, params: Record<string, unknown> = {}, fields?: string) => {
             calls.push({ api, params });
             if (api === 'income_vip' && params.report_type === '1') {
-              if (params.start_date === '19910107' && failChild) {
+              if (params.start_date === '19910106' && failChild) {
                 abort.abort();
                 throw new Error('Controlled statement child-window failure');
               }
-              if (params.start_date === '19910105' && params.end_date === '19910107') {
+              if (params.start_date === '19910105' && params.end_date === '19910106') {
                 const rows = await fallback.call(api, params, fields);
 
                 return Array.from({ length: 5000 }, () => rows[0]);
@@ -67,7 +67,7 @@ it(
       expect(interrupted.phase).toBe('interrupted');
       expect(await main.financialIncomeStatement.count()).toBe(1);
       await withCandidate(interrupted.runId, async (candidate) => {
-        expect(await candidate.financialIncomeStatement.count()).toBe(1);
+        expect(await candidate.financialIncomeStatement.count()).toBe(2);
       });
 
       failChild = false;
@@ -84,16 +84,33 @@ it(
           where: {
             runId: interrupted.runId,
             scope: 'income|1',
-            period: 'ann_range/19910105/19910107',
+            period: 'ann_range/19910105/19910105',
             status: 'succeeded',
           },
         });
         expect(statementReceiptMatchesBatch(receipt)).toBe(true);
         expect(receipt.request).toMatchObject([
-          { params: { start_date: '19910105', end_date: '19910107' } },
-          { params: { start_date: '19910105', end_date: '19910106' } },
-          { params: { start_date: '19910107', end_date: '19910107' } },
+          { params: { start_date: '19910105', end_date: '19910105' } },
         ]);
+        const probe = await candidate.ingestionBatch.findFirstOrThrow({
+          where: { runId: interrupted.runId, scope: 'income|1', status: 'split' },
+        });
+        expect(probe).toMatchObject({
+          responseComplete: false,
+          receivedCount: 5000,
+          acceptedCount: 0,
+        });
+        expect(probe.request).toMatchObject([
+          { params: { start_date: '19910105', end_date: '19910106' } },
+        ]);
+        expect(
+          calls.some(
+            ({ api, params }) =>
+              api === 'income_vip' &&
+              params.report_type === '1' &&
+              params.start_date === '19910105',
+          ),
+        ).toBe(false);
         const rows = await candidate.financialIncomeStatement.findMany();
         expect(rows).toHaveLength(3);
         expect(

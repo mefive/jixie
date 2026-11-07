@@ -165,10 +165,8 @@ it(
       expect(
         calls
           .filter((call) => call.api.endsWith('_vip'))
-          .every((call) =>
-            call.api === 'fina_indicator_vip'
-              ? typeof call.params.period === 'string'
-              : call.params.start_date === '19910105' && call.params.end_date === '19910110',
+          .every(
+            (call) => call.api === 'fina_indicator_vip' && typeof call.params.period === 'string',
           ),
       ).toBe(true);
       expect((await database.financialIncomeStatement.findFirstOrThrow()).observedAt).toEqual(
@@ -241,7 +239,7 @@ it(
             if (
               api === 'income_vip' &&
               params.report_type === '1' &&
-              params.start_date === '19910101' &&
+              params.start_date === '19880101' &&
               fail
             ) {
               throw new Error('Controlled report-quarter failure');
@@ -262,7 +260,7 @@ it(
             status: 'succeeded',
           },
         }),
-      ).toBe(344);
+      ).toBe(20);
       fail = false;
       calls.length = 0;
       expect(await ingest(input)).toMatchObject({
@@ -274,8 +272,8 @@ it(
         {
           api: 'income_vip',
           params: {
-            start_date: '19910101',
-            end_date: '19910105',
+            start_date: '19880101',
+            end_date: '19910104',
             report_type: '1',
             limit: 5000,
             offset: 0,
@@ -293,7 +291,7 @@ it(
     withSyncDatabase(async (database) => {
       await emptySelections(database);
       await database.$executeRawUnsafe(
-        `CREATE TRIGGER refuse_report_receipt BEFORE UPDATE ON "IngestionBatch" WHEN NEW.dataset='financial-statements' AND NEW.scope='income|1' AND NEW.period='ann_range/19910101/19910105' AND NEW.status='succeeded' BEGIN SELECT RAISE(ABORT, 'controlled report receipt failure'); END`,
+        `CREATE TRIGGER refuse_report_receipt BEFORE UPDATE ON "IngestionBatch" WHEN NEW.dataset='financial-statements' AND NEW.scope='income|1' AND NEW.period='ann_range/19880101/19910104' AND NEW.status='succeeded' BEGIN SELECT RAISE(ABORT, 'controlled report receipt failure'); END`,
       );
       const input = {
         targetDate: '19910104',
@@ -317,7 +315,7 @@ it(
             runId: first.runId,
             dataset: 'financial-statements',
             scope: 'income|1',
-            period: 'ann_range/19910101/19910105',
+            period: 'ann_range/19880101/19910104',
             status: 'interrupted',
           },
         }),
@@ -420,7 +418,7 @@ it(
       });
       expect(result).toMatchObject({ runId, status: 'completed', issues: 0 });
       const financialCalls = calls.filter((call) => call.api.endsWith('_vip'));
-      expect(financialCalls).toHaveLength(345);
+      expect(financialCalls).toHaveLength(21);
       expect(
         financialCalls.every(
           (call) =>
@@ -455,7 +453,7 @@ it(
         runPlanSchema
           .parse(saved)
           .plan?.units.filter((unit) => unit.dataset.startsWith('financial-')),
-      ).toHaveLength(345);
+      ).toHaveLength(21);
       expect(await getIngestionStatus()).toMatchObject({ error: null });
     }),
   60_000,
@@ -505,7 +503,7 @@ it(
             runId: result.runId,
             dataset: 'financial-statements',
             scope: 'income|1',
-            period: 'ann_range/19910101/19910105',
+            period: 'ann_range/19880101/19910104',
           },
         }),
       ).toMatchObject({ status: 'succeeded' });

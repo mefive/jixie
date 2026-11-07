@@ -11,6 +11,7 @@ import type {
 import {
   completeResponse,
   fetchSourcePages,
+  fetchSourceRange,
   mapSourceRecords,
   sourceString,
   sourceValues,
@@ -58,7 +59,7 @@ export async function prepareIndexPartition(
   if (!definition) {
     throw new Error(`Unknown index dataset ${partition.dataset}`);
   }
-  const pages = await fetchSourcePages(
+  const pages = await fetchSourceRange(
     source,
     definition.api,
     {
@@ -67,6 +68,7 @@ export async function prepareIndexPartition(
       end_date: partition.endDate,
     },
     Object.values(definition.columns).join(','),
+    partition.adaptiveRange,
   );
   const mapped = mapSourceRecords(pages.rows, (row) => {
     if (

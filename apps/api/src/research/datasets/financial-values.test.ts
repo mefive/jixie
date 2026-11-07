@@ -27,6 +27,18 @@ const history = [
 ] as const;
 
 function row(date: string, value: number, overrides: Record<string, unknown> = {}) {
+  // 样例可得日使用公告后的交易日，避免把同日可用的旧夹具当作待修复数据。
+  // Use post-announcement sessions so legacy same-day fixtures do not require reconciliation.
+  const availableDates: Record<string, string> = {
+    '20230331': '20230403',
+    '20230630': '20230703',
+    '20230930': '20231009',
+    '20231231': '20240102',
+    '20240331': '20240401',
+    '20240629': '20240701',
+    '20240630': '20240701',
+  };
+
   return {
     id: `income-${date}`,
     source: 'tushare',
@@ -40,7 +52,7 @@ function row(date: string, value: number, overrides: Record<string, unknown> = {
     updateFlag: '0',
     sourceRowFingerprint: `income-${date}`,
     announcementDate: date,
-    availableDate: date,
+    availableDate: availableDates[date],
     availabilityQuality: 'conservative',
     revenue: value,
     ...overrides,
@@ -99,7 +111,7 @@ describe('selected financial values', () => {
       value: 360,
       period_basis: 'ttm',
       status: 'ok',
-      available_date: '20240630',
+      available_date: '20240701',
     });
     expect(JSON.parse(rows[0].input_versions_json)).toContain('income-20230630');
     expect(rows[1]).toMatchObject({

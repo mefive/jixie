@@ -11,6 +11,7 @@ export const runStatusSchema = z.enum([
 ]);
 export const batchStatusSchema = z.enum([
   'running',
+  'split',
   'succeeded',
   'partial',
   'failed',
@@ -41,6 +42,7 @@ const unitSchema = z.object({
   startDate: z.string(),
   endDate: z.string(),
   fullHistory: z.boolean().optional(),
+  adaptiveRange: z.literal(true).optional(),
   announcementField: z.enum(['ann_date', 'f_ann_date']).optional(),
   announcementRange: z.literal(true).optional(),
   exchanges: z.array(z.string()).readonly().optional(),

@@ -35,7 +35,7 @@ it(
       expect(calls).not.toContain('adj_factor');
       expect(calls).toContain('stock_basic');
       expect(calls).not.toContain('dividend');
-      expect(calls.filter((api) => api === 'income_vip')).toHaveLength(3);
+      expect(calls.filter((api) => api === 'income_vip')).toHaveLength(0);
       expect(calls).toContain('fina_indicator_vip');
       expect(await database.daily.count()).toBe(rows);
       expect(
@@ -296,15 +296,14 @@ it(
       await ingest(input);
       expect((await database.financialIncomeStatement.findFirstOrThrow()).endDate).toBe('19881231');
       expect(requests.some((request) => request.start_date === '19880101')).toBe(true);
-      expect(requests.some((request) => request.end_date === '19910105')).toBe(true);
+      expect(requests.some((request) => request.end_date === '19910104')).toBe(true);
       for (const request of requests) {
         expect(request).not.toHaveProperty('period');
         expect(request).not.toHaveProperty('ts_code');
       }
       requests.length = 0;
       await ingest(input);
-      expect(requests).toHaveLength(3);
-      expect(requests.every((request) => request.start_date === '19910105')).toBe(true);
+      expect(requests).toHaveLength(0);
       expect(await database.financialIncomeStatement.count()).toBe(1);
     }),
   60_000,

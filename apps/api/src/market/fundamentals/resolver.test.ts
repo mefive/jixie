@@ -9,6 +9,33 @@ import {
 } from './resolver.js';
 
 describe('financial statement resolver', () => {
+  it('delays legacy inverted dates until the verified next session without rewriting the version', async () => {
+    const row = databaseStatement({ annDate: '20230505', fAnnDate: '20230429' });
+    const database = {
+      ...resolverDatabase({ income: [row] }),
+      tradeCal: {
+        findFirst: vi.fn().mockResolvedValue({ calDate: '20230508' }),
+        count: vi.fn().mockResolvedValue(3),
+      },
+    };
+    const before = await resolveFinancialState(
+      { tsCode: '000858.SZ', asOfDate: '20230505' },
+      database as never,
+    );
+    const after = await resolveFinancialState(
+      { tsCode: '000858.SZ', asOfDate: '20230508' },
+      database as never,
+    );
+
+    expect(before.periods).toEqual([]);
+    expect(after.periods[0]?.income).toMatchObject({
+      announcementDate: '20230505',
+      availableDate: '20230508',
+      id: row.id,
+    });
+    expect(row).toMatchObject({ announcementDate: '20230429', availableDate: '20230504' });
+  });
+
   it('uses the latest strict-PIT version and keeps a later reconstructed change excluded', () => {
     const diagnostics: FinancialDiagnostic[] = [];
     const selected = selectLatestStatementVersions(

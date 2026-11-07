@@ -65,7 +65,7 @@ function announcementUnits(
     }
     start ??= date;
     const next = days[index + 1];
-    if (next?.startsWith(date.slice(0, 6)) && !coverage.has(next)) {
+    if (next && !coverage.has(next)) {
       continue;
     }
 
@@ -79,6 +79,7 @@ function announcementUnits(
       catalogThrough: through,
       announcementField: 'ann_date',
       announcementRange: true,
+      adaptiveRange: true,
       refresh: true,
     });
     start = undefined;
@@ -183,10 +184,10 @@ export async function planStatementUnits(
     }
   }
 
-  // 历史目标也读到抓取当日的公告标签，以覆盖实际公告较早的记录。
-  // Read announcement labels up to capture day even for historical targets, for earlier actual dates.
+  // 最晚公告日作为可得性门槛，公告标签晚于目标的记录无需提前采集。
+  // Latest-date availability makes announcement labels beyond the target unnecessary.
   const days: string[] = [];
-  for (let date = FINANCIAL_HISTORY_START; date <= observedDate; date = calendarDay(date, 1)) {
+  for (let date = FINANCIAL_HISTORY_START; date <= through; date = calendarDay(date, 1)) {
     days.push(date);
   }
 
@@ -211,8 +212,8 @@ export async function planStatementUnits(
           coveredUniverses.some((universe) => !universe.has(code)),
       );
       if (codesWithoutHistory.length) {
-        // 批量补齐名单缺口成本更低时，重扫受影响的日期窗口。
-        // Replay affected windows when bulk coverage costs fewer planned units than per-security history.
+        // 新证券沿用有目标边界的区间查询，避免逐股历史请求顺带读取未来公告。
+        // Replay bounded windows for new securities instead of fetching unbounded security histories.
         const replayReceipts = new Set(
           [...new Set(coverage.values())].filter((receipt) =>
             codesWithoutHistory.some((code) => !receipt.codes.has(code)),
@@ -222,10 +223,8 @@ export async function planStatementUnits(
           [...coverage].filter(([, receipt]) => !replayReceipts.has(receipt)),
         );
         const replayWindows = announcementUnits(scope, api, days, remainingCoverage, through);
-        if (replayWindows.length < windows.length + codesWithoutHistory.length) {
-          coverage = remainingCoverage;
-          windows = replayWindows;
-        }
+        coverage = remainingCoverage;
+        windows = replayWindows;
       }
       units.push(...windows);
 
@@ -238,21 +237,6 @@ export async function planStatementUnits(
         const historyScope = `${scope}|${code}`;
         const existing = histories.get(historyScope);
         codeCaptures.set(code, existing ?? observedDate);
-        if (existing) {
-          continue;
-        }
-
-        units.push({
-          dataset: 'financial-statements',
-          scope: historyScope,
-          period: STATEMENT_HISTORY_SNAPSHOT,
-          api,
-          startDate: FINANCIAL_HISTORY_START,
-          endDate: through,
-          catalogThrough: through,
-          fullHistory: true,
-          refresh: true,
-        });
       }
 
       const firstActualDate = [

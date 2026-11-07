@@ -3,6 +3,7 @@ import type { MarketPartition, PreparedMarketPartition } from '../synchronizatio
 import {
   completeResponse,
   fetchSourcePages,
+  fetchSourceRange,
   mapSourceRecords,
   sourceString,
   sourceValues,
@@ -50,11 +51,12 @@ export async function prepareEtfPartition(
   if (!definition) {
     throw new Error(`Unknown ETF dataset ${partition.dataset}`);
   }
-  const pages = await fetchSourcePages(
+  const pages = await fetchSourceRange(
     source,
     definition.api,
     { ts_code: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
     Object.values(definition.columns).join(','),
+    partition.adaptiveRange,
   );
   const inScope = pages.rows.filter(
     (row) =>

@@ -123,3 +123,11 @@ export class MarketSyncBudgetError extends Error {
     this.name = 'MarketSyncBudgetError';
   }
 }
+
+/** 来源满页需要缩小日期区间，探测行不入库。 / A saturated source range must narrow; probe rows are not admitted. */
+export class MarketSourceRangeLimitError extends Error {
+  constructor(readonly receivedCount: number) {
+    super('Source date range reached its response limit');
+    this.name = 'MarketSourceRangeLimitError';
+  }
+}

@@ -2,7 +2,7 @@ import { isObservationDate } from '../synchronization/date.js';
 import type { MarketPartition, PreparedMarketPartition } from '../synchronization/partition.js';
 import {
   completeResponse,
-  fetchSourcePages,
+  fetchSourceRange,
   mapSourceRecords,
   sourceString,
   sourceValues,
@@ -24,11 +24,12 @@ export async function prepareCalendarPartition(
     isOpen: 'is_open',
     pretradeDate: 'pretrade_date',
   };
-  const pages = await fetchSourcePages(
+  const pages = await fetchSourceRange(
     source,
     'trade_cal',
     { exchange: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
     Object.values(columns).join(','),
+    partition.adaptiveRange,
   );
   const mapped = mapSourceRecords(pages.rows, (row) => {
     const date = sourceString(row, 'cal_date');
