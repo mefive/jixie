@@ -48,6 +48,7 @@ export class HttpStatusError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly retryAfterMs?: number,
   ) {
     super(message);
   }
@@ -129,5 +130,13 @@ export class MarketSourceRangeLimitError extends Error {
   constructor(readonly receivedCount: number) {
     super('Source date range reached its response limit');
     this.name = 'MarketSourceRangeLimitError';
+  }
+}
+
+/** 额度或原始响应存储故障需停止采集。 / Quota or raw-response storage failure stops collection. */
+export class MarketSourceStorageError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'MarketSourceStorageError';
   }
 }

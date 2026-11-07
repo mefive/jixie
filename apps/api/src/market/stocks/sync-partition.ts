@@ -62,39 +62,11 @@ export async function prepareStockPartition(
   source: SyncSource,
   partition: MarketPartition,
 ): Promise<PreparedMarketPartition> {
-  const definitions = {
-    'stock-prices': { api: 'daily', table: 'Daily', columns: DAILY_COLUMNS },
-    'stock-adjustments': {
-      api: 'adj_factor',
-      table: 'AdjFactor',
-      columns: { tsCode: 'ts_code', tradeDate: 'trade_date', adjFactor: 'adj_factor' },
-    },
-    'stock-valuations': { api: 'daily_basic', table: 'DailyBasic', columns: BASIC_COLUMNS },
-    'stock-limits': {
-      api: 'stk_limit',
-      table: 'StkLimit',
-      columns: {
-        tsCode: 'ts_code',
-        tradeDate: 'trade_date',
-        upLimit: 'up_limit',
-        downLimit: 'down_limit',
-      },
-    },
-  };
-  const definition = definitions[partition.dataset as keyof typeof definitions];
+  const definition = STOCK_DEFINITIONS[partition.dataset as keyof typeof STOCK_DEFINITIONS];
   if (!definition) {
     throw new Error(`Unknown stock dataset ${partition.dataset}`);
   }
-  const fields = [...new Set(Object.values(definition.columns))];
-  if (partition.dataset === 'stock-limits') {
-    fields.push('asset_type', 'exchange');
-  }
-  const pages = await fetchSourcePages(
-    source,
-    definition.api,
-    { trade_date: partition.startDate },
-    fields.join(','),
-  );
+  const pages = await downloadStockPartition(source, partition);
   const ranges = stockMarketRanges(await getDatabase().stockBasic.findMany());
 
   // 标的目录是白名单，目录外代码只计正常过滤；目录内记录继续校验日期和业务字段。
@@ -269,21 +241,8 @@ export async function prepareStockReference(
     });
   }
 
-  const columns = {
-    tsCode: 'ts_code',
-    name: 'name',
-    startDate: 'start_date',
-    endDate: 'end_date',
-    announcementDate: 'ann_date',
-    changeReason: 'change_reason',
-  };
-  const pages = await fetchSourceRange(
-    source,
-    'namechange',
-    { start_date: partition.startDate, end_date: partition.endDate },
-    Object.values(columns).join(','),
-    partition.adaptiveRange,
-  );
+  const columns = STOCK_NAME_COLUMNS;
+  const pages = await downloadStockNames(source, partition);
   const selected = preferStockSources(
     pages.rows,
     (row) => `${canonicalStockCode(String(row.ts_code))}/${row.start_date}`,
@@ -356,4 +315,63 @@ function normalizeNameRecords(records: SourceRecord[]): SourceRecord[] {
       authoritativeNulls: ['endDate'],
       values: { ...record.values, endDate: byDate.get(String(record.values.startDate))!.endDate },
     }));
+}
+
+const STOCK_DEFINITIONS = {
+  'stock-prices': { api: 'daily', table: 'Daily', columns: DAILY_COLUMNS },
+  'stock-adjustments': {
+    api: 'adj_factor',
+    table: 'AdjFactor',
+    columns: { tsCode: 'ts_code', tradeDate: 'trade_date', adjFactor: 'adj_factor' },
+  },
+  'stock-valuations': { api: 'daily_basic', table: 'DailyBasic', columns: BASIC_COLUMNS },
+  'stock-limits': {
+    api: 'stk_limit',
+    table: 'StkLimit',
+    columns: {
+      tsCode: 'ts_code',
+      tradeDate: 'trade_date',
+      upLimit: 'up_limit',
+      downLimit: 'down_limit',
+    },
+  },
+};
+
+/** 只下载股票响应，不读取可变业务上下文。 / Download stock rows without mutable business context. */
+export async function downloadStockPartition(source: SyncSource, partition: MarketPartition) {
+  const definition = STOCK_DEFINITIONS[partition.dataset as keyof typeof STOCK_DEFINITIONS];
+  if (!definition) {
+    throw new Error(`Unknown stock dataset ${partition.dataset}`);
+  }
+  const fields = [...new Set(Object.values(definition.columns))];
+  if (partition.dataset === 'stock-limits') {
+    fields.push('asset_type', 'exchange');
+  }
+
+  return fetchSourcePages(
+    source,
+    definition.api,
+    { trade_date: partition.startDate },
+    fields.join(','),
+  );
+}
+
+const STOCK_NAME_COLUMNS = {
+  tsCode: 'ts_code',
+  name: 'name',
+  startDate: 'start_date',
+  endDate: 'end_date',
+  announcementDate: 'ann_date',
+  changeReason: 'change_reason',
+};
+
+/** 名称下载与身份合并分开。 / Separate name-history downloads from identity merging. */
+export function downloadStockNames(source: SyncSource, partition: MarketPartition) {
+  return fetchSourceRange(
+    source,
+    'namechange',
+    { start_date: partition.startDate, end_date: partition.endDate },
+    Object.values(STOCK_NAME_COLUMNS).join(','),
+    partition.adaptiveRange,
+  );
 }

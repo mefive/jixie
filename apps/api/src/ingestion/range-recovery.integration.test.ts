@@ -62,7 +62,7 @@ it(
       const unchanged = await database.ingestionRun.findUniqueOrThrow({ where: { id: runId } });
       expect(runPlanSchema.parse(unchanged.scopeSnapshot).plan?.units).toEqual([unit]);
       expect(await database.ingestionBatch.findMany({ where: { runId } })).toMatchObject([
-        { status: 'running', responseComplete: false, acceptedCount: 0 },
+        { status: 'interrupted', responseComplete: false, acceptedCount: 0 },
       ]);
       expect(await database.financialIncomeStatement.count()).toBe(0);
 

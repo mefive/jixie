@@ -1,6 +1,10 @@
+import { SourceResponseCache } from '#market/synchronization/source-response-cache.js';
+import { BatchPrefetcher, type PrefetchedBatch } from './batch-prefetcher.js';
+import { withSourceMeasurements } from '#market/providers/source-fetch.js';
+import type { SourceExecution } from '#market/synchronization/execution.js';
 import { ulid } from 'ulid';
 import { statementReceiptMatchesBatch } from '#market/fundamentals/statement-requests.js';
-import { MarketSourceRangeLimitError } from '#market/errors.js';
+import { MarketSourceRangeLimitError, MarketSourceStorageError } from '#market/errors.js';
 import {
   DIVIDEND_DATE_FIELDS,
   dividendReceiptHasCompleteFields,
@@ -89,11 +93,21 @@ async function collect(
             version: 2,
             referenceUnits: referenceUnits(input.targetDate, startedAt),
           };
+    let writes: Promise<unknown> = Promise.resolve();
+    const serializeWrite = <Result>(operation: () => Promise<Result>): Promise<Result> => {
+      const result = writes.then(operation);
+      writes = result.catch(() => undefined);
+
+      return result;
+    };
+    let prefetch: BatchPrefetcher | undefined;
     const savePlan = async (next: IngestionRunPlan) => {
-      await database.ingestionRun.update({
-        where: { id: runId },
-        data: { scopeSnapshot: jsonValue(next) },
-      });
+      await serializeWrite(() =>
+        database.ingestionRun.update({
+          where: { id: runId },
+          data: { scopeSnapshot: jsonValue(next) },
+        }),
+      );
       runPlan = next;
     };
     await savePlan(runPlan);
@@ -165,15 +179,35 @@ async function collect(
     const completed = new Set(
       [...currentAttempts].filter(([, batch]) => reusable(batch)).map(([key]) => key),
     );
-    const attempt = async (unit: IngestionUnit): Promise<boolean> => {
-      required.add(unitKey(unit));
-      if (signal.aborted) {
-        return false;
-      }
-      if (attempted.has(unitKey(unit))) {
-        return completed.has(unitKey(unit));
-      }
-      attempted.add(unitKey(unit));
+    const startBatch = async (unit: IngestionUnit, startedAt: Date): Promise<string> => {
+      const batchId = ulid();
+      await serializeWrite(() =>
+        database.ingestionBatch.create({
+          data: {
+            id: batchId,
+            runId,
+            dataset: unit.dataset,
+            scope: unit.scope,
+            period: unit.period,
+            api: unit.api,
+            request: jsonValue({
+              scope: unit.scope,
+              targetDate: unit.endDate,
+              fullHistory: Boolean(unit.fullHistory),
+            }),
+            rangeStart: unit.period === 'snapshot' ? null : unit.startDate || null,
+            rangeEnd: unit.period === 'snapshot' ? null : unit.endDate,
+            status: 'running',
+            startedAt,
+          },
+        }),
+      );
+
+      return batchId;
+    };
+    const envelope = (diagnostics: ImportDiagnostics, execution: SourceExecution) =>
+      jsonValue({ version: 2, requests: diagnostics.requests, execution });
+    const canSkip = (unit: IngestionUnit): boolean => {
       const current = currentAttempts.get(unitKey(unit));
       if (current && reusable(current)) {
         return true;
@@ -212,232 +246,311 @@ async function collect(
           return true;
         }
       }
-      const batchId = ulid();
+      return false;
+    };
+    const attempt = async (unit: IngestionUnit): Promise<boolean> => {
+      required.add(unitKey(unit));
+      if (signal.aborted) {
+        return false;
+      }
+      if (attempted.has(unitKey(unit))) {
+        return completed.has(unitKey(unit));
+      }
+      attempted.add(unitKey(unit));
+      if (canSkip(unit)) {
+        return true;
+      }
+      let downloaded: PrefetchedBatch | undefined;
+      if (prefetch) {
+        try {
+          downloaded = await prefetch.take(unit);
+        } catch (error) {
+          if (signal.aborted) {
+            return false;
+          }
+          throw error;
+        }
+      }
+      const batchId = downloaded?.id ?? (await startBatch(unit, clock()));
       const diagnostics: ImportDiagnostics = { requests: [], issues: [] };
-      const fetchedAt = new Date(clock().getTime());
-      const source: IngestionInput['source'] = {
-        call: async (api, params, fields) => {
-          const rows = await input.source.call(api, params, fields);
-          fetchedAt.setTime(clock().getTime());
-          return rows;
-        },
+      const execution: SourceExecution = downloaded?.execution ?? {
+        sourceStartedAt: null,
+        sourceFinishedAt: null,
+        httpRequests: 0,
+        retries: 0,
+        rateLimitMs: 0,
+        downloadMs: 0,
+        queueMs: 0,
+        prepareMs: 0,
+        writeMs: null,
       };
-      await database.ingestionBatch.create({
-        data: {
-          id: batchId,
-          runId,
-          dataset: unit.dataset,
-          scope: unit.scope,
-          period: unit.period,
-          api: unit.api,
-          request: jsonValue({
-            scope: unit.scope,
-            targetDate: unit.endDate,
-            fullHistory: Boolean(unit.fullHistory),
-          }),
-          rangeStart: unit.period === 'snapshot' ? null : unit.startDate || null,
-          rangeEnd: unit.period === 'snapshot' ? null : unit.endDate,
-          status: 'running',
-          startedAt: clock(),
-        },
-      });
+      if (downloaded) {
+        execution.queueMs = Math.max(0, performance.now() - downloaded.readyAt);
+      }
+      const fetchedAt = new Date(execution.sourceFinishedAt ?? clock());
+      const source: IngestionInput['source'] = downloaded
+        ? downloaded.cache.replay()
+        : {
+            call: async (api, params, fields) => {
+              const began = clock().toISOString();
+              const count = execution.httpRequests;
+              const start = performance.now();
+              try {
+                const rows = await input.source.call(api, params, fields);
+                fetchedAt.setTime(clock().getTime());
+
+                return rows;
+              } finally {
+                execution.downloadMs += performance.now() - start;
+                if (!input.source.tracksHttp && count === execution.httpRequests) {
+                  execution.httpRequests++;
+                  execution.sourceStartedAt ??= began;
+                  execution.sourceFinishedAt = clock().toISOString();
+                }
+              }
+            },
+          };
       const logScope = [unit.dataset, unit.scope, unit.announcementField].filter(Boolean).join('/');
       log(`[ingestion] ${logScope} ${unit.fullHistory ? 'all' : unit.startDate}..${unit.endDate}`);
       let prepared: PreparedMarketPartition | undefined;
       let selection: string[] | undefined;
       let succeeded = false;
-      await withImportDiagnostics(diagnostics, async () => {
-        try {
-          if (unit.dataset === 'etf-selection') {
-            const snapshot = await prepareHistoricalEtfSelection({
-              source,
-              date: unit.endDate,
-              exchanges: unit.exchanges,
-            });
-            selection = snapshot.selectedCodes;
-            prepared = {
-              tables: [],
-              status: 'complete',
-              gaps: [],
-              errors: [],
-              observedDates: [],
-              checks: {
-                terminalPage: true,
-                sourceFailed: false,
-                invalidRows: 0,
-                emptyResponse: snapshot.receivedCount === 0,
-                pages: snapshot.pages,
-                sourceRows: snapshot.receivedCount,
-                excludedRows: snapshot.receivedCount - selection.length,
-              },
-            };
-          } else {
-            prepared = await prepareMarketPartition({ source }, unit, fetchedAt);
-          }
-        } catch (error) {
-          if (error instanceof MarketSourceRangeLimitError && unit.adaptiveRange) {
-            const children = splitRangeUnit(unit);
-            const next = replaceRangeUnit(runPlan, unit, children);
-            await database.$transaction(async (transaction) => {
-              await transaction.ingestionBatch.update({
-                where: { id: batchId },
-                data: {
-                  status: 'split',
-                  responseComplete: false,
-                  receivedCount: error.receivedCount,
-                  request: jsonValue(diagnostics.requests),
-                  finishedAt: clock(),
+      const prepareStartedAt = performance.now();
+      await withSourceMeasurements(execution, () =>
+        withImportDiagnostics(diagnostics, async () => {
+          try {
+            if (unit.dataset === 'etf-selection') {
+              const snapshot = await prepareHistoricalEtfSelection({
+                source,
+                date: unit.endDate,
+                exchanges: unit.exchanges,
+              });
+              selection = snapshot.selectedCodes;
+              prepared = {
+                tables: [],
+                status: 'complete',
+                gaps: [],
+                errors: [],
+                observedDates: [],
+                checks: {
+                  terminalPage: true,
+                  sourceFailed: false,
+                  invalidRows: 0,
+                  emptyResponse: snapshot.receivedCount === 0,
+                  pages: snapshot.pages,
+                  sourceRows: snapshot.receivedCount,
+                  excludedRows: snapshot.receivedCount - selection.length,
                 },
-              });
-              await transaction.ingestionRun.update({
-                where: { id: runId },
-                data: { scopeSnapshot: jsonValue(next) },
-              });
-            });
-            runPlan = next;
-            required.delete(unitKey(unit));
-            splitUnits.set(unitKey(unit), children);
-            log(
-              `[ingestion] ${logScope}: response limit reached; split into ${children.length} ranges`,
-            );
+              };
+            } else {
+              prepared = await prepareMarketPartition({ source }, unit, fetchedAt);
+            }
+          } catch (error) {
+            if (error instanceof MarketSourceStorageError) {
+              throw error;
+            }
+            if (error instanceof MarketSourceRangeLimitError && unit.adaptiveRange) {
+              const children = splitRangeUnit(unit);
+              const next = replaceRangeUnit(runPlan, unit, children);
+              execution.prepareMs = Math.max(
+                0,
+                performance.now() - prepareStartedAt - (downloaded ? 0 : execution.downloadMs),
+              );
+              const writeStartedAt = performance.now();
+              await serializeWrite(() =>
+                database.$transaction(async (transaction) => {
+                  await transaction.ingestionBatch.update({
+                    where: { id: batchId },
+                    data: {
+                      status: 'split',
+                      responseComplete: false,
+                      receivedCount: error.receivedCount,
+                      request: envelope(diagnostics, execution),
+                      finishedAt: clock(),
+                    },
+                  });
+                  await transaction.ingestionRun.update({
+                    where: { id: runId },
+                    data: { scopeSnapshot: jsonValue(next) },
+                  });
+                }),
+              );
+              execution.writeMs = Math.max(0, performance.now() - writeStartedAt);
+              await serializeWrite(() =>
+                database.ingestionBatch.update({
+                  where: { id: batchId },
+                  data: { request: envelope(diagnostics, execution) },
+                }),
+              );
+              runPlan = next;
+              required.delete(unitKey(unit));
+              splitUnits.set(unitKey(unit), children);
+              log(
+                `[ingestion] ${logScope}: response limit reached; split into ${children.length} ranges`,
+              );
 
-            return;
-          }
-          diagnostics.issues.push({
-            category: 'internal',
-            reasonCode: 'preparation_failed',
-            message: error instanceof Error ? error.message : String(error),
-          });
-        }
-        const responseComplete = Boolean(
-          prepared?.checks.terminalPage && !prepared.checks.sourceFailed,
-        );
-        if (prepared) {
-          for (const message of [
-            ...prepared.errors,
-            ...(diagnostics.issues.some(isImportError) ? [] : prepared.gaps),
-          ]) {
-            if (
-              !diagnostics.issues.some((issue) => isImportError(issue) && issue.message === message)
-            ) {
+              return;
+            }
+            if (!signal.aborted) {
               diagnostics.issues.push({
-                category: responseComplete ? 'snapshot' : 'request',
-                reasonCode: responseComplete ? 'batch_not_accepted' : 'incomplete_response',
-                message,
-                payload: undefined,
+                category: 'internal',
+                reasonCode: 'preparation_failed',
+                message: error instanceof Error ? error.message : String(error),
               });
             }
           }
-        }
-        if (
-          prepared?.checks.emptyResponse &&
-          unit.startDate === localDate(startedAt) &&
-          ['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].includes(
-            unit.dataset,
-          ) &&
-          responseComplete
-        ) {
-          diagnostics.issues.push({
-            category: 'dependency',
-            reasonCode: 'current_session_not_published',
-            message: 'The source has not returned current-session market observations yet',
-          });
-        }
-        // 只在下载完整后接纳；记录结果与数据共同提交，强杀不会留下半批。
-        // Admit complete downloads only; publish receipts and data together to survive forced exits.
-        const committed = await publish(() =>
-          database.$transaction(
-            async (transaction) => {
-              const accepted =
-                responseComplete && !signal.aborted && prepared && unit.dataset !== 'etf-selection'
-                  ? await writeMarketPartition(transaction, prepared, unit, fetchedAt)
-                  : {
-                      inserted: 0,
-                      updated: 0,
-                      deleted: 0,
-                      rejected: 0,
-                      changed: false,
-                      errors: [] as string[],
-                    };
-              for (const message of accepted.errors) {
-                if (
-                  !diagnostics.issues.some(
-                    (issue) => isImportError(issue) && issue.message === message,
-                  )
-                ) {
-                  diagnostics.issues.push({
-                    category: 'record',
-                    reasonCode: 'write_not_accepted',
-                    message,
-                  });
-                }
-              }
+          const responseComplete = Boolean(
+            prepared?.checks.terminalPage && !prepared.checks.sourceFailed,
+          );
+          if (prepared && !signal.aborted) {
+            for (const message of [
+              ...prepared.errors,
+              ...(diagnostics.issues.some(isImportError) ? [] : prepared.gaps),
+            ]) {
               if (
-                selection &&
-                responseComplete &&
-                !diagnostics.issues.some(isImportError) &&
-                !signal.aborted
+                !diagnostics.issues.some(
+                  (issue) => isImportError(issue) && issue.message === message,
+                )
               ) {
-                await mergeEtfSelection(transaction, selection);
-              }
-              const status = signal.aborted
-                ? 'interrupted'
-                : !responseComplete
-                  ? 'failed'
-                  : diagnostics.issues.some(isImportError)
-                    ? 'partial'
-                    : 'succeeded';
-              const rejected = (prepared?.checks.invalidRows ?? 0) + accepted.rejected;
-              const received = prepared?.checks.sourceRows ?? 0;
-              const filtered = prepared?.checks.excludedRows ?? 0;
-              const acceptedCount =
-                responseComplete && !signal.aborted && (selection || prepared?.tables.length)
-                  ? Math.max(0, received - rejected - filtered)
-                  : 0;
-              await transaction.ingestionBatch.update({
-                where: { id: batchId },
-                data: {
-                  status,
-                  responseComplete,
-                  sourceStart: prepared?.sourceStartDate ?? null,
-                  ...(prepared?.hasDeferredRecords ? { rangeEnd: null } : {}),
-                  request: jsonValue(diagnostics.requests),
-                  receivedCount: received,
-                  acceptedCount,
-                  filteredCount: filtered,
-                  rejectedCount: rejected,
-                  finishedAt: clock(),
-                },
-              });
-              await persistIssues(transaction, runId, batchId, diagnostics.issues);
-              if (accepted.changed) {
-                await transaction.marketDataState.update({
-                  where: { key: 'global' },
-                  data: { revision: { increment: 1 } },
+                diagnostics.issues.push({
+                  category: responseComplete ? 'snapshot' : 'request',
+                  reasonCode: responseComplete ? 'batch_not_accepted' : 'incomplete_response',
+                  message,
+                  payload: undefined,
                 });
               }
-              return {
-                status,
-                acceptedCount,
-                filtered,
-                rejected,
-                issueCount: diagnostics.issues.filter(isImportError).length,
-              };
-            },
-            { timeout: 120_000 },
-          ),
-        );
-        succeeded = committed.status === 'succeeded';
-        if (succeeded) {
-          completed.add(unitKey(unit));
-          dependenciesChanged ||= [
-            'calendar',
-            'stock-master',
-            'etf-master',
-            'etf-selection',
-          ].includes(unit.dataset);
-        }
-      });
+            }
+          }
+          if (
+            prepared?.checks.emptyResponse &&
+            unit.startDate === localDate(startedAt) &&
+            ['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].includes(
+              unit.dataset,
+            ) &&
+            responseComplete
+          ) {
+            diagnostics.issues.push({
+              category: 'dependency',
+              reasonCode: 'current_session_not_published',
+              message: 'The source has not returned current-session market observations yet',
+            });
+          }
+          // 只在下载完整后接纳；记录结果与数据共同提交，强杀不会留下半批。
+          // Admit complete downloads only; publish receipts and data together to survive forced exits.
+          execution.prepareMs = Math.max(
+            0,
+            performance.now() - prepareStartedAt - (downloaded ? 0 : execution.downloadMs),
+          );
+          const writeStartedAt = performance.now();
+          const committed = await serializeWrite(() =>
+            publish(() =>
+              database.$transaction(
+                async (transaction) => {
+                  const accepted =
+                    responseComplete &&
+                    !signal.aborted &&
+                    prepared &&
+                    unit.dataset !== 'etf-selection'
+                      ? await writeMarketPartition(transaction, prepared, unit, fetchedAt)
+                      : {
+                          inserted: 0,
+                          updated: 0,
+                          deleted: 0,
+                          rejected: 0,
+                          changed: false,
+                          errors: [] as string[],
+                        };
+                  for (const message of accepted.errors) {
+                    if (
+                      !diagnostics.issues.some(
+                        (issue) => isImportError(issue) && issue.message === message,
+                      )
+                    ) {
+                      diagnostics.issues.push({
+                        category: 'record',
+                        reasonCode: 'write_not_accepted',
+                        message,
+                      });
+                    }
+                  }
+                  if (
+                    selection &&
+                    responseComplete &&
+                    !diagnostics.issues.some(isImportError) &&
+                    !signal.aborted
+                  ) {
+                    await mergeEtfSelection(transaction, selection);
+                  }
+                  const status = signal.aborted
+                    ? 'interrupted'
+                    : !responseComplete
+                      ? 'failed'
+                      : diagnostics.issues.some(isImportError)
+                        ? 'partial'
+                        : 'succeeded';
+                  const rejected = (prepared?.checks.invalidRows ?? 0) + accepted.rejected;
+                  const received = prepared?.checks.sourceRows ?? 0;
+                  const filtered = prepared?.checks.excludedRows ?? 0;
+                  const acceptedCount =
+                    responseComplete && !signal.aborted && (selection || prepared?.tables.length)
+                      ? Math.max(0, received - rejected - filtered)
+                      : 0;
+                  await transaction.ingestionBatch.update({
+                    where: { id: batchId },
+                    data: {
+                      status,
+                      responseComplete,
+                      sourceStart: prepared?.sourceStartDate ?? null,
+                      ...(prepared?.hasDeferredRecords ? { rangeEnd: null } : {}),
+                      request: envelope(diagnostics, execution),
+                      receivedCount: received,
+                      acceptedCount,
+                      filteredCount: filtered,
+                      rejectedCount: rejected,
+                      finishedAt: clock(),
+                    },
+                  });
+                  await persistIssues(transaction, runId, batchId, diagnostics.issues);
+                  if (accepted.changed) {
+                    await transaction.marketDataState.update({
+                      where: { key: 'global' },
+                      data: { revision: { increment: 1 } },
+                    });
+                  }
+                  return {
+                    status,
+                    acceptedCount,
+                    filtered,
+                    rejected,
+                    issueCount: diagnostics.issues.filter(isImportError).length,
+                  };
+                },
+                { timeout: 120_000 },
+              ),
+            ),
+          );
+          execution.writeMs = Math.max(0, performance.now() - writeStartedAt);
+          await serializeWrite(() =>
+            database.ingestionBatch.update({
+              where: { id: batchId },
+              data: { request: envelope(diagnostics, execution) },
+            }),
+          );
+          succeeded = committed.status === 'succeeded';
+          if (succeeded) {
+            completed.add(unitKey(unit));
+            dependenciesChanged ||= [
+              'calendar',
+              'stock-master',
+              'etf-master',
+              'etf-selection',
+            ].includes(unit.dataset);
+          }
+        }),
+      );
+      if (downloaded) {
+        await prefetch!.release(unit);
+      }
       for (const issue of diagnostics.issues) {
         log(
           `[ingestion] ${unit.dataset}/${unit.scope} [${issue.severity ?? 'error'}]: ${issue.message}`,
@@ -473,6 +586,74 @@ async function collect(
 
       return childrenSucceeded;
     };
+    const runUnits = async (units: readonly IngestionUnit[]) => {
+      const work: IngestionUnit[] = [];
+      const keys = new Set<string>();
+      let next = runPlan;
+      for (const unit of units) {
+        required.add(unitKey(unit));
+        if (canSkip(unit)) {
+          continue;
+        }
+        const missing = uncoveredRangeUnits(unit, history);
+        if (missing.length !== 1 || unitKey(missing[0]) !== unitKey(unit)) {
+          next = replaceRangeUnit(next, unit, missing);
+          required.delete(unitKey(unit));
+        }
+        for (const child of missing) {
+          if (!keys.has(unitKey(child))) {
+            keys.add(unitKey(child));
+            work.push(child);
+          }
+        }
+      }
+      if (next !== runPlan) {
+        await savePlan(next);
+      }
+      await SourceResponseCache.reclaim(runId);
+      prefetch = new BatchPrefetcher({
+        runId,
+        source: input.source,
+        signal,
+        clock,
+        concurrency: input.concurrency ?? 1,
+        bufferBytes: input.bufferBytes ?? 64 * 1024 * 1024,
+        start: startBatch,
+        ready: async (_unit, result) => {
+          await serializeWrite(() =>
+            database.ingestionBatch.updateMany({
+              where: { id: result.id, status: 'running' },
+              data: { request: envelope(result.diagnostics, result.execution) },
+            }),
+          );
+        },
+        discard: async (_unit, result) => {
+          await serializeWrite(() =>
+            database.ingestionBatch.updateMany({
+              where: { id: result.id, status: 'running' },
+              data: {
+                status: 'interrupted',
+                finishedAt: clock(),
+                request: envelope(result.diagnostics, result.execution),
+              },
+            }),
+          );
+        },
+      });
+      try {
+        for (let index = 0; index < work.length && !signal.aborted; index++) {
+          prefetch.prefetch(
+            work
+              .slice(index, index + Math.max(2, (input.concurrency ?? 1) * 2))
+              .filter((unit) => !attempted.has(unitKey(unit))),
+          );
+          await executeUnit(work[index]);
+        }
+      } finally {
+        await prefetch.close();
+        prefetch = undefined;
+      }
+    };
     try {
       let stockCatalogReady = true;
       for (const unit of runPlan.referenceUnits) {
@@ -489,43 +670,37 @@ async function collect(
             selectionUnits: await planEtfSelections(input.targetDate, startedAt),
           });
         }
-        for (const unit of runPlan.selectionUnits!) {
-          if (signal.aborted) {
-            break;
+        await runUnits(runPlan.selectionUnits!);
+        if (!signal.aborted) {
+          const saved = runPlan.plan;
+          const plan =
+            upgradeStatements && saved && !saved.statementStrategy && stockCatalogReady
+              ? await upgradeStatementPlan(saved, runId, input.targetDate, invokedAt)
+              : ((dependenciesChanged || saved?.blocked.length ? undefined : saved) ??
+                (await planIngestion(input.targetDate, startedAt, runId)));
+          await savePlan({ ...runPlan, plan });
+          for (const unit of runPlan.plan!.units) {
+            required.add(unitKey(unit));
           }
-          await executeUnit(unit);
-        }
-        const saved = runPlan.plan;
-        const plan =
-          upgradeStatements && saved && !saved.statementStrategy && stockCatalogReady
-            ? await upgradeStatementPlan(saved, runId, input.targetDate, invokedAt)
-            : ((dependenciesChanged || saved?.blocked.length ? undefined : saved) ??
-              (await planIngestion(input.targetDate, startedAt, runId)));
-        await savePlan({ ...runPlan, plan });
-        for (const unit of runPlan.plan!.units) {
-          required.add(unitKey(unit));
-        }
-        for (const blocked of plan.blocked) {
-          await persistIssues(database, runId, null, [
-            {
-              category: 'dependency',
-              reasonCode: 'scope_blocked',
-              message: `${blocked.dataset}/${blocked.scope}: ${blocked.message}`,
-            },
-          ]);
-          standaloneIssues++;
-        }
-        for (const unit of runPlan.plan!.units) {
-          if (
-            !stockCatalogReady &&
-            ['financial-statements', 'financial-indicators', 'dividends'].includes(unit.dataset)
-          ) {
-            continue;
+          for (const blocked of plan.blocked) {
+            await persistIssues(database, runId, null, [
+              {
+                category: 'dependency',
+                reasonCode: 'scope_blocked',
+                message: `${blocked.dataset}/${blocked.scope}: ${blocked.message}`,
+              },
+            ]);
+            standaloneIssues++;
           }
-          if (signal.aborted) {
-            break;
-          }
-          await executeUnit(unit);
+          await runUnits(
+            runPlan.plan!.units.filter(
+              (unit) =>
+                stockCatalogReady ||
+                !['financial-statements', 'financial-indicators', 'dividends'].includes(
+                  unit.dataset,
+                ),
+            ),
+          );
         }
       }
     } catch (error) {

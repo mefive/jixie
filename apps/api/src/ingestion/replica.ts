@@ -1,3 +1,4 @@
+import { sourceExecution } from '#market/synchronization/execution.js';
 import pkg, { type IngestionRun, type Prisma } from '@prisma/client';
 import type { IngestionExecutionSummary } from '@jixie/shared/api/ingestion';
 import { randomUUID } from 'node:crypto';
@@ -250,6 +251,7 @@ async function readRunTimings(database: Prisma.TransactionClient, runId: string)
       batches: {
         select: {
           id: true,
+          request: true,
           dataset: true,
           scope: true,
           period: true,
@@ -268,8 +270,9 @@ async function readRunTimings(database: Prisma.TransactionClient, runId: string)
   return {
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt?.toISOString() ?? null,
-    batches: batches.map((batch) => ({
+    batches: batches.map(({ request, ...batch }) => ({
       ...batch,
+      execution: sourceExecution(request),
       elapsedMs: batch.finishedAt ? batch.finishedAt.getTime() - batch.startedAt.getTime() : null,
     })),
   };

@@ -9,6 +9,36 @@ export interface SourceRequestBudget {
   lastFailure?: string;
 }
 const sourceBudgets = new AsyncLocalStorage<SourceRequestBudget>();
+export interface SourceMeasurements {
+  httpRequests: number;
+  retries: number;
+  rateLimitMs: number;
+  sourceStartedAt: string | null;
+  sourceFinishedAt: string | null;
+}
+const measurements = new AsyncLocalStorage<SourceMeasurements>();
+
+export function sourceMeasurements() {
+  return measurements.getStore();
+}
+export function sourceRequestSignal() {
+  return sourceBudgets.getStore()?.signal;
+}
+export function withSourceMeasurements<Result>(
+  value: SourceMeasurements,
+  operation: () => Promise<Result>,
+) {
+  return measurements.run(value, operation);
+}
+
+/** 实际传输前计数，排队及回放不计为 HTTP。 / Count wire attempts, excluding queues and replay. */
+function recordWireRequest() {
+  const value = measurements.getStore();
+  if (value) {
+    value.httpRequests++;
+    value.sourceStartedAt ??= new Date().toISOString();
+  }
+}
 
 /**
  * 所有来源及内部重试共享实际 HTTP 请求预算。
@@ -48,9 +78,10 @@ export async function fetchMarketSource(
     ];
 
     try {
-      const response = await sourceTransport(() =>
-        fetcher(resource, { ...options, signal: AbortSignal.any(signals) }),
-      );
+      const response = await sourceTransport(() => {
+        recordWireRequest();
+        return fetcher(resource, { ...options, signal: AbortSignal.any(signals) });
+      });
       if (!response.ok) {
         budget.failures = (budget.failures ?? 0) + 1;
         budget.lastFailure = `Source HTTP ${response.status}`;
@@ -66,7 +97,10 @@ export async function fetchMarketSource(
     }
   }
 
-  return sourceTransport(() => fetcher(...args));
+  return sourceTransport(() => {
+    recordWireRequest();
+    return fetcher(...args);
+  });
 }
 
 /**

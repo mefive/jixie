@@ -37,6 +37,7 @@ export async function executeDataCommand(
   }
   const controller = new AbortController();
   const cancel = () => controller.abort();
+  let client: import('#market/providers/tushare/tushare-client.js').TushareClient | undefined;
   process.once('SIGINT', cancel);
   process.once('SIGTERM', cancel);
   try {
@@ -198,20 +199,23 @@ export async function executeDataCommand(
       }
       const { TushareClient } = await import('#market/providers/tushare/tushare-client.js');
       const { loadTushareConfig } = await import('#market/providers/tushare/config.js');
-      let client: InstanceType<typeof TushareClient> | undefined;
       const source: import('#market/synchronization/source.js').SyncSource = {
+        tracksHttp: true,
         call: (...args) => {
           if (!client) {
             const config = loadTushareConfig();
             client = new TushareClient({
               ...config,
-              minIntervalMs: Math.max(800, config.minIntervalMs),
               maxRetries: 2,
             });
           }
           return client.call(...args);
         },
       };
+      // 先取得账号所有权再建立或修改 Run；读取类命令已在前面的分支返回。
+      // Acquire provider ownership before changing a run; read-only commands returned above.
+      client ??= new TushareClient({ ...loadTushareConfig(), maxRetries: 2 });
+      await client.ready();
       if (request.action === 'select-top') {
         const { selectTopEtfs } = await import('#market/downloads/select-etfs.js');
 
@@ -220,7 +224,11 @@ export async function executeDataCommand(
       if (request.action === 'retry-run') {
         const { retryCandidate } = await import('../replica.js');
 
-        return retryCandidate(request.runId, { source, signal: controller.signal });
+        return retryCandidate(request.runId, {
+          source,
+          signal: controller.signal,
+          concurrency: loadTushareConfig().concurrency,
+        });
       }
       if (request.action !== 'ingest') {
         throw new Error('Unsupported data action');
@@ -233,6 +241,7 @@ export async function executeDataCommand(
           source,
           signal: controller.signal,
           trigger: process.env.JIXIE_INGESTION_TRIGGER === 'timer' ? 'timer' : 'manual',
+          concurrency: loadTushareConfig().concurrency,
         },
         Boolean(request.targetDate),
       );
@@ -254,6 +263,7 @@ export async function executeDataCommand(
   } finally {
     process.off('SIGINT', cancel);
     process.off('SIGTERM', cancel);
+    await client?.close();
     await closeDatabase(database);
   }
 }

@@ -1,3 +1,4 @@
+import { sourceRequests } from '../synchronization/execution.js';
 import { financialStatementSourceFields, type FinancialStatementKind } from './source-contract.js';
 import { stockSourceCodes } from '../instruments/stock-identity.js';
 import { calendarDay, isObservationDate } from '../synchronization/date.js';
@@ -43,6 +44,7 @@ function matchesStatementAnnouncementRange(
   startDate: string,
   endDate: string,
 ): boolean {
+  request = sourceRequests(request);
   if (!Array.isArray(request)) {
     return false;
   }
@@ -82,6 +84,7 @@ export function statementReceiptMatchesRequests(
   kind: FinancialStatementKind,
   expected: readonly Record<string, string>[],
 ): boolean {
+  request = sourceRequests(request);
   if (!Array.isArray(request)) {
     return false;
   }

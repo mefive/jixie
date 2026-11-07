@@ -1,4 +1,11 @@
-import { fetchMarketSource, readMarketSourceText } from '../source-fetch.js';
+import {
+  fetchMarketSource,
+  readMarketSourceText,
+  sourceMeasurements,
+  sourceRequestSignal,
+} from '../source-fetch.js';
+import { setTimeout as delay } from 'node:timers/promises';
+import { TushareRequestLimiter, type TushareRateLimit } from './tushare-request-limiter.js';
 import { HttpStatusError } from '../../errors.js';
 import { warn } from '#infra/logging.js';
 import { MarketSyncBudgetError, TushareError } from '../../errors.js';
@@ -29,6 +36,10 @@ interface TushareResponse {
  */
 export interface TushareClientOptions {
   token: string;
+  concurrency?: number;
+  perMinute?: number;
+  apiLimits?: Readonly<Record<string, TushareRateLimit>>;
+  quotaDirectory?: string;
   /** API address, defaults to http://api.tushare.pro */
   baseUrl?: string;
   /** Minimum interval between two requests (ms), to avoid Tushare's per-minute rate limit.
@@ -42,20 +53,9 @@ export interface TushareClientOptions {
 }
 
 /**
- * 等待来源请求限流间隔，供 Tushare 重试与节流使用。
+ * HTTP 连接可重叠，所有分页与重试共享同一个发送限流器。
  *
- * Wait for a source-request delay used by Tushare throttling and retries.
- */
-
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Lightweight Tushare HTTP API client.
- *
- * Key design: all requests are queued **serially** onto one promise chain, with at least
- * minIntervalMs between two actually-sent calls. Tushare rate-limits by "calls per minute", so
- * serial + interval is the simplest and least limit-prone approach (factor research is offline
- * batch fetching and doesn't chase concurrent throughput).
+ * Overlap HTTP connections while sharing admission across pages and retries.
  */
 export class TushareClient {
   private readonly token: string;
@@ -64,8 +64,7 @@ export class TushareClient {
   private readonly maxRetries: number;
   private readonly timeoutMs: number;
 
-  private queue: Promise<unknown> = Promise.resolve();
-  private lastCallAt = 0;
+  private readonly limiter: TushareRequestLimiter;
 
   constructor(opts: TushareClientOptions) {
     this.token = opts.token;
@@ -73,6 +72,14 @@ export class TushareClient {
     this.minIntervalMs = opts.minIntervalMs ?? 350;
     this.maxRetries = opts.maxRetries ?? 3;
     this.timeoutMs = opts.timeoutMs ?? 30000;
+    this.limiter = new TushareRequestLimiter({
+      token: opts.token,
+      concurrency: opts.concurrency ?? 1,
+      minIntervalMs: this.minIntervalMs,
+      perMinute: opts.perMinute ?? Math.max(1, Math.floor(60_000 / this.minIntervalMs)),
+      apiLimits: opts.apiLimits,
+      quotaDirectory: opts.quotaDirectory,
+    });
   }
 
   /**
@@ -90,52 +97,72 @@ export class TushareClient {
     params: Record<string, unknown> = {},
     fields?: string,
   ): Promise<TushareRow[]> {
-    const task = this.queue.then(() => this.execute(apiName, params, fields));
-    // The .catch swallows errors only to keep a previous failure from breaking the serial chain;
-    // the real error is still thrown to the caller via task.
-    this.queue = task.catch(() => undefined);
-    return task;
+    return this.execute(apiName, params, fields);
   }
 
-  /**
-   * 协调请求排队、限流与重试，供 Tushare 调用共享连接策略。
-   *
-   * Coordinate queuing, throttling and retries for Tushare calls.
-   */
+  /** 等待所有请求退出后释放账号锁。 / Release account ownership after all requests settle. */
+  ready() {
+    return this.limiter.ready();
+  }
+
+  close() {
+    return this.limiter.close();
+  }
+
   private async execute(
     apiName: string,
     params: Record<string, unknown>,
     fields: string | undefined,
   ): Promise<TushareRow[]> {
+    const signal = sourceRequestSignal();
+    const measurements = sourceMeasurements();
     for (let attempt = 0; ; attempt++) {
-      const wait = this.minIntervalMs - (Date.now() - this.lastCallAt);
-      if (wait > 0) {
-        await sleep(wait);
+      const queuedAt = performance.now();
+      const release = await this.limiter.acquire(apiName, signal);
+      if (measurements) {
+        measurements.rateLimitMs += performance.now() - queuedAt;
       }
-
+      let error: unknown;
       try {
-        const rows = await this.doFetch(apiName, params, fields);
-        this.lastCallAt = Date.now();
-        return rows;
-      } catch (e) {
-        this.lastCallAt = Date.now();
-        // Don't retry business errors (param / permission / credit issues yield the same result)
-        if (
-          e instanceof TushareError ||
-          e instanceof MarketSyncBudgetError ||
-          (e instanceof HttpStatusError && e.status < 500 && e.status !== 429)
-        ) {
-          throw e;
+        if (signal?.aborted) {
+          throw new MarketSyncBudgetError();
         }
-        if (attempt >= this.maxRetries) {
-          throw e;
+        if (measurements && attempt) {
+          measurements.retries++;
         }
-        const backoff = this.minIntervalMs * 2 ** (attempt + 1);
-        warn(
-          `${apiName} request attempt ${attempt + 1} failed, retrying in ${backoff}ms:`,
-          (e as Error).message,
-        );
-        await sleep(backoff);
+
+        return await this.doFetch(apiName, params, fields);
+      } catch (failure) {
+        error = failure;
+        if (signal?.aborted) {
+          throw new MarketSyncBudgetError();
+        }
+        if (failure instanceof HttpStatusError && failure.status === 429) {
+          await this.limiter.cooldown(failure.retryAfterMs ?? 60_000);
+        }
+      } finally {
+        if (measurements) {
+          measurements.sourceFinishedAt = new Date().toISOString();
+        }
+        release();
+      }
+      if (
+        error instanceof TushareError ||
+        error instanceof MarketSyncBudgetError ||
+        (error instanceof HttpStatusError && error.status < 500 && error.status !== 429) ||
+        attempt >= this.maxRetries
+      ) {
+        throw error;
+      }
+      const backoff = Math.max(1, this.minIntervalMs * 2 ** (attempt + 1)) + Math.random() * 250;
+      warn(
+        `${apiName} request attempt ${attempt + 1} failed, retrying in ${Math.round(backoff)}ms:`,
+        (error as Error).message,
+      );
+      try {
+        await delay(backoff, undefined, { signal });
+      } catch {
+        throw new MarketSyncBudgetError();
       }
     }
   }
@@ -165,7 +192,18 @@ export class TushareClient {
         signal: controller.signal,
       });
       if (!res.ok) {
-        throw new HttpStatusError(res.status, `HTTP ${res.status} ${res.statusText}`);
+        const retryAfter = res.headers.get('retry-after');
+        const seconds = retryAfter === null ? NaN : Number(retryAfter);
+        const milliseconds = Number.isFinite(seconds)
+          ? Math.max(0, seconds * 1000)
+          : retryAfter
+            ? Math.max(0, Date.parse(retryAfter) - Date.now())
+            : NaN;
+        throw new HttpStatusError(
+          res.status,
+          `HTTP ${res.status} ${res.statusText}`,
+          Number.isFinite(milliseconds) ? milliseconds : undefined,
+        );
       }
       const body = JSON.parse(await readMarketSourceText(res)) as TushareResponse;
       if (!body || !Number.isInteger(body.code)) {

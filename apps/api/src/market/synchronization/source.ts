@@ -1,11 +1,18 @@
 import { recordImportIssue, recordImportRequest } from './diagnostics.js';
 import { createHash } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { INGESTION_SOURCE_REQUESTS } from '../providers/tushare/request-contract.js';
-import { MarketSourceRangeLimitError, MarketSyncBudgetError, TushareError } from '../errors.js';
+import {
+  MarketSourceRangeLimitError,
+  MarketSourceStorageError,
+  MarketSyncBudgetError,
+  TushareError,
+} from '../errors.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import type { MarketRow, PreparedMarketPartition, SourceRecord } from './partition.js';
 
 export interface SyncSource {
+  tracksHttp?: boolean;
   call(api: string, params?: Record<string, unknown>, fields?: string): Promise<TushareRow[]>;
 }
 
@@ -15,6 +22,12 @@ export interface SourcePages {
   pages: number;
   deferred?: boolean;
   errors: string[];
+}
+const discarding = new AsyncLocalStorage<boolean>();
+
+/** 预取仅保留完整性状态，原始页由缓冲管理。 / Prefetch retains integrity state; the buffer owns raw pages. */
+export function withoutSourceRowAccumulation<Result>(operation: () => Promise<Result>) {
+  return discarding.run(true, operation);
 }
 
 function validateSourceParameters(api: string, params: Record<string, unknown>) {
@@ -68,6 +81,9 @@ export async function fetchSourceRange(
   try {
     rows = await fetchSourceFirstPage(source, api, params, fields, limit);
   } catch (error) {
+    if (error instanceof MarketSourceStorageError) {
+      throw error;
+    }
     if (error instanceof MarketSyncBudgetError) {
       return { rows: [], complete: false, pages: 0, errors: [], deferred: true };
     }
@@ -135,7 +151,9 @@ export async function fetchSourcePages(
         throw new Error(`${api}: provider repeated an offset page`);
       }
       signatures.add(signature);
-      result.rows.push(...page);
+      if (!discarding.getStore()) {
+        result.rows.push(...page);
+      }
       if (snapshotLimit && page.length >= snapshotLimit) {
         throw new Error(`${api}: response reached its safety limit; narrow the request`);
       }
@@ -144,6 +162,9 @@ export async function fetchSourcePages(
         break;
       }
     } catch (error) {
+      if (error instanceof MarketSourceStorageError) {
+        throw error;
+      }
       if (error instanceof MarketSourceRangeLimitError) {
         throw error;
       }

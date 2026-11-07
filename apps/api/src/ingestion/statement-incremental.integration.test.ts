@@ -1,3 +1,4 @@
+import { sourceRequests } from '#market/synchronization/execution.js';
 import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { emptySelections, ingestionSource, ingestionTime } from '../../tests/ingestion-source.js';
@@ -89,7 +90,7 @@ it(
           },
         });
         expect(statementReceiptMatchesBatch(receipt)).toBe(true);
-        expect(receipt.request).toMatchObject([
+        expect(sourceRequests(receipt.request)).toMatchObject([
           { params: { start_date: '19910105', end_date: '19910105' } },
         ]);
         const probe = await candidate.ingestionBatch.findFirstOrThrow({
@@ -100,7 +101,7 @@ it(
           receivedCount: 5000,
           acceptedCount: 0,
         });
-        expect(probe.request).toMatchObject([
+        expect(sourceRequests(probe.request)).toMatchObject([
           { params: { start_date: '19910105', end_date: '19910106' } },
         ]);
         expect(

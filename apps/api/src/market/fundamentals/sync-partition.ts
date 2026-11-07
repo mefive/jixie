@@ -26,7 +26,12 @@ import {
 } from '../instruments/stock-identity.js';
 import { calendarDay, isObservationDate, localDate } from '../synchronization/date.js';
 import { fingerprint } from '../synchronization/rows.js';
-import { MarketSourceRangeLimitError, MarketSyncBudgetError, TushareError } from '../errors.js';
+import {
+  MarketSourceRangeLimitError,
+  MarketSourceStorageError,
+  MarketSyncBudgetError,
+  TushareError,
+} from '../errors.js';
 import {
   finaIndicatorSchema,
   finaIndicatorVersionSchema,
@@ -115,23 +120,7 @@ async function prepareStatementPartition(
     balance_sheet: 'FinancialBalanceSheet',
     cash_flow: 'FinancialCashFlowStatement',
   }[statementKind];
-  const fields = financialStatementSourceFields(statementKind).join(',');
-  let pages: SourcePages;
-  if (historyCode) {
-    pages = await fetchFinancialHistory(source, api, historyCode, fields, {
-      report_type: reportType,
-    });
-  } else if (announcementRange) {
-    pages = await fetchStatementAnnouncementRange(source, api, partition, fields, reportType);
-  } else {
-    pages = await fetchSourcePages(
-      source,
-      api,
-      { [announcementField ?? 'period']: partition.startDate, report_type: reportType },
-      fields,
-      5000,
-    );
-  }
+  const pages = await downloadFinancialPartition(source, partition);
   const codes = partition.catalogThrough
     ? await financialStockCodes(partition.catalogThrough)
     : undefined;
@@ -267,6 +256,9 @@ async function fetchStatementAnnouncementRange(
     await fetchWindow(partition.startDate, partition.endDate);
     result.complete = true;
   } catch (error) {
+    if (error instanceof MarketSourceStorageError) {
+      throw error;
+    }
     if (error instanceof MarketSourceRangeLimitError) {
       throw error;
     }
@@ -298,9 +290,6 @@ async function prepareDividendPartition(
   const codes = dateField
     ? await financialStockCodes(partition.catalogThrough ?? partition.endDate)
     : null;
-  const requests = dateField
-    ? [{ [dateField]: partition.startDate }]
-    : stockSourceCodes(partition.scope).map((ts_code) => ({ ts_code }));
   const valuesOf = (row: TushareRow): MarketRow => {
     const values = {
       ...sourceValues(row, DIVIDEND_SOURCE_COLUMNS),
@@ -310,18 +299,7 @@ async function prepareDividendPartition(
 
     return { ...values, distributionKind: dividendDistributionKind(values) };
   };
-  const pages: SourcePages = { rows: [], complete: true, pages: 0, errors: [] };
-  for (const request of requests) {
-    const response = await fetchSourcePages(source, 'dividend', request, DIVIDEND_SOURCE_FIELDS);
-    pages.rows.push(...response.rows);
-    pages.errors.push(...response.errors);
-    pages.pages += response.pages;
-    pages.complete &&= response.complete;
-    pages.deferred ||= response.deferred;
-    if (response.deferred) {
-      break;
-    }
-  }
+  const pages = await downloadFinancialPartition(source, partition);
   const rejected = new Set<TushareRow>();
   for (const row of pages.rows) {
     if (
@@ -410,31 +388,9 @@ async function prepareIndicatorPartition(
   partition: MarketPartition,
   fetchedAt: Date,
 ): Promise<PreparedMarketPartition> {
-  const columns = {
-    tsCode: 'ts_code',
-    endDate: 'end_date',
-    annDate: 'ann_date',
-    roe: 'roe',
-    roeWaa: 'roe_waa',
-    roa: 'roa',
-    grossprofitMargin: 'grossprofit_margin',
-    netprofitMargin: 'netprofit_margin',
-    debtToAssets: 'debt_to_assets',
-    orYoy: 'or_yoy',
-    netprofitYoy: 'netprofit_yoy',
-    ocfToProfit: 'ocf_to_profit',
-  };
+  const columns = INDICATOR_COLUMNS;
   const historyCode = partition.fullHistory ? partition.scope : undefined;
-  const fields = `${Object.values(columns).join(',')},update_flag`;
-  const pages = historyCode
-    ? await fetchFinancialHistory(source, 'fina_indicator_vip', historyCode, fields)
-    : await fetchSourcePages(
-        source,
-        'fina_indicator_vip',
-        { period: partition.startDate },
-        fields,
-        10000,
-      );
+  const pages = await downloadFinancialPartition(source, partition);
   const codes = partition.catalogThrough
     ? await financialStockCodes(partition.catalogThrough)
     : undefined;
@@ -723,4 +679,87 @@ async function fetchFinancialHistory(
   }
 
   return pages;
+}
+
+const INDICATOR_COLUMNS = {
+  tsCode: 'ts_code',
+  endDate: 'end_date',
+  annDate: 'ann_date',
+  roe: 'roe',
+  roeWaa: 'roe_waa',
+  roa: 'roa',
+  grossprofitMargin: 'grossprofit_margin',
+  netprofitMargin: 'netprofit_margin',
+  debtToAssets: 'debt_to_assets',
+  orYoy: 'or_yoy',
+  netprofitYoy: 'netprofit_yoy',
+  ocfToProfit: 'ocf_to_profit',
+};
+
+/** 财务下载不读取版本、分红身份或合并上下文。 / Download financial rows without reading versions or merge identities. */
+export async function downloadFinancialPartition(
+  source: SyncSource,
+  partition: MarketPartition,
+): Promise<SourcePages> {
+  switch (partition.dataset) {
+    case 'financial-statements': {
+      const [kind, reportType, historyCode] = partition.scope.split('|');
+      const statementKind = kind as FinancialStatementKind;
+      const api = FINANCIAL_STATEMENT_APIS[statementKind];
+      const fields = financialStatementSourceFields(statementKind).join(',');
+      if (historyCode) {
+        return fetchFinancialHistory(source, api, historyCode, fields, { report_type: reportType });
+      }
+      if (partition.announcementRange) {
+        return fetchStatementAnnouncementRange(source, api, partition, fields, reportType);
+      }
+
+      return fetchSourcePages(
+        source,
+        api,
+        { [partition.announcementField ?? 'period']: partition.startDate, report_type: reportType },
+        fields,
+        5000,
+      );
+    }
+    case 'financial-indicators': {
+      const fields = `${Object.values(INDICATOR_COLUMNS).join(',')},update_flag`;
+
+      return partition.fullHistory
+        ? fetchFinancialHistory(source, 'fina_indicator_vip', partition.scope, fields)
+        : fetchSourcePages(
+            source,
+            'fina_indicator_vip',
+            { period: partition.startDate },
+            fields,
+            10000,
+          );
+    }
+    case 'dividends': {
+      const dateField = DIVIDEND_DATE_FIELDS.find((field) => field === partition.scope);
+      const requests = dateField
+        ? [{ [dateField]: partition.startDate }]
+        : stockSourceCodes(partition.scope).map((ts_code) => ({ ts_code }));
+      const pages: SourcePages = { rows: [], complete: true, pages: 0, errors: [] };
+      for (const request of requests) {
+        const response = await fetchSourcePages(
+          source,
+          'dividend',
+          request,
+          DIVIDEND_SOURCE_FIELDS,
+        );
+        pages.rows.push(...response.rows);
+        pages.errors.push(...response.errors);
+        pages.pages += response.pages;
+        pages.complete &&= response.complete;
+        pages.deferred ||= response.deferred;
+        if (response.deferred) {
+          break;
+        }
+      }
+      return pages;
+    }
+    default:
+      throw new Error(`Unknown financial dataset ${partition.dataset}`);
+  }
 }

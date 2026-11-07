@@ -1,3 +1,4 @@
+import { sourceCaptureStartedAt } from '#market/synchronization/execution.js';
 import type { IngestionBatch } from '@prisma/client';
 import { getDatabase } from '#infra/database/prisma.js';
 import {
@@ -41,7 +42,7 @@ function disclosureReceipt(
     return undefined;
   }
 
-  const capturedDate = localDate(batch.startedAt);
+  const capturedDate = localDate(sourceCaptureStartedAt(batch));
   const endDate = [unit.endDate, calendarDay(capturedDate, -1)].sort()[0];
   if (unit.startDate > endDate) {
     return undefined;
@@ -165,7 +166,7 @@ export async function planStatementUnits(
         statementReceiptMatchesBatch(batch) &&
         (await isSettledReceipt(batch))
       ) {
-        histories.set(batch.scope, localDate(batch.startedAt));
+        histories.set(batch.scope, localDate(sourceCaptureStartedAt(batch)));
       }
       continue;
     }

@@ -195,7 +195,7 @@ it(
       const interrupted = await database.ingestionBatch.findFirstOrThrow({
         where: { dataset: 'stock-prices' },
       });
-      expect(interrupted.status).toBe('running');
+      expect(interrupted.status).toBe('interrupted');
       await database.$executeRawUnsafe('DROP TRIGGER refuse_price_receipt');
       expect((await ingest(input)).status).toBe('completed');
       expect(

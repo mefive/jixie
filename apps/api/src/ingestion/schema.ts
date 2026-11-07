@@ -95,6 +95,8 @@ export interface IngestionInput {
   signal?: AbortSignal;
   clock?: () => Date;
   onLog?: (line: string) => void;
+  concurrency?: number;
+  bufferBytes?: number;
 }
 
 export type IngestionRetryInput = Omit<IngestionInput, 'targetDate'>;

@@ -1,3 +1,4 @@
+import { sourceRequests } from '../synchronization/execution.js';
 import { fingerprint, hasValueConflict } from '../synchronization/rows.js';
 import type { MarketRow } from '../synchronization/partition.js';
 
@@ -146,6 +147,7 @@ export function dividendIdentityResolver(existing: MarketRow[], incoming: Market
  * Resume only from receipts that actually requested the complete dividend fields.
  */
 export function dividendReceiptHasCompleteFields(request: unknown): boolean {
+  request = sourceRequests(request);
   if (!Array.isArray(request)) {
     return false;
   }
@@ -168,6 +170,7 @@ export function dividendReceiptMatchesRequests(
   request: unknown,
   expected: readonly Record<string, string>[],
 ): boolean {
+  request = sourceRequests(request);
   if (!dividendReceiptHasCompleteFields(request) || !Array.isArray(request)) {
     return false;
   }

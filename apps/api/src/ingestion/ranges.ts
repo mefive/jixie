@@ -1,3 +1,4 @@
+import { sourceCaptureStartedAt } from '#market/synchronization/execution.js';
 import { calendarDay, localDate } from '#market/synchronization/date.js';
 import { splitStatementAnnouncementWindow } from '#market/fundamentals/statement-requests.js';
 import type { IngestionUnit, IngestionRunPlan } from './schema.js';
@@ -40,6 +41,7 @@ export function uncoveredRangeUnits(
     sourceStart: string | null;
     rangeEnd: string | null;
     startedAt: Date;
+    request?: unknown;
   }[],
 ): IngestionUnit[] {
   if (!unit.adaptiveRange || unit.refresh || unit.dataset === 'financial-statements') {
@@ -50,7 +52,13 @@ export function uncoveredRangeUnits(
       const start = receipt.rangeStart || receipt.sourceStart;
       const end =
         receipt.dataset === 'calendar' && receipt.rangeEnd
-          ? [receipt.rangeEnd, calendarDay(localDate(receipt.startedAt), -1)].sort()[0]
+          ? [
+              receipt.rangeEnd,
+              calendarDay(
+                localDate(sourceCaptureStartedAt({ ...receipt, request: receipt.request })),
+                -1,
+              ),
+            ].sort()[0]
           : receipt.rangeEnd;
       if (
         receipt.dataset !== unit.dataset ||

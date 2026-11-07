@@ -1,3 +1,8 @@
+import { dirname, join } from 'node:path';
+import { databaseFilename } from '#infra/coordination/market-access.js';
+import { z } from 'zod';
+import type { TushareRateLimit } from './tushare-request-limiter.js';
+
 /**
  * 提供来源访问令牌及请求设置，供 Tushare 客户端初始化。
  *
@@ -6,9 +11,12 @@
 export interface TushareConfig {
   token: string;
   baseUrl: string;
-  /** Minimum interval between two requests (ms). The low-frequency quote quota is 200 calls/min;
-   * 400ms ≈ 150/min leaves some headroom. */
+  /** 发送间隔与分钟预算共同生效。 / Apply both send spacing and the rolling minute budget. */
   minIntervalMs: number;
+  concurrency: number;
+  perMinute: number;
+  apiLimits: Record<string, TushareRateLimit>;
+  quotaDirectory?: string;
 }
 
 /**
@@ -25,9 +33,40 @@ export function loadTushareConfig(env: NodeJS.ProcessEnv = process.env): Tushare
     );
   }
   const interval = Number(env.TUSHARE_MIN_INTERVAL_MS);
+  const perMinute = z.coerce
+    .number()
+    .int()
+    .positive()
+    .parse(env.TUSHARE_REQUESTS_PER_MINUTE ?? 75);
+  const concurrency = z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(4)
+    .parse(env.JIXIE_INGESTION_CONCURRENCY ?? 4);
+  const apiLimits = z
+    .record(
+      z.string(),
+      z.object({
+        perMinute: z.number().int().positive(),
+        perDay: z.number().int().positive().optional(),
+      }),
+    )
+    .parse(JSON.parse(env.TUSHARE_API_LIMITS_JSON ?? '{}'));
   return {
     token,
     baseUrl: env.TUSHARE_BASE_URL?.trim() || 'http://api.tushare.pro',
-    minIntervalMs: Number.isFinite(interval) && interval > 0 ? interval : 400,
+    minIntervalMs: Math.max(
+      Number.isFinite(interval) && interval > 0 ? interval : 0,
+      Math.ceil(60_000 / perMinute),
+    ),
+    perMinute,
+    concurrency,
+    apiLimits,
+    quotaDirectory:
+      env.TUSHARE_QUOTA_DIRECTORY ||
+      (env.DATABASE_URL
+        ? join(dirname(databaseFilename(env.DATABASE_URL)), 'source-quotas')
+        : undefined),
   };
 }

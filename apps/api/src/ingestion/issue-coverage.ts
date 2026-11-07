@@ -1,3 +1,4 @@
+import { sourceRequests } from '#market/synchronization/execution.js';
 import type { IngestionBatch, IngestionIssue, Prisma } from '@prisma/client';
 import {
   DIVIDEND_DATE_FIELDS,
@@ -117,7 +118,7 @@ export function issueCoverageReader(
         ) {
           return [];
         }
-        const requests = records(receipt.request);
+        const requests = records(sourceRequests(receipt.request));
         const wholeMarket =
           requests.length > 0 &&
           requests.every((request) => {

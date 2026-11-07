@@ -30,46 +30,11 @@ export async function prepareIndexPartition(
   if (partition.dataset === 'index-weights') {
     return prepareIndexWeights(source, partition);
   }
-  const definitions = {
-    'index-prices': {
-      api: 'index_daily',
-      table: 'IndexDaily',
-      columns: { tsCode: 'ts_code', tradeDate: 'trade_date', close: 'close' },
-    },
-    'index-valuations': {
-      api: 'index_dailybasic',
-      table: 'IndexDailyBasic',
-      columns: {
-        tsCode: 'ts_code',
-        tradeDate: 'trade_date',
-        totalMv: 'total_mv',
-        floatMv: 'float_mv',
-        totalShare: 'total_share',
-        floatShare: 'float_share',
-        freeShare: 'free_share',
-        turnoverRate: 'turnover_rate',
-        turnoverRateF: 'turnover_rate_f',
-        pe: 'pe',
-        peTtm: 'pe_ttm',
-        pb: 'pb',
-      },
-    },
-  };
-  const definition = definitions[partition.dataset as keyof typeof definitions];
+  const definition = INDEX_DEFINITIONS[partition.dataset as keyof typeof INDEX_DEFINITIONS];
   if (!definition) {
     throw new Error(`Unknown index dataset ${partition.dataset}`);
   }
-  const pages = await fetchSourceRange(
-    source,
-    definition.api,
-    {
-      ts_code: partition.scope,
-      ...(partition.fullHistory ? {} : { start_date: partition.startDate }),
-      end_date: partition.endDate,
-    },
-    Object.values(definition.columns).join(','),
-    partition.adaptiveRange,
-  );
+  const pages = await downloadIndexPartition(source, partition);
   const mapped = mapSourceRecords(pages.rows, (row) => {
     if (
       row.ts_code !== partition.scope ||
@@ -121,39 +86,8 @@ async function prepareIndexWeights(
   source: SyncSource,
   partition: MarketPartition,
 ): Promise<PreparedMarketPartition> {
-  if (
-    !isObservationDate(partition.startDate) ||
-    !isObservationDate(partition.endDate) ||
-    partition.startDate > partition.endDate ||
-    partition.startDate.slice(0, 6) !== partition.endDate.slice(0, 6)
-  ) {
-    throw new Error('Index weights require a valid monthly window');
-  }
-  const calendar = await getDatabase().tradeCal.findMany({
-    where: {
-      exchange: 'SSE',
-      calDate: { gte: partition.startDate, lte: partition.endDate },
-    },
-    orderBy: { calDate: 'desc' },
-    select: { calDate: true, isOpen: true },
-  });
-  let expectedDays = 0;
-  for (let date = partition.startDate; date <= partition.endDate; date = calendarDay(date, 1)) {
-    expectedDays++;
-  }
-  if (!expectedDays || calendar.length !== expectedDays) {
-    throw new Error('Index weights require a complete verified SSE calendar window');
-  }
-
-  // 月度来源按明确交易日查询；未结束月份只查询目标范围内的日期。
-  // Query monthly source snapshots by an explicit session within the fixed target window.
-  const tradeDate = calendar.find((day) => day.isOpen === 1)?.calDate ?? partition.endDate;
-  const pages = await fetchSourcePages(
-    source,
-    'index_weight',
-    { index_code: partition.scope, trade_date: tradeDate },
-    'index_code,con_code,trade_date,weight',
-  );
+  const tradeDate = await indexWeightDate(partition);
+  const pages = await downloadIndexPartition(source, partition);
   const groups = new Map<string, typeof pages.rows>();
   for (const row of pages.rows) {
     const date = String(row.trade_date);
@@ -233,4 +167,91 @@ async function prepareIndexWeights(
   }));
 
   return prepared;
+}
+
+const INDEX_DEFINITIONS = {
+  'index-prices': {
+    api: 'index_daily',
+    table: 'IndexDaily',
+    columns: { tsCode: 'ts_code', tradeDate: 'trade_date', close: 'close' },
+  },
+  'index-valuations': {
+    api: 'index_dailybasic',
+    table: 'IndexDailyBasic',
+    columns: {
+      tsCode: 'ts_code',
+      tradeDate: 'trade_date',
+      totalMv: 'total_mv',
+      floatMv: 'float_mv',
+      totalShare: 'total_share',
+      floatShare: 'float_share',
+      freeShare: 'free_share',
+      turnoverRate: 'turnover_rate',
+      turnoverRateF: 'turnover_rate_f',
+      pe: 'pe',
+      peTtm: 'pe_ttm',
+      pb: 'pb',
+    },
+  },
+};
+
+/** 已提交的阶段日历决定请求日期。 / The committed phase calendar determines the request date. */
+async function indexWeightDate(partition: MarketPartition) {
+  if (
+    !isObservationDate(partition.startDate) ||
+    !isObservationDate(partition.endDate) ||
+    partition.startDate > partition.endDate ||
+    partition.startDate.slice(0, 6) !== partition.endDate.slice(0, 6)
+  ) {
+    throw new Error('Index weights require a valid monthly window');
+  }
+  const calendar = await getDatabase().tradeCal.findMany({
+    where: {
+      exchange: 'SSE',
+      calDate: { gte: partition.startDate, lte: partition.endDate },
+    },
+    orderBy: { calDate: 'desc' },
+    select: { calDate: true, isOpen: true },
+  });
+  let expectedDays = 0;
+  for (let date = partition.startDate; date <= partition.endDate; date = calendarDay(date, 1)) {
+    expectedDays++;
+  }
+  if (!expectedDays || calendar.length !== expectedDays) {
+    throw new Error('Index weights require a complete verified SSE calendar window');
+  }
+
+  // 月度来源按明确交易日查询；未结束月份只查询目标范围内的日期。
+  // Query monthly source snapshots by an explicit session within the fixed target window.
+  return calendar.find((day) => day.isOpen === 1)?.calDate ?? partition.endDate;
+}
+
+/** 指数下载只依赖固定区间及阶段日历。 / Index downloads depend only on fixed bounds and the phase calendar. */
+export async function downloadIndexPartition(source: SyncSource, partition: MarketPartition) {
+  if (partition.dataset === 'index-weights') {
+    const tradeDate = await indexWeightDate(partition);
+
+    return fetchSourcePages(
+      source,
+      'index_weight',
+      { index_code: partition.scope, trade_date: tradeDate },
+      'index_code,con_code,trade_date,weight',
+    );
+  }
+  const definition = INDEX_DEFINITIONS[partition.dataset as keyof typeof INDEX_DEFINITIONS];
+  if (!definition) {
+    throw new Error(`Unknown index dataset ${partition.dataset}`);
+  }
+
+  return fetchSourceRange(
+    source,
+    definition.api,
+    {
+      ts_code: partition.scope,
+      ...(partition.fullHistory ? {} : { start_date: partition.startDate }),
+      end_date: partition.endDate,
+    },
+    Object.values(definition.columns).join(','),
+    partition.adaptiveRange,
+  );
 }

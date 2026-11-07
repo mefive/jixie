@@ -1,3 +1,4 @@
+import { sourceCaptureStartedAt } from '#market/synchronization/execution.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import {
   DIVIDEND_DATE_FIELDS,
@@ -59,7 +60,10 @@ export async function planDividendUnits(
     ) {
       continue;
     }
-    const covered = [batch.rangeEnd, calendarDay(localDate(batch.startedAt), -1)].sort()[0];
+    const covered = [
+      batch.rangeEnd,
+      calendarDay(localDate(sourceCaptureStartedAt(batch)), -1),
+    ].sort()[0];
     if (covered <= (coveredThrough.get(batch.scope) ?? '')) {
       continue;
     }

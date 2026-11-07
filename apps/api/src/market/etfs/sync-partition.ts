@@ -24,40 +24,11 @@ export async function prepareEtfPartition(
   if (partition.dataset === 'etf-master') {
     return prepareEtfCatalog(source, partition.endDate);
   }
-  const definitions = {
-    'etf-prices': {
-      api: 'fund_daily',
-      table: 'EtfDaily',
-      columns: {
-        tsCode: 'ts_code',
-        tradeDate: 'trade_date',
-        open: 'open',
-        high: 'high',
-        low: 'low',
-        close: 'close',
-        preClose: 'pre_close',
-        pctChg: 'pct_chg',
-        vol: 'vol',
-        amount: 'amount',
-      },
-    },
-    'etf-adjustments': {
-      api: 'fund_adj',
-      table: 'EtfAdjFactor',
-      columns: { tsCode: 'ts_code', tradeDate: 'trade_date', adjFactor: 'adj_factor' },
-    },
-  };
-  const definition = definitions[partition.dataset as keyof typeof definitions];
+  const definition = ETF_DEFINITIONS[partition.dataset as keyof typeof ETF_DEFINITIONS];
   if (!definition) {
     throw new Error(`Unknown ETF dataset ${partition.dataset}`);
   }
-  const pages = await fetchSourceRange(
-    source,
-    definition.api,
-    { ts_code: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
-    Object.values(definition.columns).join(','),
-    partition.adaptiveRange,
-  );
+  const pages = await downloadEtfSeries(source, partition);
   const inScope = pages.rows.filter(
     (row) =>
       row.ts_code !== partition.scope ||
@@ -189,4 +160,44 @@ async function prepareEtfCatalog(
     allowEmpty: true,
     ...mapped,
   });
+}
+
+const ETF_DEFINITIONS = {
+  'etf-prices': {
+    api: 'fund_daily',
+    table: 'EtfDaily',
+    columns: {
+      tsCode: 'ts_code',
+      tradeDate: 'trade_date',
+      open: 'open',
+      high: 'high',
+      low: 'low',
+      close: 'close',
+      preClose: 'pre_close',
+      pctChg: 'pct_chg',
+      vol: 'vol',
+      amount: 'amount',
+    },
+  },
+  'etf-adjustments': {
+    api: 'fund_adj',
+    table: 'EtfAdjFactor',
+    columns: { tsCode: 'ts_code', tradeDate: 'trade_date', adjFactor: 'adj_factor' },
+  },
+};
+
+/** ETF 序列预取只执行来源访问。 / ETF series prefetch performs source access only. */
+export function downloadEtfSeries(source: SyncSource, partition: MarketPartition) {
+  const definition = ETF_DEFINITIONS[partition.dataset as keyof typeof ETF_DEFINITIONS];
+  if (!definition) {
+    throw new Error(`Unknown ETF dataset ${partition.dataset}`);
+  }
+
+  return fetchSourceRange(
+    source,
+    definition.api,
+    { ts_code: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
+    Object.values(definition.columns).join(','),
+    partition.adaptiveRange,
+  );
 }

@@ -100,6 +100,7 @@ it(
         startedAt: new Date(ingestionTime.getTime() - 1000).toISOString(),
         finishedAt: new Date(ingestionTime.getTime() - 250).toISOString(),
         elapsedMs: 750,
+        execution: null,
       });
       expect(candidate.batches).toContainEqual(
         expect.objectContaining({ id: succeeded.id, status: 'succeeded', elapsedMs: 0 }),
