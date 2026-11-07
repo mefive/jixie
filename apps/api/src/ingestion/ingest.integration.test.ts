@@ -386,9 +386,9 @@ it(
         ts_code: '600000.SH',
         end_date: '19901231',
         ann_date: '19910326',
-        ex_date: null,
-        div_proc: '预案',
-        cash_div: 0,
+        ex_date: '19910509',
+        div_proc: '实施',
+        cash_div: 1.07,
         cash_div_tax: 1.07,
         base_date: '19901231',
         base_share: 100,
@@ -401,7 +401,13 @@ it(
           call: async (api, params, fields) =>
             api === 'dividend'
               ? [
-                  { ...dividend, base_date: '19910409', cash_div_tax: 1.045102, base_share: 102 },
+                  {
+                    ...dividend,
+                    base_date: '19910409',
+                    cash_div: 1.045102,
+                    cash_div_tax: 1.045102,
+                    base_share: 102,
+                  },
                   dividend,
                 ]
               : source.call(api, params, fields),

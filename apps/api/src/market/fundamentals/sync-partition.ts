@@ -300,9 +300,18 @@ async function prepareDividendPartition(
     return { ...values, distributionKind: dividendDistributionKind(values) };
   };
   const pages = await downloadFinancialPartition(source, partition);
+  const nonImplementedStages = new Set(['预案', '股东大会通过', '停止实施']);
   const rejected = new Set<TushareRow>();
+
   for (const row of pages.rows) {
+    // 已知非实施阶段先退出范围，不校验或匹配其业务字段；未知阶段仍保留诊断。
+    // Exclude known non-implementation stages before validation or matching; diagnose unknown stages.
+    if (nonImplementedStages.has(String(row.div_proc))) {
+      continue;
+    }
+
     if (
+      row.div_proc !== '实施' ||
       typeof row.ts_code !== 'string' ||
       !row.ts_code ||
       (!dateField && canonicalStockCode(row.ts_code) !== partition.scope) ||
@@ -313,14 +322,17 @@ async function prepareDividendPartition(
       recordImportIssue({
         category: 'record',
         reasonCode: 'invalid_dividend_identity',
-        message: 'Invalid dividend security, report period or announcement date',
+        message: 'Invalid dividend stage, security, report period or announcement date',
         payload: row,
       });
     }
   }
 
   const scoped = pages.rows.filter(
-    (row) => !rejected.has(row) && (!codes || codes.has(canonicalStockCode(String(row.ts_code)))),
+    (row) =>
+      row.div_proc === '实施' &&
+      !rejected.has(row) &&
+      (!codes || codes.has(canonicalStockCode(String(row.ts_code)))),
   );
   const selected = preferStockSources(
     scoped.filter((row) => String(row.end_date) <= reportThrough),
@@ -340,7 +352,11 @@ async function prepareDividendPartition(
   ];
   const reportPeriods = [...new Set(selected.map((row) => String(row.end_date)))];
   const existing = await getDatabase().dividend.findMany({
-    where: { tsCode: { in: affectedCodes }, endDate: { in: reportPeriods } },
+    where: {
+      tsCode: { in: affectedCodes },
+      endDate: { in: reportPeriods },
+      divProc: '实施',
+    },
   });
   const resolveIdentity = dividendIdentityResolver(existing, selected.map(valuesOf));
   const mapped = mapSourceRecords(selected, (row) => {

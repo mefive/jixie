@@ -15,15 +15,16 @@ const original = {
   ts_code: '000002.SZ',
   end_date: '20181231',
   ann_date: '20190326',
-  ex_date: null,
-  div_proc: '预案',
-  cash_div: 0,
+  ex_date: '20190509',
+  div_proc: '实施',
+  cash_div: 1.07,
   cash_div_tax: 1.07,
   base_date: '20181231',
   base_share: 1103915.2001,
 };
 const adjusted = {
   ...original,
+  cash_div: 1.045102,
   cash_div_tax: 1.045102,
   base_date: '20190409',
   base_share: 1130214.3001,
@@ -97,7 +98,7 @@ it('updates the same event for a newer base and never downgrades to an older or 
     }
   }));
 
-it('keeps other announcement dates and stages as separate dividend events', async () =>
+it('keeps implementation notices separate while filtering earlier stages', async () =>
   withSyncDatabase(async (database) => {
     const result = await acceptSource(
       database,
@@ -111,8 +112,9 @@ it('keeps other announcement dates and stages as separate dividend events', asyn
       },
       partition,
     );
-    expect(result.accepted).toMatchObject({ inserted: 3, rejected: 0, errors: [] });
-    expect(await database.dividend.count()).toBe(3);
+    expect(result.prepared.checks).toMatchObject({ sourceRows: 4, excludedRows: 2 });
+    expect(result.accepted).toMatchObject({ inserted: 2, rejected: 0, errors: [] });
+    expect(await database.dividend.count()).toBe(2);
   }));
 
 it('preserves same-base conflicts, accepts independent events, and retains existing values', async () =>

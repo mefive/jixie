@@ -158,7 +158,7 @@ const dividendSchema = z.strictObject({
   endDate: z.string(),
   annDate: z.string().nullish(),
   exDate: z.string().nullish(),
-  divProc: z.string().nullish(),
+  divProc: z.literal('实施'),
   cashDiv: z.number().finite().nullish(),
   cashDivTax: z.number().finite().nullish(),
   baseDate: z.string().nullish(),
@@ -479,13 +479,19 @@ async function writeDividend(
   result: AcceptedMarketPartition,
 ) {
   const daily = DIVIDEND_DATE_FIELDS.some((field) => field === partition.scope);
+
+  // 新采集与完整历史替换都只作用于实施记录，保留旧预案及其他阶段。
+  // Admission and full-history replacement affect implementations only, preserving legacy stages.
   const existing = await transaction.dividend.findMany({
-    where: daily
-      ? { id: { in: [...new Set(batch.records.map(({ values }) => String(values.id)))] } }
-      : {
-          tsCode: partition.scope,
-          endDate: { gte: partition.startDate, lte: partition.endDate },
-        },
+    where: {
+      divProc: '实施',
+      ...(daily
+        ? { id: { in: [...new Set(batch.records.map(({ values }) => String(values.id)))] } }
+        : {
+            tsCode: partition.scope,
+            endDate: { gte: partition.startDate, lte: partition.endDate },
+          }),
+    },
   });
   const rows = mergeRows({
     schema: dividendSchema,

@@ -3,8 +3,9 @@ import { withSyncDatabase } from '../../tests/sync-database.js';
 import { emptySelections, ingestionSource, ingestionTime } from '../../tests/ingestion-source.js';
 import { DIVIDEND_SOURCE_FIELDS } from '#market/fundamentals/dividend-identity.js';
 import { ingest } from './ingest.js';
-import { acceptCandidate, ingestCandidate, inspectCandidate } from './replica.js';
+import { acceptCandidate, ingestCandidate, inspectCandidate, retryCandidate } from './replica.js';
 import { withCandidate } from './replica-files.js';
+import { readRunIssueState } from './issue-state.js';
 
 const cash = {
   ts_code: '600000.SH',
@@ -24,6 +25,127 @@ const cash = {
   imp_ann_date: '19910103',
   div_listdate: null,
 };
+
+it(
+  'retries a legacy proposal partial in the same candidate while keeping successful receipts and diagnostics',
+  async () =>
+    withSyncDatabase(async (main) => {
+      await emptySelections(main);
+      const fallback = ingestionSource();
+      const proposal = { ...cash, div_proc: '股东大会通过', ex_date: null };
+      const conflict = { ...proposal, base_share: 101 };
+      const rows = [proposal, conflict, cash];
+      const source = {
+        call: async (api: string, params?: Record<string, unknown>, fields?: string) =>
+          api === 'dividend' ? rows : fallback.call(api, params, fields),
+      };
+      const first = await ingestCandidate(
+        {
+          targetDate: '19910104',
+          clock: () => ingestionTime,
+          source,
+          onLog: () => {},
+        },
+        true,
+      );
+      const previous = await withCandidate(first.runId, async (candidate) => {
+        const batch = await candidate.ingestionBatch.findFirstOrThrow({
+          where: { runId: first.runId, dataset: 'dividends' },
+        });
+        const partial = await candidate.ingestionBatch.update({
+          where: { id: batch.id },
+          data: {
+            status: 'partial',
+            receivedCount: 3,
+            acceptedCount: 1,
+            filteredCount: 0,
+            rejectedCount: 2,
+          },
+        });
+        const issue = await candidate.ingestionIssue.create({
+          data: {
+            id: 'legacy-proposal-conflict',
+            runId: first.runId,
+            batchId: batch.id,
+            category: 'record',
+            reasonCode: 'conflicting_business_key',
+            message: 'Legacy proposal base conflict',
+            payload: [proposal, conflict],
+          },
+        });
+        await candidate.ingestionRun.update({
+          where: { id: first.runId },
+          data: { status: 'completed_with_issues' },
+        });
+
+        return {
+          partial,
+          issue,
+          implementation: await candidate.dividend.findFirstOrThrow(),
+          otherBatches: await candidate.ingestionBatch.findMany({
+            where: { runId: first.runId, dataset: { not: 'dividends' } },
+            orderBy: { id: 'asc' },
+          }),
+        };
+      });
+      await main.ingestionRun.update({
+        where: { id: first.runId },
+        data: { status: 'completed_with_issues', replicaPhase: 'awaiting_repair' },
+      });
+      const calls: string[] = [];
+      const resumed = await retryCandidate(first.runId, {
+        clock: () => new Date(ingestionTime.getTime() + 1000),
+        onLog: () => {},
+        source: {
+          call: async (api, params, fields) => {
+            calls.push(api);
+
+            return source.call(api, params, fields);
+          },
+        },
+      });
+
+      expect(resumed).toMatchObject({ runId: first.runId, phase: 'awaiting_publish', pending: 0 });
+      expect(calls).toEqual(['dividend']);
+      expect(await main.dividend.count()).toBe(0);
+      await withCandidate(first.runId, async (candidate) => {
+        expect(await candidate.dividend.findFirstOrThrow()).toEqual(previous.implementation);
+        expect(
+          await candidate.ingestionBatch.findUnique({ where: { id: previous.partial.id } }),
+        ).toEqual(previous.partial);
+        expect(
+          await candidate.ingestionIssue.findUnique({ where: { id: previous.issue.id } }),
+        ).toEqual(previous.issue);
+        expect(
+          await candidate.ingestionBatch.findMany({
+            where: { runId: first.runId, dataset: { not: 'dividends' } },
+            orderBy: { id: 'asc' },
+          }),
+        ).toEqual(previous.otherBatches);
+        expect(
+          await candidate.ingestionBatch.findFirstOrThrow({
+            where: { runId: first.runId, dataset: 'dividends' },
+            orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+          }),
+        ).toMatchObject({
+          status: 'succeeded',
+          receivedCount: 3,
+          acceptedCount: 1,
+          filteredCount: 2,
+          rejectedCount: 0,
+        });
+        const state = await candidate.$transaction((transaction) =>
+          readRunIssueState(transaction, first.runId),
+        );
+
+        expect(state.active).toEqual([]);
+        expect(state.historical).toMatchObject([
+          { issue: { id: previous.issue.id }, classification: 'superseded_attempt' },
+        ]);
+      });
+    }),
+  60_000,
+);
 
 it(
   'publishes date batches after retrying incomplete pagination without reloading stock history',
