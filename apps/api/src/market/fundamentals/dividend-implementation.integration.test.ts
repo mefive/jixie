@@ -30,7 +30,7 @@ const implementation = {
 
 it('filters known non-implementation stages before checking identity, dates or amounts', async () =>
   withSyncDatabase(async (database) => {
-    const rows = ['预案', '股东大会通过', '停止实施'].map((div_proc) => ({
+    const rows = ['预披露', '预案', '股东大会通过', '未通过', '停止实施'].map((div_proc) => ({
       div_proc,
       ts_code: null,
       end_date: '20991231',
@@ -47,7 +47,7 @@ it('filters known non-implementation stages before checking identity, dates or a
       status: 'complete',
       errors: [],
       hasDeferredRecords: false,
-      checks: { sourceRows: 3, excludedRows: 3, invalidRows: 0 },
+      checks: { sourceRows: 5, excludedRows: 5, invalidRows: 0 },
     });
     expect(result.accepted).toMatchObject({ inserted: 0, rejected: 0, errors: [] });
     expect(diagnostics.issues).toEqual([]);
@@ -60,6 +60,8 @@ it('filters conflicting proposals while retaining cash, shares and mixed impleme
     const rows = [
       proposal,
       { ...proposal, cash_div_tax: 1 },
+      { ...proposal, div_proc: '预披露', ann_date: null },
+      { ...proposal, div_proc: '未通过', cash_div_tax: 0.25 },
       implementation,
       {
         ...implementation,
@@ -87,7 +89,7 @@ it('filters conflicting proposals while retaining cash, shares and mixed impleme
       acceptSource(database, { call: async () => rows }, partition),
     );
 
-    expect(result.prepared.checks).toMatchObject({ sourceRows: 5, excludedRows: 2 });
+    expect(result.prepared.checks).toMatchObject({ sourceRows: 7, excludedRows: 4 });
     expect(result.accepted).toMatchObject({ inserted: 3, rejected: 0, errors: [] });
     expect(diagnostics.issues).toEqual([]);
     const saved = await database.dividend.findMany({ orderBy: { annDate: 'asc' } });
@@ -98,6 +100,39 @@ it('filters conflicting proposals while retaining cash, shares and mixed impleme
       { divProc: '实施', distributionKind: 'mixed', cashDivTax: 0.15, stockDividend: 0.4 },
     ]);
   }));
+
+it.each(['预披露', '未通过'])(
+  'filters future non-implementation periods without deferring the current target: %s',
+  async (div_proc) =>
+    withSyncDatabase(async (database) => {
+      const future = {
+        ...implementation,
+        end_date: '20260630',
+        ann_date: null,
+        div_proc,
+        ex_date: null,
+        imp_ann_date: null,
+      };
+      const diagnostics: ImportDiagnostics = { requests: [], issues: [] };
+      const result = await withImportDiagnostics(diagnostics, () =>
+        acceptSource(database, { call: async () => [future, implementation] }, partition),
+      );
+
+      expect(result.prepared).toMatchObject({
+        status: 'complete',
+        errors: [],
+        hasDeferredRecords: false,
+        checks: { sourceRows: 2, excludedRows: 1, invalidRows: 0 },
+      });
+      expect(result.accepted).toMatchObject({ inserted: 1, rejected: 0, errors: [] });
+      expect(diagnostics.issues).toEqual([]);
+      expect(await database.dividend.count()).toBe(1);
+      expect(await database.dividend.findFirstOrThrow()).toMatchObject({
+        endDate: implementation.end_date,
+        divProc: '实施',
+      });
+    }),
+);
 
 it('limits full-history replacement to implementations and leaves legacy stages untouched', async () =>
   withSyncDatabase(async (database) => {
@@ -165,6 +200,8 @@ it.each(['ann_date', 'imp_ann_date'] as const)(
           call: async () => [
             { div_proc: '预案', [dateField]: 'bad' },
             { ...next, div_proc: '股东大会通过', cash_div_tax: 1 },
+            { div_proc: '预披露', [dateField]: 'bad', end_date: '20260630' },
+            { ...next, div_proc: '未通过', cash_div_tax: null },
             next,
           ],
         },
@@ -177,7 +214,7 @@ it.each(['ann_date', 'imp_ann_date'] as const)(
         },
       );
 
-      expect(result.prepared.checks).toMatchObject({ sourceRows: 3, excludedRows: 2 });
+      expect(result.prepared.checks).toMatchObject({ sourceRows: 5, excludedRows: 4 });
       expect(result.accepted).toMatchObject({ inserted: 1, rejected: 0, deleted: 0 });
       expect(await database.dividend.count()).toBe(2);
       expect(await database.dividend.findUnique({ where: { id: saved.id } })).toEqual(saved);

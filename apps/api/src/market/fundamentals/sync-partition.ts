@@ -300,7 +300,7 @@ async function prepareDividendPartition(
     return { ...values, distributionKind: dividendDistributionKind(values) };
   };
   const pages = await downloadFinancialPartition(source, partition);
-  const nonImplementedStages = new Set(['预案', '股东大会通过', '停止实施']);
+  const nonImplementedStages = new Set(['预披露', '预案', '股东大会通过', '未通过', '停止实施']);
   const rejected = new Set<TushareRow>();
 
   for (const row of pages.rows) {
