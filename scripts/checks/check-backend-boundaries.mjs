@@ -7,6 +7,7 @@ const sourcePrefix = 'apps/api/src/';
 const retiredDirectories = new Set([
   'application',
   'application-maintenance',
+  'maintenance',
   'common',
   'utils',
   'lib',

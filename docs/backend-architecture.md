@@ -16,7 +16,7 @@
 | Backtesting | 交易日循环、行情读取端口、成交/持仓和因子求值；供回测和信号计算使用 | [Backtesting](../apps/api/src/backtesting/README.md) |
 | Agent | 模型/工具循环、profile、对话记录、增量事件、工具执行 | [Agent](../apps/api/src/agent/README.md) |
 | Market | 按数据领域聚合同步/读取/质量；共享日历、身份、通道、股票／ETF／境内指数查询 | [Market](../apps/api/src/market/README.md) |
-| Maintenance | 统一目标同步、分区覆盖、局部资格、运行锁、审计与恢复 | [Maintenance](../apps/api/src/maintenance/README.md) |
+| Ingestion | 批次采集、恢复、问题处理与候选发布；锁由 Infra 提供 | [Ingestion](../apps/api/src/ingestion/README.md) |
 | Auth | 登录、验证码、邀请码、Session 与 Cookie 适配 | [Auth](../apps/api/src/auth/README.md) |
 | Infra | 数据库、HTTP 辅助、任务执行器、Python/TS 运行设施、模型/邮件传输和日志 | [Jobs](../apps/api/src/jobs/README.md)、[Runtime](../apps/api/src/infra/sandbox/README.md) |
 | Math / date.ts / i18n | 共用数值计算、日期和翻译目录；无业务对象或持久化状态 | [math](../apps/api/src/math/)、[date.ts](../apps/api/src/date.ts)、[i18n](../apps/api/src/i18n/) |
@@ -25,13 +25,13 @@
 
 ## HTTP 的入口与内部操作
 
-[server.ts](../apps/api/src/server.ts) 的 `buildApp()` 构造路由与中间件，不监听端口、不启动队列。根级 `/`、`/api/health` 提供存活检查，`/api/auth` 为认证接口，`/api/maintenance` 为维护状态。
+[server.ts](../apps/api/src/server.ts) 的 `buildApp()` 构造路由与中间件，不监听端口、不启动队列。根级 `/`、`/api/health` 提供存活检查，`/api/auth` 为认证接口，`/api/ingestion` 为维护状态。
 
-`/api/app/*` 先经过维护门禁，再经过鉴权。两者分别从 `maintenance/middleware.ts` 与 `auth/middleware.ts` 导入，不经路由出口转导出。业务操作仍检查资源所有者、当前状态和事务条件；不能把“已登录”等同于“可以修改任意对象”。
+`/api/app/*` 先经过维护门禁，再经过鉴权。两者分别从 `ingestion/middleware.ts` 与 `auth/middleware.ts` 导入，不经路由出口转导出。业务操作仍检查资源所有者、当前状态和事务条件；不能把“已登录”等同于“可以修改任意对象”。
 
 | 挂载前缀 | 实际入口 |
 | --- | --- |
-| `/api/maintenance` | `maintenance/routes.ts` 导出 `maintenanceRoute` |
+| `/api/ingestion` | `ingestion/routes.ts` 导出 `ingestionRoute` |
 | `/api/auth` | `auth/routes.ts`；`auth/middleware.ts` 提供鉴权，`auth/cookies.ts` 处理 Cookie |
 | `/api/app/research` | `research/routes/index.ts` 直接组合 document / execution / artifacts / proposal / agent / data / language / embedded 路由 |
 | `/api/app/factors` | `factor/routes/index.ts` 直接组合定义、Agent 和分析，导出 `factorRoute` |
@@ -45,13 +45,13 @@ Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，�
 
 多组路由统一放在业务模块的 `routes/` 中，由 `routes/index.ts` 组合并对外导出，外部显式导入 `routes/index.js`。实现文件名省略 `-routes` 后缀。业务错误统一放在模块根级 `errors.ts`，公共 HTTP 映射由
 `infra/http/errors.ts` 提供，在 `server.ts` 注册 `onError`；公共请求 schema 位于 shared/api；模块根级 `schema.ts` 仅承载后端专属组合和内部输入。
-核心业务模块的整体接口测试与专属路由测试均放在 `routes/`；其他模块保持现有测试布局。Auth、Maintenance
+核心业务模块的整体接口测试与专属路由测试均放在 `routes/`；其他模块保持现有测试布局。Auth、Ingestion
 只有单文件路由，直接使用根级 `routes.ts`。HTTP 路径、注册顺序及业务行为保持原契约，整理与验证记录见
 [路由目录整理](design/api-route-directories.md)。
 
 ## 错误的归属和调用方式
 
-七个业务模块（Strategy、Factor、Research、Market、Agent、Auth、Maintenance）
+七个业务模块（Strategy、Factor、Research、Market、Agent、Auth、Ingestion）
 统一在根级 `errors.ts` 定义错误。业务调用点直接抛出模块错误，例如
 `throw new StrategyError('strategy_not_found')`；成功直接返回数据，不以 `null`、`false` 或 `{ error }`
 表达操作失败。合法的可选查询、幂等取消结果和任务状态保留数据语义。
@@ -145,7 +145,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 
 Ingestion 使用 `pnpm data ingest` 入口下载并接纳 Market 批次；期货发布和商品连续收益派生链已退役。
 Signals 的策略部署、每日任务、通知和账户结算已移除；数据同步不再触发这些业务。
-当前维护边界见 [Maintenance](../apps/api/src/maintenance/README.md)。
+当前维护边界见 [Ingestion](../apps/api/src/ingestion/README.md)。
 
 ## 状态与事务归属
 
@@ -157,7 +157,7 @@ Signals 的策略部署、每日任务、通知和账户结算已移除；数据
 | Strategy / BacktestReport / StrategyScanReport | Strategy 保存可编辑草稿和不可混淆的报告快照；提交时冻结配置和数据范围 |
 | Job | Infra 拥有 queued → running → done/error/stale；业务任务定义拥有关联业务记录的完成/失败/恢复 |
 | AgentTurn / Conversation | Agent 管理对话和消息记录；业务负责上下文。消息完成持久化后才发布 done，多个阶段不是一个总事务 |
-| MaintenanceRun / MaintenanceState | Maintenance 拥有运行、checkpoint、水位、版本和失败门禁 |
+| IngestionRun / IngestionBatch / IngestionIssue / IngestionSelection | Ingestion 拥有运行、尝试、诊断、名单与候选状态；成功批次不是全局研究准入 |
 
 每个业务的 `<业务模块>-<任务名>-lifecycle.ts` 导出满足 JobLifecycle 契约的普通对象：onExecute 解析输入并计算，onSuccess 在 JobService 的终态事务中保存结果；可选 onFailure/onInterrupted 处理领域收尾，onCommitted 处理提交后操作。
 
@@ -176,14 +176,14 @@ Research 不再自动交接 Factor／Strategy 草稿；用户在对应工作台�
 | 找回测报告冻结时点 | [Strategy backtests](../apps/api/src/strategy/backtests/README.md) |
 | Python 请求财报经过哪里 | [Research 宿主分派](../apps/api/src/research/sandbox/host/README.md) → [datasets](../apps/api/src/research/datasets/README.md) → [Market fundamentals](../apps/api/src/market/fundamentals/README.md) |
 | 新增行情源 | `market/providers/`、所属数据领域与同步 CLI；同步检查 SQL 白名单和公开 SDK 映射 |
-| 改整体审计规则 | `maintenance/publication/audit.ts`；只审计当前保留来源 |
+| 改整体审计规则 | `market/quality/audit.ts`；显式只读审计，不由日常采集触发 |
 | 找进程和资源入口 | [运行入口清单](backend-runtime-entries.md)，再看所属领域任务/runtime |
 
 开发时运行 `pnpm check:backend-boundaries`，根级 typecheck/build 已包含此门禁。规则、4 条具名纯依赖例外和验证方法见 [依赖边界说明](backend-boundaries.md)。新增业务能力仍放入负责其状态和规则的模块；不为复用一两个函数新建 common/application 或重新拉出平铺 services。
 
 ## 应用命令入口
 
-Market、Maintenance、Signals、Auth 的命令放在各模块 `cli/`，用法汇总于 [API 命令索引](../apps/api/scripts/README.md)。Market 负责数据和证券代码合并，财报分期、历史导入、分批子进程和质量检查归 fundamentals；Maintenance 负责整轮发布和应用可用性协调。CLI 负责参数/输出/收尾，简单组合保留在入口中；基线修复由 Maintenance 编排，财报历史导入由 Market fundamentals 的具名操作承接。独立备份工具仍在 API scripts 根目录，以 Node 直接执行。
+Ingestion 和 Auth 的命令放在各自 `cli/`，用法见 [API 命令索引](../apps/api/scripts/README.md)。Ingestion 负责采集、名单、问题修复、候选发布和业务重建；Market 提供来源映射与领域写入。显式审计和探针位于 API scripts，独立备份工具以 Node 直接执行。
 
 ## 核心业务模块的目录规则
 

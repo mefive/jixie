@@ -1,5 +1,6 @@
 # ETF 下载、退市维护与旧目录清理
 
+> 历史记录：文中的 Maintenance 模块、命令和路径已退役，不作为当前操作入口。当前采集见 [Ingestion 设计](ingestion.md)，发布协调仍由 `infra/coordination` 提供。
 日期：2026-10-29。状态：产品代码已通过人工审阅；静态检查、相关回归、源码／编译 CLI 和构建验证全部通过，准备按既定消息提交。真实开发／生产库尚未执行清理或补数。
 
 提交信息：`fix(market): skip pending ETFs and bound delisted downloads`。

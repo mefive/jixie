@@ -1,5 +1,6 @@
 # API 命令入口与业务模块组织计划
 
+> 历史记录：文中的 Maintenance 模块、命令和路径已退役，不作为当前操作入口。当前采集见 [Ingestion 设计](ingestion.md)，发布协调仍由 `infra/coordination` 提供。
 > 状态：已完成；计划与产品代码 review 均已批准，静态检查、行为验证和干净构建通过，结果随本次提交归档。
 > 日期：2026-09-15；核对代码基线：`24f20ce6`（已根据最新 ETF 恢复提交修订）。
 > 本次交付：按批准范围完成全部结构调整、测试、部署入口及文档联动；验证只使用本地数据源替身和临时数据库，不涉及生产部署。
@@ -21,7 +22,7 @@
 - 验证使用临时 SQLite 和本地数据源替身；临时目录已清理，子进程和 Worker 均已退出，未启动持久服务，未部署或推送。
 - 验证范围：类型检查、静态依赖扫描、lint/格式与 diff 检查；审查后运行维护模块、别名、CLI、业务错误及边界检查器测试，构建 API 并验证编译后的别名加载。
 
-> 后续业务归属调整：财报 CLI、历史导入和 Worker 已按 [Maintenance 业务边界整理](maintenance-business-boundaries.md) 迁入 Market；下文保留原迁移的历史记录。
+> 后续业务归属调整：财报 CLI、历史导入和 Worker 曾按旧 Maintenance 业务边界设计迁入 Market（旧设计已移除，可从 Git 历史查阅）；下文保留原迁移的历史记录。
 
 ## 1. 目标、依据与取舍
 
@@ -30,7 +31,7 @@
 遵循 [CLAUDE.md](../../CLAUDE.md)、[提交约定](../../CONTRIBUTING.md) 和用户显式指定的
 [review-gated-development](../../../../.codex/skills/review-gated-development/SKILL.md) 工作流。
 沿用 [后端架构地图](../backend-architecture.md)、[依赖边界](../backend-boundaries.md) 和
-[生产维护设计](production-maintenance.md) 中已经落地的职责；这不是重新启动已完成的后端整体重构。
+当时生产维护设计中已经落地的职责（该设计已退役，可从 Git 历史查阅）；这不是重新启动已完成的后端整体重构。
 
 采用以下组织：
 
@@ -523,7 +524,7 @@ API tsconfig 已包含整个 `src`，不修改编译根。API `package.json#impo
 | `docs/backend-architecture.md` | 更新 Application Maintenance 名称与职责、迁回 Market 的实现、模块 CLI 阅读规则及维护调用链 |
 | `docs/backend-boundaries.md` | 更新应用维护 HTTP 精确路径和 Market 禁入模块名，说明规则随改名迁移而没有放宽 |
 | `docs/backend-runtime-entries.md` | 登记新的源码/编译入口、Worker 随模块迁移的路径和备份独立运行条件 |
-| `docs/design/production-maintenance.md` | 更新当前可执行的 systemd/CLI 示例，不改历史运行语义 |
+| 旧生产维护设计（已移除，见 Git 历史） | 当时更新 systemd/CLI 示例，不改历史运行语义 |
 | `docs/design/factor-to-strategy.md` | 更新现有申万同步入口的源码定位 |
 | `CLAUDE.md` | 更新 Application Maintenance 的目录/职责、Market 的两项归属，补充模块 CLI 约定、轻量组合允许范围和独立脚本例外 |
 | `docs/design/api-cli-organization.md` | 保存审批状态、静态检查、review、验证和最终提交记录 |

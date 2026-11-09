@@ -72,7 +72,7 @@ packages/shared/                   # 共享类型(TsCode、TradeDate)
 
 后端当前结构与调用链见 [架构阅读地图](docs/backend-architecture.md)，运行资源见 [入口清单](docs/backend-runtime-entries.md)，开发门禁见 [依赖边界](docs/backend-boundaries.md)。分轮进度与验收结果见 [开发计划](docs/design/backend-architecture-refactor.md)。
 
-后端 Research 的文档、依赖、执行、证据与提案入口见 [Research 后端阅读入口](apps/api/src/research/README.md)。行情、领域数据与同步见 [Market](apps/api/src/market/README.md)，同步编排、分区覆盖与局部发布见 [Maintenance](apps/api/src/maintenance/README.md)。
+后端 Research 的文档、依赖、执行、证据与提案入口见 [Research 后端阅读入口](apps/api/src/research/README.md)。行情、领域数据与同步见 [Market](apps/api/src/market/README.md)，采集、恢复与候选发布见 [Ingestion](apps/api/src/ingestion/README.md)。
 
 ## 快速开始
 
@@ -113,4 +113,4 @@ pnpm probe --list                     # 外部数据源连通性及能力探测
 上述入口无参数均只显示帮助。详细运行条件见 [浏览器检查说明](apps/web/e2e/README.md) 和
 [API 命令索引](apps/api/scripts/README.md)。
 
-ETF 同步全量基础目录，默认按最新规模选择前 100；管理员通过 `pnpm data etf list/select-top/add/remove` 维护名单。指数使用 `pnpm data index list/add/remove`。日常同步不覆盖人工调整，移出保留历史。历史 ETF 份额／规模／净值研究接口已退役，最新规模仅用于名单。详见 [下载名单](apps/api/src/market/downloads/README.md)。同步每次选择一个实际窗口，保留来源质量、PIT、稳定读取和修订失效；已完成且超出近期修订范围的历史不再自动巡检。旧库须通过 bootstrap 的分红时间导出／迁移／恢复流程升级，不能裸迁移后直接开放服务。实现与待验收状态见 [Maintenance](apps/api/src/maintenance/README.md)。
+ETF 同步全量基础目录，按每个历史开市日的当日规模选择最多 100 并累计名单；管理员通过 `pnpm data etf list/select-top/add/remove` 维护名单。指数使用 `pnpm data index list/add/remove`。日常同步不覆盖人工调整，移出保留历史。历史 ETF 份额／规模／净值研究接口已退役，最新规模仅用于名单。详见 [下载名单](apps/api/src/market/downloads/README.md)。采集从自然起点推进到目标日期，整批下载后事务提交，复用成功收据恢复；候选经人工核验后发布。首次从旧版切换时备份并重建业务数据，仅保留认证表。详见 [Ingestion](apps/api/src/ingestion/README.md)。

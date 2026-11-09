@@ -1,5 +1,6 @@
 # 核心业务模块服务职责与文件边界审查
 
+> 历史记录：文中的 Maintenance 模块、命令和路径已退役，不作为当前操作入口。当前采集见 [Ingestion 设计](ingestion.md)，发布协调仍由 `infra/coordination` 提供。
 ## 状态与范围
 
 - 基线：`6e6aa446`（`refactor(market): align data domains and consumer boundaries`）。开始审查时工作区干净。

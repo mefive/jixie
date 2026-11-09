@@ -1,3 +1,4 @@
+import { idleIngestionStatus } from './ingestion-status.fixture.mjs';
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -107,8 +108,11 @@ await context.route('**/api/**', async (route) => {
   if (path === '/api/auth/me') {
     return json(route, { user: { id: 'owner', email: 'fixture@example.invalid', name: null } });
   }
-  if (path === '/api/maintenance/status') {
-    return json(route, { active: false, retryAfterSeconds: 0 });
+  if (path === '/api/ingestion/version') {
+    return json(route, { revision: null });
+  }
+  if (path === '/api/ingestion/status') {
+    return json(route, idleIngestionStatus());
   }
   if (path === '/api/app/factors/catalog') {
     return json(route, [

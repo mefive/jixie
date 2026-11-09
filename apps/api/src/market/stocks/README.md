@@ -16,7 +16,7 @@
 
 ## 维护调用的数据能力
 
-[daily-quality.ts](daily-quality.ts) 检查股票日线关联覆盖及旧代码残留；补齐工作统一交给 Maintenance 的窗口循环。[audit.ts](audit.ts) 检查日历覆盖、空值、复权跳变、历史可投资性及样本窗口；阈值与 PIT 语义保持。Maintenance 选择真实日期窗口；正式流程独立接纳价格、复权、估值和涨跌停，合法价格不因辅助输入缺失丢失。写入、窗口资格和 revision 随同一短事务提交，不触发已退役派生计算。
+[daily-quality.ts](daily-quality.ts) 检查股票日线关联覆盖及旧代码残留；[audit.ts](audit.ts) 提供显式质量检查。Ingestion 按交易所日历规划批次，独立接纳价格、复权、估值和涨跌停，业务写入、诊断、批次终态与 revision 同事务提交；日常采集不运行整体审计或派生计算。
 
 正式下载只通过 `sync-partition.ts` 的领域准备和 `write.ts` 的类型化写入。旧的独立下载／替换实现已移除，测试使用同一入口。
 

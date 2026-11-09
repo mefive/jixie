@@ -1,3 +1,4 @@
+import { idleIngestionStatus } from './ingestion-status.fixture.mjs';
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
@@ -25,14 +26,21 @@ try {
     let body;
     if (pathname === '/api/auth/me') {
       body = { user: { id: 'navigation-user', email: 'navigation@test.com' } };
-    } else if (pathname === '/api/maintenance/status') {
-      body = { active: false, retryAfterSeconds: 0 };
+    } else if (pathname === '/api/ingestion/version') {
+      body = { revision: null };
+    } else if (pathname === '/api/ingestion/status') {
+      body = idleIngestionStatus();
     } else if (pathname === '/api/app/strategies') {
       body = [];
     } else if (pathname === `/api/app/strategies/${strategyId}`) {
       body = { id: strategyId, config, messages: [], lastResult: null };
     } else if (pathname === '/api/app/agent/turns/active') {
       body = { turnId: null };
+    } else if (pathname === '/api/app/strategies/backtest-reports/legacy-report') {
+      return route.fulfill({
+        status: 404,
+        json: { error: { code: 'NOT_FOUND', message: 'Legacy report not found' } },
+      });
     } else if (/\/(backtest-jobs|scan-jobs)\/active$/.test(pathname)) {
       body = null;
     } else if (

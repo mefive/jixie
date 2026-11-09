@@ -1,5 +1,6 @@
 # 核心业务模块内部结构整理计划
 
+> 历史记录：文中的 Maintenance 模块、命令和路径已退役，不作为当前操作入口。当前采集见 [Ingestion 设计](ingestion.md)，发布协调仍由 `infra/coordination` 提供。
 ## 状态与目标
 
 - 基线：`fd0ab69f`（`refactor(api): organize business module entry points`）。该轮入口整理已完成，见[记录](core-business-entry-points.md)。其中的验证结果只证明上一轮，不作为本计划的验收结果。

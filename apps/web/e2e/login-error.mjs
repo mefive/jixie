@@ -1,3 +1,4 @@
+import { idleIngestionStatus } from './ingestion-status.fixture.mjs';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
@@ -8,25 +9,11 @@ mkdirSync(SHOTS, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
 
-await context.route('**/api/maintenance/status', async (route) => {
+await context.route('**/api/ingestion/status', async (route) => {
   await route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify({
-      active: false,
-      runId: null,
-      kind: null,
-      startDate: null,
-      endDate: null,
-      completedDates: 0,
-      totalDates: 0,
-      lastSuccessfulDailyDate: null,
-      stage: null,
-      startedAt: null,
-      heartbeatAt: null,
-      error: null,
-      retryAfterSeconds: 0,
-    }),
+    body: JSON.stringify(idleIngestionStatus()),
   });
 });
 await context.route('**/api/auth/me', async (route) => {

@@ -1,5 +1,6 @@
 # DeepSeek V4.1 Flash 迁移
 
+> 文中涉及的旧 Maintenance 模块、CLI 与路径仅为历史背景，已退役；当前采集与发布见 [Ingestion](ingestion.md)。其他能力的现状以各业务模块 README 为准。
 状态：迁移及补充工具提示修正均已通过代码审查与验收。基础真实调用、复杂嵌入式案例、数值与图形复核完成。没有部署或修改真实环境配置；既有显式模型覆盖继续优先。
 
 提交信息：`feat(llm): migrate defaults to DeepSeek V4.1 Flash`。

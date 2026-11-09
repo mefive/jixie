@@ -82,12 +82,12 @@ Gate 2 静态检查：API `tsc --noEmit`、改动 TypeScript 的 ESLint / Pretti
 
 审查后验证：审计参数、CLI 执行边界与应用入口契约共 3 个测试文件、34 项测试全部通过，API 构建通过。测试进程均已退出；未执行真实数据同步、付费模型调用或启动常驻服务。
 
-### 数据库作用域与回收（2026-10-22，待代码审阅）
+### 数据库作用域与回收（历史）
 
-`pnpm sync` 保留全部 24 个命令及参数；业务实现移至 `src/market/sync` 的可调用函数，不再自执行 CLI。维护准备、最终计算与审计在候选数据库作用域中执行；仅财务批次保留子进程。详细边界、升级约束及验证计划见 [设计](../../../docs/design/maintenance-database-scope-and-cleanup.md)。尚未运行本次行为验证。
+旧 `pnpm sync`、Maintenance 候选协议及其专用设计已退役。当前采集、恢复与发布见 [Ingestion](../src/ingestion/README.md)；数据库绑定与锁的实现归 `infra/database` 和 `infra/coordination`。
 
 历史记录中保留当时命令与路径；当前同步及人工清理入口以上述说明为准。2026-10-22 候选协议已由统一同步替代，不再作为当前运行方式。
 
 ETF／指数下载名单支持 `pnpm data etf list/select-top/add/remove` 与 `pnpm data index list/add/remove`，详见 [下载名单](../src/market/downloads/README.md)。
 
-股票交易所由 `StockBasic.exchange` 提供；缺少交易所的代码不能仅凭 `.BJ` 后缀进入北交所清理范围。旧 stock-master/G、UN 的状态和分区归 retired-data 人工清理。
+股票交易所由 `StockBasic.exchange` 提供；缺少交易所的代码不能仅凭 `.BJ` 后缀进入北交所清理范围。旧 stock-master/G、UN 与分区清理入口已退役，不应据此执行历史数据删除。

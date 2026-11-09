@@ -63,7 +63,7 @@ pnpm docs:images --group annotate --list
 
 `E2E_BASE` 可覆盖前端地址(默认 `http://localhost:5173`);`E2E_NL=1` 打开需要 DEEPSEEK_API_KEY 的真 LLM 步骤,`E2E_BT=1` 打开真回测步骤。
 
-Maintenance 故障恢复可用受控 HTTP 夹具验证 Research 页面，无需工作数据库。市场天气退役场景使用临时隔离 API，验证默认首页、旧书签、双语和移动导航，以及旧 SDK 拒绝。构建 Shared、API 和 Web 后执行：
+服务不可用与 Ingestion 发布恢复可用受控 HTTP 夹具验证 Research 页面，无需工作数据库。市场天气退役场景使用临时隔离 API，验证默认首页、旧书签、双语和移动导航，以及旧 SDK 拒绝。构建 Shared、API 和 Web 后执行：
 
 ```sh
 E2E_BASE=http://127.0.0.1:49173 pnpm e2e maintenance-fallback

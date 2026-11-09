@@ -1,5 +1,6 @@
 # API 业务错误统一
 
+> 历史记录：文中的 Maintenance 模块、命令和路径已退役，不作为当前操作入口。当前采集见 [Ingestion 设计](ingestion.md)，发布协调仍由 `infra/coordination` 提供。
 状态：人工代码审查及全部计划验证已通过，本提交完成统一错误迁移。
 
 计划提交：`fix(api): unify business errors and HTTP failure handling`

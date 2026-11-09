@@ -51,9 +51,7 @@ Factor 保留 failureMessage。ResearchExecution/CellExecution 为领域结果�
 bootstrap 显式 registerJobLifecycles，等待 Job、Agent、天气恢复，再调用
 JobScheduler.initialize(JobService.execute)、JobScheduler.wake，最后监听 HTTP。buildApp 和导入模块不消费任务。
 
-Maintenance CLI 每日循环只注册生命周期。创建或复用 Job 后，条件 claim 并直接 await JobService.execute，
-claim 失败就等待已有执行者完成。CLI 不初始化 scheduler、不执行全局恢复，不依赖 API 在线；串行执行独立于 API 并发名额。
-API 提交仍唤醒本进程 scheduler；初始化前 wake 无操作，重复 initialize 报错。
+API 提交唤醒本进程 scheduler；初始化前 wake 无操作，重复 initialize 报错。Ingestion CLI 不调度策略或信号 Job。
 完成观察会查询数据库，但不派发任务。调度器没有定时数据库轮询。崩溃前未持久化日志仍可能丢失。
 
 JobLogs 的静态 initialize 初始化单个 Job 日志；私有唯一实例持有缓冲和淘汰定时器，无需依赖注入。

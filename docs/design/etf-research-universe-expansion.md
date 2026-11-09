@@ -1,12 +1,13 @@
 # ETF 代表性研究池扩展计划
 
+> 历史方案：文中 Maintenance、daily/weekly、分区覆盖和人工研究清单已退役；当前 ETF 累计下载名单与发布流程见 [Ingestion](ingestion.md)。
 > 2026-08-24 制定；2026-08-25 Phase A～D 已开发并完成首次全量回填，Phase C 的三个生产交易日
 > 连续观察仍是上线后的运维验收项。Phase E 保持触发式 backlog。
 > 本文负责把现有 19 只主要 ETF 扩展为有明确暴露分类、历史可投资约束和日常维护能力的代表性研究池。
 > ETF 成交与回测语义继续以 [`etf-trading.md`](./etf-trading.md) 为准，大类资产分层继续以
 > [`asset-allocation-data.md`](./asset-allocation-data.md) 为准，跨市场时间、币种和数据许可继续以
 > [`cross-market-data-contracts.md`](./cross-market-data-contracts.md) 为准，生产调度继续以
-> [`production-maintenance.md`](./production-maintenance.md) 为准。
+> [Ingestion 当前设计](./ingestion.md) 为准。
 
 ## 1. 结论与立项理由
 
@@ -392,7 +393,7 @@ weekly 至少执行：
 252 日，也不以某年非空或既有同步 checkpoint 作为完整性证明。按上市/退市和 SSE 日历逐键
 核对日线、复权、份额，仅请求缺失的数据集；源缺失保留并报告，校验后只插入缺失键。
 bootstrap 不另设 ETF 历史恢复入口；252 日窗口仅承担已有数据的修订回查。审查/验证状态见
-`docs/design/production-maintenance.md` 的 ETF 全历史查缺修订记录。
+Git 历史中的生产维护设计；当前 ETF 累计名单与采集规则见 [Ingestion](ingestion.md)。
 
 历史修订只影响新研究运行和明确需要重建的派生观测；不可变 ResearchExecution、FactorReport 和回测结果不能
 被原地重写。

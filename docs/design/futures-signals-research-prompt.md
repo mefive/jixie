@@ -1,5 +1,6 @@
 # 新 session：研究并设计期货 Signals 的完整落地
 
+> 文中涉及的旧 Maintenance 模块、CLI 与路径仅为历史背景，已退役；当前采集与发布见 [Ingestion](ingestion.md)。其他能力的现状以各业务模块 README 为准。
 以下内容可直接作为新 session 的任务 prompt。
 
 ---

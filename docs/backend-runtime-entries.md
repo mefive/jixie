@@ -1,5 +1,6 @@
 # 后端运行入口清单
 
+> Maintenance 历史方案已退役；当前采集与发布以 [Ingestion](design/ingestion.md) 为准。下文旧日期的验收记录仅作历史证据。
 此清单补充 [架构地图](backend-architecture.md)。import 检查不等于进程/资源路径检查；下面这些入口必须在源码和干净编译目录分别验证。路径以 `apps/api/src` 为基准；表中 `.boot.mjs` 是开发入口，不要求 tsc 复制它们到生产目录。
 
 ## 线程、进程与 bundle
@@ -123,15 +124,13 @@ StrategySimulation 在宿主创建一次性 `Simulation`，`run()` 返回模拟�
 
 旧 Agent 聊天图表 JS 执行器、重查路由和统计库注入已整体移除；历史消息只投影为停用提示。Research Python 图表使用其执行产物；只读 SQL Worker 已退役，TS Factor/Strategy Transport 继续使用。详见 [退役记录](design/legacy-chat-chart-retirement.md)。
 
-## 统一同步与原生锁
+## Ingestion 与原生锁
 
-- 同步进程持 M；网络期间不持 P 或排他 R。发布局部分区时持 P/排他 R，业务结果写入完成前保留共享 R；空闲 Research 会话和 SSE 不持 R。
-- `DataSyncRun` 记录本轮目标与结果；M 重新取得后才能将旧 running 记录标为 interrupted。只持久化实际尝试及完成／失败窗口，下次数据集位置存在最近运行摘要中；不预写计划或保存多级退避。
-- 私有输入副本和候选资源扫描已退役。业务计算保持共享 R；实际市场值／资格变化递增同一事务中的全局 revision，Research 下次执行重建旧 Python 会话。Worker、CLI 和临时 Prisma 完成／失败／取消后清理。
-- 停服升级入口 `apps/api/scripts/upgrade-minimal-sync.mjs export|restore DATABASE_FILE`：export 仅用内置 Node SQLite 读取旧捕获时间；restore 需要最新 API 编译产物和生成客户端。bootstrap 接入完整搬移，恢复失败不自动启动 API。
-- bootstrap 迁移/重启持实际 M/P/R FD；释放部署锁后调用统一入口。每两小时 :15 timer 推进后续批次，不依赖全局历史完成水位。
-- 验证入口：`maintenance/sync.integration.test.ts`、`tests/cli-entrypoints.test.ts`、`infra/coordination/market-access.test.ts` 及 `market-lock.fixture.ts`。本轮编译、实际 Worker、隔离 API／sandboxd 启动和双语 UI E2E 均已验证；实际结果见 [裁剪计划第 28.4 节](design/system-simplification-plan.md#284-review-后实际验证2026-10-29)。
+- 当前采集、恢复、候选核验和发布入口见 [Ingestion](../apps/api/src/ingestion/README.md)。`IngestionRun`、`IngestionBatch`、`IngestionIssue` 和 `IngestionSelection` 保存当前事实；旧 Maintenance、DataSyncRun、分区资格和捕获时间搬移入口已退役。
+- `infra/coordination/market-access.ts` 提供 M/P/R：采集和部署持写者锁 M，发布通过 P 关闭新读取并等待排他 R；业务计算持共享 R。锁文件名继续保留，文件存在不表示持锁，不得删除或轮换。
+- 副本采集不修改已发布主库。候选经核验后由 `runs accept` 或管理员界面发布；真实争用才封锁新业务读取。部署 timer 只安排采集，不在部署期间下载全历史。
+- 验证入口为 `ingestion/replica.integration.test.ts`、`tests/ingestion-status.integration.test.ts`、`tests/cli-entrypoints.test.ts` 和 `infra/coordination/market-access.test.ts`。历史同步验收结果保留在 [裁剪计划](design/system-simplification-plan.md)，不能作为当前版本的验证结果。
 
 ## 数据库执行绑定
 
-`buildApp(database)` 为请求绑定数据库，Job 保留自己的作用域，独立 CLI/Worker 在入口绑定并关闭自身连接。统一同步直接通过明确的 TransactionClient 提交原始值、覆盖、revision 与失效；独立 CLI／Worker 使用自己的 withDatabase 作用域，退出恢复外层。没有作用域或已关闭的连接必须拒绝业务访问。
+`buildApp(database)` 为请求绑定数据库，Job 保留自己的作用域，独立 CLI/Worker 在入口绑定并关闭自身连接。Ingestion 通过明确的 TransactionClient 提交业务值、诊断、批次终态、revision 与失效；独立 CLI／Worker 使用自己的 withDatabase 作用域，退出恢复外层。没有作用域或已关闭的连接必须拒绝业务访问。

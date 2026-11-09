@@ -1,5 +1,6 @@
 # Implementation prompt: simplify background jobs
 
+> 文中涉及的旧 Maintenance 模块、CLI 与路径仅为历史背景，已退役；当前采集与发布见 [Ingestion](ingestion.md)。其他能力的现状以各业务模块 README 为准。
 Copy the prompt below into the implementation task. This is an implementation handoff, not a record of completed work.
 
 ---

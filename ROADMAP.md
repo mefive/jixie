@@ -1,5 +1,6 @@
 # jixie 长期功能规划（ROADMAP）
 
+> Maintenance 历史方案已退役；当前采集与发布以 [Ingestion](docs/design/ingestion.md) 为准。下文旧日期的验收记录仅作历史证据。
 > 2026-07-06 初版；2026-08-12 随项目目标变化重构。本文是功能优先级与执行状态的**唯一规划真相源**。
 > 已完成工作的设计细节保留在 `docs/design/`、`docs/reports/` 与 git 历史中，不再把本文件扩成逐提交日志。
 > 战略视野见 `roadmaps/`，学习范围见 `docs/learning-map.md`，底层取舍见 `docs/philosophy.md`。
@@ -95,7 +96,7 @@ Sharpe 与 Calmar 是结果指标，不是允许反复拟合历史的优化目�
 - 中英双语产品与公开帮助；
 - 持久任务公平队列、生产 bootstrap、增量维护和备份编排。
 
-依据：`docs/design/historical-investability.md`、`docs/design/production-maintenance.md`、
+依据：`docs/design/historical-investability.md`、`docs/design/ingestion.md`、
 `docs/design/multi-user-engineering.md`、`docs/design/user-guide.md`。
 
 ### E. 信号与执行记录（已退役，验证通过）

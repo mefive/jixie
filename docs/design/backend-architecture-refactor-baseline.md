@@ -1,5 +1,6 @@
 # 后端架构重构基线
 
+> 历史记录：文中的 Maintenance 模块、命令和路径已退役，不作为当前操作入口。当前采集见 [Ingestion 设计](ingestion.md)，发布协调仍由 `infra/coordination` 提供。
 > 后续产品调整（2026-09-10）：Agent 快速回测工具及专用 Worker 已退役，见 [产品决策](agent-research-loop.md)。本文仍记录重构前基线，不回写历史文件清单与验收事实。
 
 > 核对日期：2026-09-08。源码基线：`12ce90926acac65881f78dbc16228805f0a7848d`。

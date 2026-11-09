@@ -1,5 +1,6 @@
 # 核心业务模块入口整理
 
+> 历史记录：文中的 Maintenance 模块、命令和路径已退役，不作为当前操作入口。当前采集见 [Ingestion 设计](ingestion.md)，发布协调仍由 `infra/coordination` 提供。
 ## 范围与交付
 
 - 提交信息：`refactor(api): organize business module entry points`。

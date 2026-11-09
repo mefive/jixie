@@ -15,9 +15,9 @@ import {
 } from '#market/stocks/audit.js';
 
 /**
- * 汇总维护发布前的数据质量检查结果，供审计与发布判断。
+ * 汇总显式数据质量检查结果，供管理员审计；日常采集不自动调用。
  *
- * Summarize pre-publication data-quality checks for auditing and publication decisions.
+ * Summarize explicit data-quality checks for administrator audits; routine ingestion does not call this.
  */
 export interface DataQualityAuditReport {
   generatedAt: string;

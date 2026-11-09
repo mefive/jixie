@@ -1,5 +1,5 @@
 import { AgentError } from '#agent/errors.js';
-import { IngestionError as MaintenanceError } from '#ingestion/errors.js';
+import { IngestionError } from '#ingestion/errors.js';
 import { AuthError } from '#auth/errors.js';
 import { FactorError } from '#factor/errors.js';
 import { t } from '#i18n/index.js';
@@ -24,7 +24,7 @@ describe('Business errors at the HTTP boundary', () => {
     [new AuthError('login_required'), 401, 'UNAUTHORIZED'],
     [new AuthError('account_disabled'), 403, 'FORBIDDEN'],
     [new AuthError('email_send_failed'), 503, 'SERVICE_UNAVAILABLE'],
-    [new MaintenanceError('in_progress'), 503, 'MAINTENANCE'],
+    [new IngestionError('in_progress'), 503, 'MAINTENANCE'],
   ] as const)('maps %s through a nested route to %s', async (error, status, code) => {
     const child = new Hono().get('/failure', () => {
       throw error;
@@ -114,7 +114,7 @@ describe('Business errors at the HTTP boundary', () => {
     const app = new Hono().onError(handleApiError);
     app.use('*', (context) => {
       context.header('Retry-After', '30');
-      throw new MaintenanceError('in_progress', { details: status });
+      throw new IngestionError('in_progress', { details: status });
     });
     app.get('/', (context) => context.json({ ok: true }));
     const response = await app.request('/');

@@ -471,18 +471,24 @@ test('keeps maintenance outside direct and indirect Market dependencies', (conte
   );
 });
 
-test('rejects the retired application-maintenance module while allowing maintenance', (context) => {
+test('rejects retired maintenance modules while allowing ingestion', (context) => {
   const root = fixture(context, {
-    [src + 'maintenance/workflows/daily.ts']: "import '../../market/sync.js';",
+    [src + 'ingestion/ingest.ts']: "import '../market/sync.js';",
     [src + 'market/sync.ts']: 'export const sync = () => {};',
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
-  fs.mkdirSync(path.join(root, src + 'application-maintenance'));
-  fs.writeFileSync(
-    path.join(root, src + 'application-maintenance/old.ts'),
-    'export const value = 1;',
+
+  for (const moduleName of ['maintenance', 'application-maintenance']) {
+    fs.mkdirSync(path.join(root, src + moduleName));
+    fs.writeFileSync(path.join(root, src + moduleName + '/old.ts'), 'export const value = 1;');
+  }
+
+  const retired = checkBackendBoundaries(root, emptyPolicy).diagnostics.filter(
+    (issue) => issue.rule === 'retired-path',
   );
-  assert.ok(rules(checkBackendBoundaries(root, emptyPolicy)).includes('retired-path'));
+  for (const moduleName of ['maintenance', 'application-maintenance']) {
+    assert.ok(retired.some((issue) => issue.from.startsWith(src + moduleName + '/')));
+  }
 });
 
 test('permits shared workspace contracts when resolution points inside the repository', (context) => {

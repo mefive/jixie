@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 assert.equal(process.env.E2E_ISOLATED_DB, '1', 'Only run against the isolated job fixture');
 assert.ok(process.env.DATABASE_URL?.startsWith('file:'));
 const execute = promisify(execFile);
-const cli = new URL('../../api/dist/src/maintenance/cli/data.js', import.meta.url).pathname;
+const cli = new URL('../../api/dist/src/ingestion/cli/data.js', import.meta.url).pathname;
 const run = async (...args) => {
   const result = await execute(process.execPath, [cli, ...args], {
     env: { ...process.env, NODE_ENV: 'test' },

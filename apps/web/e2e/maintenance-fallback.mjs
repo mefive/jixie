@@ -1,3 +1,4 @@
+import { idleIngestionStatus } from './ingestion-status.fixture.mjs';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
@@ -19,20 +20,35 @@ await context.route('**/api/auth/me', (route) => {
     user: { id: 'maintenance-user', email: 'maintenance@test.com', name: null },
   });
 });
-await context.route('**/api/maintenance/status', (route) => {
+await context.route('**/api/ingestion/status', (route) => {
   maintenanceRequests += 1;
   if (!serviceAvailable) {
     return gatewayUnavailable(route);
   }
   return json(route, {
-    ...inactiveMaintenanceStatus(),
+    ...idleIngestionStatus(),
     phase: maintenancePhase,
     active: maintenancePhase === 'publishing',
     stage: maintenancePhase === 'publishing' ? 'publishing' : null,
-    kind: maintenancePhase === 'idle' ? null : 'sync',
+    kind: maintenancePhase === 'idle' ? null : 'ingestion',
+    running: maintenancePhase === 'preparing',
+    health: {
+      ...idleIngestionStatus().health,
+      latestRun:
+        maintenancePhase === 'error'
+          ? {
+              id: 'failed-run',
+              status: 'failed',
+              targetDate: '20260805',
+              finishedAt: null,
+              execution: null,
+              handling: idleIngestionStatus().health.handling,
+            }
+          : null,
+    },
   });
 });
-await context.route('**/api/maintenance/version', (route) =>
+await context.route('**/api/ingestion/version', (route) =>
   json(route, { revision: 'maintenance-review' }),
 );
 await context.route('**/api/app/research/documents**', (route) => json(route, []));
@@ -71,17 +87,17 @@ try {
   }
 
   maintenancePhase = 'preparing';
-  await page.getByText('数据准备中', { exact: true }).waitFor({ timeout: 10_000 });
+  await page.getByText('数据更新中', { exact: true }).waitFor({ timeout: 10_000 });
   if (await page.locator('.jx-maintenanceGate').count()) {
     throw new Error('Preparation must not gate the published application');
   }
   await page.screenshot({ path: `${SHOTS}maintenance-preparing-zh.png`, fullPage: true });
   await page.getByText('EN', { exact: true }).click();
-  await page.getByText('Preparing data', { exact: true }).waitFor();
+  await page.getByText('Updating data', { exact: true }).waitFor();
   await page.screenshot({ path: `${SHOTS}maintenance-preparing-en.png`, fullPage: true });
 
   maintenancePhase = 'error';
-  await page.getByText('Data update awaiting retry', { exact: true }).waitFor({ timeout: 10_000 });
+  await page.getByText('Last update unfinished', { exact: true }).waitFor({ timeout: 10_000 });
   if (await page.locator('.jx-maintenanceGate').count()) {
     throw new Error('Candidate failure must not gate the published application');
   }
@@ -112,32 +128,6 @@ function gatewayUnavailable(route) {
     contentType: 'text/html',
     body: '<html><body>Bad Gateway</body></html>',
   });
-}
-
-function inactiveMaintenanceStatus() {
-  return {
-    active: false,
-    runId: null,
-    kind: null,
-    targetDate: '20260805',
-    running: false,
-    revision: 7,
-    coverage: [
-      {
-        dataset: 'stock-prices',
-        scope: 'all',
-        maxObservedDate: '20260805',
-        verifiedThrough: null,
-        pending: 1,
-        errors: 0,
-      },
-    ],
-    stage: null,
-    startedAt: null,
-    heartbeatAt: null,
-    error: null,
-    retryAfterSeconds: 0,
-  };
 }
 
 async function assertCurrentRoute(page) {

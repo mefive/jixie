@@ -48,6 +48,7 @@ async function publish(cashDiv, date) {
                         exDate: '20260601',
                         divProc: '实施',
                         cashDiv,
+                        cashDivTax: cashDiv,
                       },
                     },
                   ],
@@ -132,7 +133,7 @@ try {
     JSON.stringify(document.cells.find((cell) => cell.id === second.id).outputs),
     /CAPTURED_DIVIDEND.*2\.0/,
   );
-  const status = await request('/api/maintenance/status');
+  const status = await request('/api/ingestion/status');
   assert.equal(status.active, false);
   assert.notEqual(status.phase, 'postprocessing');
   await page.goto(`${base}/research?document=${documentId}`, { waitUntil: 'domcontentloaded' });

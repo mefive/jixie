@@ -7,7 +7,7 @@
 | --- | --- |
 | `client.ts` | JSON 请求、查询序列化、`ApiError`、维护和服务不可用事件 |
 | `auth.ts` | 当前用户、开发登录、邮箱登录和退出 |
-| `maintenance.ts` | 维护状态及最近成功部署版本的类型和查询 |
+| `maintenance.ts` | Ingestion 数据状态、问题、候选接收及最近成功部署版本查询 |
 | `agent.ts` | 通用 turn 查询、取消、SSE 订阅与解析；旧图表重算请求已移除 |
 | `strategy.ts` | 策略定义、回测报告与任务、参数扫描、策略 Agent |
 | `factor.ts` | 因子与组合、发布、分析报告、相关性、天气、因子 Agent/问答 |
@@ -18,7 +18,7 @@
 
 业务专属 Agent 请求随所属业务放置；通用 SSE 协议放在 `agent.ts`。请求输入继续从
 `@jixie/shared/api/<业务>` 仅导入类型，输出复用 shared 的领域类型。模块内专属类型随实现保留，
-不新增集中式 `types.ts`。通用错误通知仅以类型引用 `MaintenanceStatus`，不产生反向运行时依赖。
+不新增集中式 `types.ts`。通用错误通知仅以类型引用 `IngestionPublishingStatus`，不产生反向运行时依赖。
 
 业务请求依赖 `client.ts`，不复制错误处理。SSE 保留原有直接 fetch 和流式解析；复用通用错误通知，
 保持原来的取消、语言头、Cookie 和非 JSON 错误行为。添加接口时按业务归属选模块，调用方直接导入。

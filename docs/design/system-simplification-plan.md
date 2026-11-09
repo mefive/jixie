@@ -1,5 +1,6 @@
 # 系统功能裁剪计划
 
+> 历史记录：文中的 Maintenance 模块、命令和路径已退役，不作为当前操作入口。当前采集见 [Ingestion 设计](ingestion.md)，发布协调仍由 `infra/coordination` 提供。
 日期：2026-10-25。状态：功能范围已收口；Signals、Sharing、Agent 只读 SQL 与 Curator 已通过人工 review 与验证；研究卡与 holdout 删除、因子报告保留与内置版本保护、Research 正式证据删除、Strategy 最近结果简化、因子天气、多因子平台、市场天气及 Research 专用模板／内置估值、股票资金流／龙虎榜、申万行业、期货数据／交易及宏观／利率／外汇／跨市场数据删除已通过人工 review 与验证；ETF／指数名单与历史份额接口退役已通过人工 review 与验证；Maintenance 最小设计已整理，产品实现待确认。
 
 目标是把 jixie 收敛为维护者能够独立读懂、审查和修改的个人研究工具。优先删除不再需要的产品能力及其数据、状态和后台流程，再根据剩余需求简化实现。
