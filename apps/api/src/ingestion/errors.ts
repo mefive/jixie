@@ -29,3 +29,10 @@ export class IngestionError extends BusinessError<keyof typeof definitions> {
     super(reason, definitions[reason], options);
   }
 }
+
+/**
+ * 临时发布清单无法安全回放。
+ *
+ * The temporary publication plan cannot be replayed safely.
+ */
+export class PublicationPlanError extends Error {}

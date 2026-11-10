@@ -1,6 +1,13 @@
 import type { Prisma } from '@prisma/client';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
+import type { PublicationPlan } from './publication-plan.js';
+import {
+  publicationTableWorkload,
+  recordPublicationWork,
+  type PublicationWorkload,
+} from './publication-budget.js';
+import { PublicationPlanError } from './errors.js';
 
 const marketKeys = {
   tradeCal: ['exchange', 'calDate'],
@@ -74,17 +81,26 @@ function delegate(database: Prisma.TransactionClient, model: MarketModel): Marke
   return database[model] as unknown as MarketDelegate;
 }
 
-/** 逐页重放已冻结副本的最终业务值。 / Replay the frozen candidate's final values in bounded pages. */
-export async function publishMarketChanges(
+/**
+ * 在主库事务外逐页比较并保存最终差异。
+ *
+ * Compare and spool final differences outside the main transaction.
+ */
+export async function prepareMarketPublication(
   replica: Prisma.TransactionClient,
   main: Prisma.TransactionClient,
+  plan: PublicationPlan,
   signal?: AbortSignal,
-): Promise<number> {
+): Promise<{ changes: number; workloads: PublicationWorkload[] }> {
   let changes = 0;
+  const workloads: PublicationWorkload[] = [];
   for (const model of models) {
     let after: string | undefined;
+    let scanned = 0;
     const columns = marketKeys[model];
     const keyOf = (row: Row) => JSON.stringify(columns.map((key) => row[key]));
+    const { workload, indexedFields } = await publicationTableWorkload(main, model);
+    workloads.push(workload);
     const source = delegate(replica, model);
     const destination = delegate(main, model);
     for (;;) {
@@ -98,6 +114,13 @@ export async function publishMarketChanges(
         break;
       }
       after = page.at(-1)!.key;
+      scanned += page.length;
+      if (scanned % 100_000 === 0) {
+        console.error(
+          '[publication] preparing',
+          JSON.stringify({ runId: plan.identity.runId, model, scanned }),
+        );
+      }
       const keys = page.map(({ key }) => {
         const values = keySchema.parse(JSON.parse(key));
         if (values.length !== columns.length) {
@@ -112,6 +135,7 @@ export async function publishMarketChanges(
         (await destination.findMany({ where })).map((row) => [keyOf(row), row]),
       );
       const inserted: Row[] = [];
+      const updated: Array<{ key: Key; row: Row }> = [];
       const deleted: Key[] = [];
       for (const key of keys) {
         const identity = keyOf(key);
@@ -126,20 +150,69 @@ export async function publishMarketChanges(
         } else if (!previous) {
           inserted.push(next);
         } else {
-          await destination.update({
-            where: columns.length === 1 ? key : { [columns.join('_')]: key },
-            data: next,
-          });
+          updated.push({ key, row: next });
+          if (
+            [...indexedFields].some((field) => !isDeepStrictEqual(next[field], previous[field]))
+          ) {
+            workload.indexMutations += workload.indexCount;
+          }
         }
       }
-      if (inserted.length) {
-        await destination.createMany({ data: inserted });
-      }
-      if (deleted.length) {
-        await destination.deleteMany({ where: { OR: deleted } });
+      recordPublicationWork(workload, 'inserted', inserted);
+      recordPublicationWork(
+        workload,
+        'updated',
+        updated.map(({ row }) => row),
+      );
+      recordPublicationWork(workload, 'deleted', deleted);
+      if (inserted.length || updated.length || deleted.length) {
+        await plan.append({ kind: 'market', model, inserted, updated, deleted });
       }
     }
   }
 
-  return changes;
+  return { changes, workloads };
+}
+
+const rowSchema = z.record(z.string(), z.unknown());
+const keyObjectSchema = z.record(z.string(), z.string());
+const marketChunkSchema = z.object({
+  kind: z.literal('market'),
+  model: z.string(),
+  inserted: z.array(rowSchema),
+  updated: z.array(z.object({ key: keyObjectSchema, row: rowSchema })),
+  deleted: z.array(keyObjectSchema),
+});
+
+/**
+ * 只应用清单，不再查询副库或比较主库记录。
+ *
+ * Apply the plan without reading candidates or comparing main records.
+ */
+export async function applyMarketPublicationChunk(
+  main: Prisma.TransactionClient,
+  value: unknown,
+  signal?: AbortSignal,
+) {
+  const chunk = marketChunkSchema.parse(value);
+  if (!Object.hasOwn(marketKeys, chunk.model)) {
+    throw new PublicationPlanError('Unknown publication model');
+  }
+  const model = chunk.model as MarketModel;
+  const columns = marketKeys[model];
+  const destination = delegate(main, model);
+  for (const { key, row } of chunk.updated) {
+    signal?.throwIfAborted();
+    await destination.update({
+      where: columns.length === 1 ? key : { [columns.join('_')]: key },
+      data: row,
+    });
+  }
+  signal?.throwIfAborted();
+  if (chunk.inserted.length) {
+    await destination.createMany({ data: chunk.inserted });
+  }
+  if (chunk.deleted.length) {
+    await destination.deleteMany({ where: { OR: chunk.deleted } });
+  }
 }

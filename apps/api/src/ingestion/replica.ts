@@ -1,5 +1,5 @@
 import { sourceExecution } from '#market/synchronization/execution.js';
-import pkg, { type IngestionRun, type Prisma } from '@prisma/client';
+import pkg, { type Prisma } from '@prisma/client';
 import type { IngestionExecutionSummary } from '@jixie/shared/api/ingestion';
 import { randomUUID } from 'node:crypto';
 import { ulid } from 'ulid';
@@ -10,7 +10,17 @@ import { fingerprint } from '#market/synchronization/rows.js';
 import { collectInReplica } from './ingest.js';
 import { readRunIssueState } from './issue-state.js';
 import { readIssueHandling } from './resolutions.js';
-import { installReplicaJournal, publishMarketChanges } from './replica-changes.js';
+import {
+  installReplicaJournal,
+  prepareMarketPublication,
+  applyMarketPublicationChunk,
+} from './replica-changes.js';
+import { PublicationPlan, cleanupPublicationPlans } from './publication-plan.js';
+import {
+  preparePublicationDiagnostics,
+  applyPublicationDiagnostics,
+} from './publication-diagnostics.js';
+import { loadPublicationBudgetProfile, estimatePublicationBudget } from './publication-budget.js';
 import {
   candidateFilename,
   cleanupCandidate,
@@ -93,7 +103,11 @@ async function reviewCandidate(runId: string, { includeBatchTimings = false } = 
   }, transactionOptions);
 }
 
-/** 主库保留活跃名额，副本持有批次数据和采集游标。 / Reserve the active slot in main and keep batch data and cursors in the candidate. */
+/**
+ * 主库保留活跃名额，副本持有批次数据和采集游标。
+ *
+ * Reserve the active slot in main and keep batch data and cursors in the candidate.
+ */
 export async function ingestCandidate(
   input: IngestionInput,
   explicitTarget: boolean,
@@ -374,153 +388,210 @@ export async function repairCandidate<Result>(
 const inputJson = (value: Prisma.JsonValue) =>
   value === null ? pkg.Prisma.DbNull : (value as Prisma.InputJsonValue);
 
-async function publishDiagnostics(
-  main: Prisma.TransactionClient,
-  candidate: Prisma.TransactionClient,
-  run: Pick<IngestionRun, 'id'>,
-  revision: number,
-) {
-  const batches = await candidate.ingestionBatch.findMany({ where: { runId: run.id } });
-  for (let offset = 0; offset < batches.length; offset += 250) {
-    await main.ingestionBatch.createMany({
-      data: batches
-        .slice(offset, offset + 250)
-        .map((row) => ({ ...row, request: row.request as Prisma.InputJsonValue })),
-    });
-  }
-  const issues = await candidate.ingestionIssue.findMany({
-    where: { runId: run.id },
-    include: { resolution: true },
-  });
-  for (const { resolution, ...issue } of issues) {
-    await main.ingestionIssue.create({
-      data: {
-        ...issue,
-        payload: inputJson(issue.payload),
-        businessKey: inputJson(issue.businessKey),
-      },
-    });
-    if (resolution) {
-      await main.ingestionIssueResolution.create({
-        data: {
-          ...resolution,
-          evidence: inputJson(resolution.evidence),
-          before: inputJson(resolution.before),
-          after: inputJson(resolution.after),
-          history: resolution.history as Prisma.InputJsonValue,
-          marketRevision: resolution.marketRevision === null ? null : revision,
-        },
-      });
-    }
-  }
-}
-
+/**
+ * 在维护写者锁内准备，只有最终写入阶段关闭业务读取。
+ *
+ * Prepare under writer ownership; only final writes close reader admission.
+ */
 export async function acceptCandidate(
   runId: string,
   expectedVersion: string,
   signal?: AbortSignal,
 ) {
   const main = getDatabase();
-  const run = await main.ingestionRun.findUnique({ where: { id: runId } });
-  if (!run) {
-    throw new IngestionError('candidate_missing');
-  }
-  if (run.publishedAt) {
-    return {
-      mode: 'already_published' as const,
-      runId,
-      revision: run.publishedRevision,
-      cleaned: await cleanupCandidate(runId),
-    };
-  }
-  const token = await claim(runId, ['awaiting_publish'], 'publishing');
-  try {
-    const result = await withCandidate(runId, async (candidate) => {
-      const review = await reviewCandidate(runId);
-      if (review.phase !== 'awaiting_publish' || review.candidateVersion !== expectedVersion) {
-        throw new IngestionError('candidate_state_conflict');
-      }
 
-      return withMaintenanceLock(() =>
-        withMarketPublication(() =>
-          main.$transaction(async (transaction) => {
-            signal?.throwIfAborted();
-            const current = await transaction.ingestionRun.findUniqueOrThrow({
-              where: { id: runId },
-            });
-            if (
-              current.replicaOperation !== token ||
-              (await baseline(transaction)) !== run.replicaBaseline
-            ) {
-              throw new IngestionError('candidate_baseline_changed');
-            }
-            const changes = await publishMarketChanges(candidate, transaction, signal);
-            const state = await transaction.marketDataState.upsert({
-              where: { key: 'global' },
-              create: { key: 'global', revision: changes ? 1 : 0 },
-              update: changes ? { revision: { increment: 1 } } : {},
-            });
-            await publishDiagnostics(transaction, candidate, review.run, state.revision);
-            signal?.throwIfAborted();
-            await transaction.ingestionRun.update({
-              where: { id: runId, replicaOperation: token },
-              data: {
-                status: review.run.status,
-                summary: inputJson(review.run.summary),
-                finishedAt: review.run.finishedAt,
-                scopeSnapshot: review.run.scopeSnapshot as Prisma.InputJsonValue,
-                activeReplica: null,
-                replicaOperation: null,
-                replicaPhase: 'published',
-                publishedAt: new Date(),
-                publishedRevision: state.revision,
-              },
-            });
-
-            return { mode: 'published' as const, runId, changes, revision: state.revision };
-          }, transactionOptions),
-        ),
-      );
-    });
-
-    return { ...result, cleaned: await cleanupCandidate(runId) };
-  } catch (error) {
-    const current = await main.ingestionRun.findUniqueOrThrow({ where: { id: runId } });
-    if (!current.publishedAt) {
-      await finishOperation(runId, token, { replicaPhase: 'awaiting_publish' });
+  return withMaintenanceLock(async () => {
+    const run = await main.ingestionRun.findUnique({ where: { id: runId } });
+    if (!run) {
+      throw new IngestionError('candidate_missing');
     }
-    throw error;
-  }
+    if (run.publishedAt) {
+      return {
+        mode: 'already_published' as const,
+        runId,
+        revision: run.publishedRevision,
+        cleaned: await cleanupCandidateArtifacts(runId),
+      };
+    }
+    const profile = await loadPublicationBudgetProfile();
+    const token = await claim(runId, ['awaiting_publish'], 'publishing');
+    let plan: PublicationPlan | undefined;
+    try {
+      const result = await withCandidate(runId, async (candidate) => {
+        signal?.throwIfAborted();
+        const review = await reviewCandidate(runId);
+        if (review.phase !== 'awaiting_publish' || review.candidateVersion !== expectedVersion) {
+          throw new IngestionError('candidate_state_conflict');
+        }
+        if ((await baseline(main)) !== run.replicaBaseline) {
+          throw new IngestionError('candidate_baseline_changed');
+        }
+        await cleanupPublicationPlans(runId);
+        plan = await PublicationPlan.create({
+          runId,
+          operation: token,
+          candidateVersion: expectedVersion,
+          baseline: run.replicaBaseline!,
+        });
+        const preparingAt = performance.now();
+        const prepared = await prepareMarketPublication(candidate, main, plan, signal);
+        const diagnostics = await preparePublicationDiagnostics(
+          main,
+          candidate,
+          runId,
+          plan,
+          signal,
+        );
+        await plan.seal();
+        await plan.validate(signal);
+        const workloads = [...prepared.workloads, ...diagnostics];
+        const budget = estimatePublicationBudget(workloads, profile);
+        console.error(
+          '[publication] prepared',
+          JSON.stringify({
+            runId,
+            preparationMs: performance.now() - preparingAt,
+            changes: prepared.changes,
+            workloads,
+            budget,
+          }),
+        );
+        const frozen = plan;
+        const waitingAt = performance.now();
+
+        return withMarketPublication(async () => {
+          const writingAt = performance.now();
+          console.error(
+            '[publication] writing',
+            JSON.stringify({ runId, waitMs: writingAt - waitingAt, timeoutMs: budget.timeoutMs }),
+          );
+          const published = await main.$transaction(
+            async (transaction) => {
+              signal?.throwIfAborted();
+              const current = await transaction.ingestionRun.findUniqueOrThrow({
+                where: { id: runId },
+              });
+              if (
+                current.activeReplica !== 1 ||
+                current.replicaPhase !== 'publishing' ||
+                current.replicaOperation !== token ||
+                current.publishedAt
+              ) {
+                throw new IngestionError('candidate_state_conflict');
+              }
+              // 维护锁从基线检查一直持有到提交；不在这里重复扫描名单和结构。
+              // Writer ownership spans baseline validation through commit; do not rescan selection and schema.
+              const state = await transaction.marketDataState.upsert({
+                where: { key: 'global' },
+                create: { key: 'global', revision: prepared.changes ? 1 : 0 },
+                update: prepared.changes ? { revision: { increment: 1 } } : {},
+              });
+              for await (const chunk of frozen.read(signal)) {
+                if (
+                  chunk &&
+                  typeof chunk === 'object' &&
+                  'kind' in chunk &&
+                  chunk.kind === 'market'
+                ) {
+                  await applyMarketPublicationChunk(transaction, chunk, signal);
+                } else {
+                  await applyPublicationDiagnostics(transaction, chunk, state.revision, signal);
+                }
+              }
+              signal?.throwIfAborted();
+              await transaction.ingestionRun.update({
+                where: { id: runId, replicaOperation: token },
+                data: {
+                  status: review.run.status,
+                  summary: inputJson(review.run.summary),
+                  finishedAt: review.run.finishedAt,
+                  scopeSnapshot: review.run.scopeSnapshot as Prisma.InputJsonValue,
+                  activeReplica: null,
+                  replicaOperation: null,
+                  replicaPhase: 'published',
+                  publishedAt: new Date(),
+                  publishedRevision: state.revision,
+                },
+              });
+
+              return {
+                mode: 'published' as const,
+                runId,
+                changes: prepared.changes,
+                revision: state.revision,
+              };
+            },
+            { timeout: budget.timeoutMs },
+          );
+          console.error(
+            '[publication] committed',
+            JSON.stringify({ runId, writeMs: performance.now() - writingAt, budget }),
+          );
+
+          return published;
+        });
+      });
+
+      return { ...result, cleaned: await cleanupCandidateArtifacts(runId) };
+    } catch (error) {
+      const current = await main.ingestionRun.findUniqueOrThrow({ where: { id: runId } });
+      if (!current.publishedAt) {
+        await finishOperation(runId, token, { replicaPhase: 'awaiting_publish' });
+      }
+      throw error;
+    } finally {
+      if (plan && !(await plan.dispose())) {
+        console.warn('[publication] temporary plan cleanup deferred', runId);
+      }
+    }
+  });
+}
+
+async function cleanupCandidateArtifacts(runId: string): Promise<boolean> {
+  const plans = await cleanupPublicationPlans(runId);
+  const candidate = await cleanupCandidate(runId);
+
+  return plans && candidate;
 }
 
 export async function rejectCandidate(runId: string, reason: string) {
-  const database = getDatabase();
-  const { count } = await database.ingestionRun.updateMany({
-    where: {
-      id: runId,
-      activeReplica: 1,
-      replicaOperation: null,
-      replicaPhase: { in: [...editable, 'interrupted'] },
-    },
-    data: {
-      activeReplica: null,
-      replicaPhase: 'rejected',
-      rejectionReason: reason,
-      finishedAt: new Date(),
-    },
-  });
-  if (count !== 1) {
-    throw new IngestionError('candidate_state_conflict');
-  }
+  return withMaintenanceLock(async () => {
+    const database = getDatabase();
+    const { count } = await database.ingestionRun.updateMany({
+      where: {
+        id: runId,
+        activeReplica: 1,
+        replicaOperation: null,
+        replicaPhase: { in: [...editable, 'interrupted'] },
+      },
+      data: {
+        activeReplica: null,
+        replicaPhase: 'rejected',
+        rejectionReason: reason,
+        finishedAt: new Date(),
+      },
+    });
+    if (count !== 1) {
+      throw new IngestionError('candidate_state_conflict');
+    }
 
-  return { mode: 'rejected', runId, cleaned: await cleanupCandidate(runId) };
+    return { mode: 'rejected', runId, cleaned: await cleanupCandidateArtifacts(runId) };
+  });
 }
 
-/** 仅在维护者确认旧命令已退出后恢复持久化执行权。 / Recover a persisted claim only after the operator confirms its owner stopped. */
+/**
+ * 仅在维护者确认旧命令已退出后恢复持久化执行权。
+ *
+ * Recover a persisted claim only after the operator confirms its owner stopped.
+ */
 export async function recoverCandidate(runId: string) {
+  return withMaintenanceLock(() => recoverOwnedCandidate(runId));
+}
+
+async function recoverOwnedCandidate(runId: string) {
   const run = await getDatabase().ingestionRun.findUniqueOrThrow({ where: { id: runId } });
   if (run.publishedAt) {
-    return { runId, phase: 'published', cleaned: await cleanupCandidate(runId) };
+    return { runId, phase: 'published', cleaned: await cleanupCandidateArtifacts(runId) };
   }
   if (
     !run.replicaOperation ||
@@ -533,6 +604,9 @@ export async function recoverCandidate(runId: string) {
       ? await withCandidate(runId, () => reviewCandidate(runId))
       : null;
   const phase = review?.phase ?? 'interrupted';
+  if (!(await cleanupPublicationPlans(runId, run.replicaOperation))) {
+    console.warn('[publication] recovery cleanup deferred', runId);
+  }
   await finishOperation(runId, run.replicaOperation, {
     replicaPhase: phase,
     status: review?.run.status ?? 'interrupted',
