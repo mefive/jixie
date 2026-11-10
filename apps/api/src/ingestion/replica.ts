@@ -413,7 +413,7 @@ export async function acceptCandidate(
         cleaned: await cleanupCandidateArtifacts(runId),
       };
     }
-    const profile = await loadPublicationBudgetProfile();
+    const profile = loadPublicationBudgetProfile();
     const token = await claim(runId, ['awaiting_publish'], 'publishing');
     let plan: PublicationPlan | undefined;
     try {

@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   estimatePublicationBudget,
+  loadPublicationBudgetProfile,
   type PublicationWorkload,
   type PublicationBudgetProfile,
 } from './publication-budget.js';
@@ -67,4 +68,21 @@ it('honors a minimum and rejects a budget beyond timer capacity before publicati
   expect(() => estimatePublicationBudget([], { ...profile, commitMs: 3_000_000_000 })).toThrow(
     'timer range',
   );
+});
+
+it('loads bundled calibration without environment configuration', () => {
+  const bundled = loadPublicationBudgetProfile();
+  expect(bundled.bufferPercent).toBe(50);
+  expect(estimatePublicationBudget([{ ...work, indexCount: 2 }], bundled).mode).toBe('estimated');
+});
+
+it('falls back for unmeasured zero-placeholder operations in the bundled profile', () => {
+  const bundled = loadPublicationBudgetProfile();
+  expect(
+    estimatePublicationBudget([{ ...work, model: 'dailyBasic', indexCount: 2 }], bundled),
+  ).toMatchObject({
+    mode: 'fallback',
+    reason: 'No calibrated update cost for dailyBasic',
+    timeoutMs: 1800000,
+  });
 });

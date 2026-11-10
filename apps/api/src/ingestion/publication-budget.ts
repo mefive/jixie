@@ -1,8 +1,8 @@
-import { readFile } from 'node:fs/promises';
 import { serialize } from 'node:v8';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { PublicationPlanError } from './errors.js';
+import bundledProfile from './publication-budget-profile.json' with { type: 'json' };
 
 export interface PublicationWorkload {
   model: string;
@@ -45,17 +45,12 @@ const profileSchema = z.object({
 export type PublicationBudgetProfile = z.infer<typeof profileSchema>;
 
 /**
- * 加载并校验发布耗时基准；未配置时返回 undefined，由预算逻辑采用默认时限。
+ * 读取并校验随代码发布的耗时基准。
  *
- * Load and validate publication timing calibration; return undefined when unconfigured so the
- * budget uses its default timeout.
+ * Read and validate the timing calibration bundled with the application.
  */
-export async function loadPublicationBudgetProfile(): Promise<
-  PublicationBudgetProfile | undefined
-> {
-  const filename = process.env.JIXIE_PUBLICATION_BUDGET_PROFILE;
-
-  return filename ? profileSchema.parse(JSON.parse(await readFile(filename, 'utf8'))) : undefined;
+export function loadPublicationBudgetProfile(): PublicationBudgetProfile {
+  return profileSchema.parse(bundledProfile);
 }
 
 export function estimatePublicationBudget(
@@ -91,6 +86,25 @@ export function estimatePublicationBudget(
       .sort((left, right) => (left.maximumRows ?? Infinity) - (right.maximumRows ?? Infinity))[0];
     if (!calibration) {
       return fallback(`No calibrated size/index bucket for ${work.model}`);
+    }
+    // 样本未测量的操作以零占位，不能据此推算为零耗时。
+    // Zero placeholders for unmeasured operations do not imply zero execution time.
+    const missingOperation = (
+      [
+        ['insert', work.inserted, calibration.insertMs, calibration.insertByteMs],
+        ['update', work.updated, calibration.updateMs, calibration.updateByteMs],
+        ['delete', work.deleted, calibration.deleteMs, calibration.deleteByteMs],
+      ] as const
+    ).find(
+      ([, rows, rowMs, byteMs]) =>
+        rows > 0 &&
+        rowMs === 0 &&
+        byteMs === 0 &&
+        calibration.callMs === 0 &&
+        calibration.indexMutationMs === 0,
+    );
+    if (missingOperation) {
+      return fallback(`No calibrated ${missingOperation[0]} cost for ${work.model}`);
     }
     estimatedMs +=
       work.inserted * calibration.insertMs +
