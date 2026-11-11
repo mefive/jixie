@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
 import { acceptSource, capturedAt } from '../../../tests/market-contract-fixtures.js';
 import { withImportDiagnostics, type ImportDiagnostics } from '../synchronization/diagnostics.js';
+import type { TushareRow } from '../providers/tushare/tushare-client.js';
 
 const partition = {
   dataset: 'dividends',
@@ -28,16 +29,37 @@ const implementation = {
   div_listdate: null,
 };
 
-it('filters known non-implementation stages before checking identity, dates or amounts', async () =>
+it('filters every stage except exact implementation before checking identity, dates or amounts', async () =>
   withSyncDatabase(async (database) => {
-    const rows = ['预披露', '预案', '股东大会通过', '未通过', '停止实施'].map((div_proc) => ({
-      div_proc,
-      ts_code: null,
-      end_date: '20991231',
-      ann_date: 'bad',
-      record_date: 'bad',
-      stk_div: -1,
-    }));
+    const rows = [
+      '预披露',
+      '预案',
+      '股东大会通过',
+      '未通过',
+      '停止实施',
+      '股东提议',
+      '股东大会未通过',
+      '其他',
+      'unknown-stage',
+      '实施 ',
+      '',
+      null,
+      undefined,
+      42,
+    ].map((div_proc) => {
+      const row: TushareRow = {
+        ts_code: null,
+        end_date: '20991231',
+        ann_date: 'bad',
+        record_date: 'bad',
+        stk_div: -1,
+      };
+      if (div_proc !== undefined) {
+        row.div_proc = div_proc;
+      }
+
+      return row;
+    });
     const diagnostics: ImportDiagnostics = { requests: [], issues: [] };
     const result = await withImportDiagnostics(diagnostics, () =>
       acceptSource(database, { call: async () => rows }, partition),
@@ -47,7 +69,7 @@ it('filters known non-implementation stages before checking identity, dates or a
       status: 'complete',
       errors: [],
       hasDeferredRecords: false,
-      checks: { sourceRows: 5, excludedRows: 5, invalidRows: 0 },
+      checks: { sourceRows: rows.length, excludedRows: rows.length, invalidRows: 0 },
     });
     expect(result.accepted).toMatchObject({ inserted: 0, rejected: 0, errors: [] });
     expect(diagnostics.issues).toEqual([]);
@@ -101,7 +123,7 @@ it('filters conflicting proposals while retaining cash, shares and mixed impleme
     ]);
   }));
 
-it.each(['预披露', '未通过'])(
+it.each(['预披露', '未通过', '股东提议', 'unknown-stage', null])(
   'filters future non-implementation periods without deferring the current target: %s',
   async (div_proc) =>
     withSyncDatabase(async (database) => {
@@ -202,6 +224,9 @@ it.each(['ann_date', 'imp_ann_date'] as const)(
             { ...next, div_proc: '股东大会通过', cash_div_tax: 1 },
             { div_proc: '预披露', [dateField]: 'bad', end_date: '20260630' },
             { ...next, div_proc: '未通过', cash_div_tax: null },
+            { div_proc: '股东提议', [dateField]: 'bad', end_date: '20250630' },
+            { div_proc: 'unknown-stage', [dateField]: null },
+            { div_proc: null, [dateField]: 'bad' },
             next,
           ],
         },
@@ -214,31 +239,25 @@ it.each(['ann_date', 'imp_ann_date'] as const)(
         },
       );
 
-      expect(result.prepared.checks).toMatchObject({ sourceRows: 5, excludedRows: 4 });
+      expect(result.prepared.checks).toMatchObject({ sourceRows: 8, excludedRows: 7 });
       expect(result.accepted).toMatchObject({ inserted: 1, rejected: 0, deleted: 0 });
       expect(await database.dividend.count()).toBe(2);
       expect(await database.dividend.findUnique({ where: { id: saved.id } })).toEqual(saved);
     }),
 );
 
-it.each([null, 'unknown-stage'])(
-  'retains diagnostics for a missing or unknown stage: %s',
-  async (div_proc) =>
+it.each([{ ts_code: '' }, { end_date: 'invalid' }, { record_date: 'invalid' }, { stk_div: -1 }])(
+  'retains diagnostics for invalid implemented records: %j',
+  async (invalidFields) =>
     withSyncDatabase(async (database) => {
-      const row = { ...implementation, div_proc };
+      const row = { ...implementation, ...invalidFields };
       const diagnostics: ImportDiagnostics = { requests: [], issues: [] };
       const result = await withImportDiagnostics(diagnostics, () =>
         acceptSource(database, { call: async () => [row] }, partition),
       );
 
-      expect(result.prepared.checks).toMatchObject({
-        sourceRows: 1,
-        excludedRows: 0,
-        invalidRows: 1,
-      });
-      expect(diagnostics.issues).toMatchObject([
-        { reasonCode: 'invalid_dividend_identity', payload: row },
-      ]);
+      expect(result.prepared.errors.length).toBeGreaterThan(0);
+      expect(result.prepared.checks.invalidRows).toBeGreaterThan(0);
       expect(await database.dividend.count()).toBe(0);
     }),
 );

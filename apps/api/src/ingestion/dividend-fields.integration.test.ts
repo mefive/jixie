@@ -26,13 +26,13 @@ const cash = {
   div_listdate: null,
 };
 
-it(
-  'retries a legacy proposal partial in the same candidate while keeping successful receipts and diagnostics',
-  async () =>
+it.each(['股东大会通过', '股东提议'])(
+  'retries a legacy non-implementation partial in the same candidate: %s',
+  async (div_proc) =>
     withSyncDatabase(async (main) => {
       await emptySelections(main);
       const fallback = ingestionSource();
-      const proposal = { ...cash, div_proc: '股东大会通过', ex_date: null };
+      const proposal = { ...cash, div_proc, ex_date: null };
       const conflict = { ...proposal, base_share: 101 };
       const rows = [proposal, conflict, cash];
       const source = {

@@ -300,18 +300,15 @@ async function prepareDividendPartition(
     return { ...values, distributionKind: dividendDistributionKind(values) };
   };
   const pages = await downloadFinancialPartition(source, partition);
-  const nonImplementedStages = new Set(['预披露', '预案', '股东大会通过', '未通过', '停止实施']);
+
+  // 只接纳明确标记为实施的记录，其他阶段在业务校验和身份匹配前正常过滤。
+  // Admit only explicitly implemented records;
+  // filter all other stages before validation or matching.
+  const implementationRows = pages.rows.filter((row) => row.div_proc === '实施');
   const rejected = new Set<TushareRow>();
 
-  for (const row of pages.rows) {
-    // 已知非实施阶段先退出范围，不校验或匹配其业务字段；未知阶段仍保留诊断。
-    // Exclude known non-implementation stages before validation or matching; diagnose unknown stages.
-    if (nonImplementedStages.has(String(row.div_proc))) {
-      continue;
-    }
-
+  for (const row of implementationRows) {
     if (
-      row.div_proc !== '实施' ||
       typeof row.ts_code !== 'string' ||
       !row.ts_code ||
       (!dateField && canonicalStockCode(row.ts_code) !== partition.scope) ||
@@ -322,17 +319,14 @@ async function prepareDividendPartition(
       recordImportIssue({
         category: 'record',
         reasonCode: 'invalid_dividend_identity',
-        message: 'Invalid dividend stage, security, report period or announcement date',
+        message: 'Invalid dividend security, report period or announcement date',
         payload: row,
       });
     }
   }
 
-  const scoped = pages.rows.filter(
-    (row) =>
-      row.div_proc === '实施' &&
-      !rejected.has(row) &&
-      (!codes || codes.has(canonicalStockCode(String(row.ts_code)))),
+  const scoped = implementationRows.filter(
+    (row) => !rejected.has(row) && (!codes || codes.has(canonicalStockCode(String(row.ts_code)))),
   );
   const selected = preferStockSources(
     scoped.filter((row) => String(row.end_date) <= reportThrough),
