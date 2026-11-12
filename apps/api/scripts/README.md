@@ -9,7 +9,7 @@
 | `pnpm data issues RUN_ID` | 该轮全部历史诊断及原始记录 |
 | `pnpm data issues reconcile [RUN_ID]` | 为已结束运行的有效问题幂等补齐 pending；不重置已有处理结果，不请求数据源 |
 | `pnpm data runs inspect RUN_ID` | 查看运行起止时间、逐次批次耗时及待审核候选版本 |
-| `pnpm data runs accept RUN_ID --expect-candidate HASH` | 人工接收并一次发布核验过的候选版本 |
+| `pnpm data runs accept RUN_ID [--expect-candidate HASH]` | 人工接收当前候选；可指定已核验版本，始终检查状态、未处理问题与主库基线 |
 | `pnpm data runs reject RUN_ID --reason REASON` | 拒绝候选版本，记录理由 |
 | `pnpm data runs recover RUN_ID --confirm-stopped` | 确认前一个进程已退出后，恢复遗留的 Run 状态 |
 | `pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]` | 只读导出诊断、业务记录、修复契约和问题模板 |

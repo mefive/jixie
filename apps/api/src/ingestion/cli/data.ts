@@ -16,7 +16,9 @@ import { isObservationDate } from '#market/synchronization/date.js';
  * --limit: recent run count, default 5, range 1–100; returns only id/status/startedAt/finishedAt.
  * 示例 / Example: pnpm data runs --limit 1
  * pnpm data runs inspect RUN_ID
- * pnpm data runs accept RUN_ID --expect-candidate HASH
+ * pnpm data runs accept RUN_ID [--expect-candidate HASH]
+ * accept 默认在发布锁定流程内读取当前候选版本；可显式指定已核验版本。
+ * Accept reads the current candidate under writer ownership by default, or checks an explicit version.
  * pnpm data runs reject RUN_ID --reason REASON
  * pnpm data runs recover RUN_ID --confirm-stopped
  * pnpm data runs retry RUN_ID
@@ -63,7 +65,7 @@ export type DataRequest =
   | { action: 'reset'; apply: boolean; database?: string }
   | { action: 'runs'; limit: number }
   | { action: 'inspect-run' | 'recover-run' | 'retry-run'; runId: string }
-  | { action: 'accept-run'; runId: string; expectedVersion: string }
+  | { action: 'accept-run'; runId: string; expectedVersion?: string }
   | { action: 'reject-run'; runId: string; reason: string }
   | { action: 'issues'; runId: string }
   | { action: 'reconcile-issues'; runId?: string }
@@ -79,7 +81,8 @@ const usage = [
   'Runs: default 5, range 1-100; id/status/startedAt/finishedAt only; newest first.',
   '       pnpm data runs inspect RUN_ID',
   'Inspect: run details and per-attempt batch timings in milliseconds.',
-  '       pnpm data runs accept RUN_ID --expect-candidate HASH',
+  '       pnpm data runs accept RUN_ID [--expect-candidate HASH]',
+  'Accept: defaults to the current candidate; an explicit hash requires that reviewed version.',
   '       pnpm data runs reject RUN_ID --reason REASON',
   '       pnpm data runs recover RUN_ID --confirm-stopped',
   '       pnpm data runs retry RUN_ID',
@@ -126,6 +129,9 @@ export function parseDataArguments(args: string[]): DataRequest {
       }
       if (command === 'retry' && args.length === 3) {
         return { action: 'retry-run', runId };
+      }
+      if (command === 'accept' && args.length === 3) {
+        return { action: 'accept-run', runId };
       }
       if (
         command === 'accept' &&

@@ -97,9 +97,13 @@ it.each([
   expect(() => parseDataArguments(args)).toThrow('Usage: pnpm data');
 });
 
-it('requires explicit candidate version and explicit recovery acknowledgement', () => {
+it('accepts the current or an explicit candidate version and requires recovery acknowledgement', () => {
   const runId = '01M6F8ZGFR17X3ZMAX5Z7GD1DY';
   const hash = 'a'.repeat(64);
+  expect(parseDataArguments(['runs', 'accept', runId])).toEqual({
+    action: 'accept-run',
+    runId,
+  });
   expect(parseDataArguments(['runs', 'accept', runId, '--expect-candidate', hash])).toEqual({
     action: 'accept-run',
     runId,
@@ -121,4 +125,17 @@ it('requires explicit candidate version and explicit recovery acknowledgement', 
   });
   expect(() => parseDataArguments(['runs', 'retry'])).toThrow('Usage:');
   expect(() => parseDataArguments(['runs', 'retry', runId, '--force'])).toThrow('Usage:');
+});
+
+it.each([
+  ['--expect-candidate'],
+  ['--expect-candidate', 'invalid'],
+  ['--expect-candidate', ''],
+  ['--expect-candidate', 'A'.repeat(64)],
+  ['--expect-candidate', 'a'.repeat(64), '--expect-candidate', 'b'.repeat(64)],
+  ['--force'],
+])('rejects malformed explicit candidate options: %j', (...options) => {
+  expect(() =>
+    parseDataArguments(['runs', 'accept', '01M6F8ZGFR17X3ZMAX5Z7GD1DY', ...options]),
+  ).toThrow('Usage:');
 });

@@ -390,12 +390,15 @@ const inputJson = (value: Prisma.JsonValue) =>
 
 /**
  * 在维护写者锁内准备，只有最终写入阶段关闭业务读取。
+ * 未指定版本时，在取得执行权后选取当前候选；状态、问题处理与基线检查始终执行。
  *
  * Prepare under writer ownership; only final writes close reader admission.
+ * Without an explicit version, select the current candidate after claiming ownership;
+ * always check lifecycle state, issue handling and the main database baseline.
  */
 export async function acceptCandidate(
   runId: string,
-  expectedVersion: string,
+  expectedVersion?: string,
   signal?: AbortSignal,
 ) {
   const main = getDatabase();
@@ -420,7 +423,8 @@ export async function acceptCandidate(
       const result = await withCandidate(runId, async (candidate) => {
         signal?.throwIfAborted();
         const review = await reviewCandidate(runId);
-        if (review.phase !== 'awaiting_publish' || review.candidateVersion !== expectedVersion) {
+        const candidateVersion = expectedVersion ?? review.candidateVersion;
+        if (review.phase !== 'awaiting_publish' || review.candidateVersion !== candidateVersion) {
           throw new IngestionError('candidate_state_conflict');
         }
         if ((await baseline(main)) !== run.replicaBaseline) {
@@ -430,7 +434,7 @@ export async function acceptCandidate(
         plan = await PublicationPlan.create({
           runId,
           operation: token,
-          candidateVersion: expectedVersion,
+          candidateVersion,
           baseline: run.replicaBaseline!,
         });
         const preparingAt = performance.now();

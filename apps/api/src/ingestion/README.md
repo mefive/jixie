@@ -46,7 +46,7 @@ OHLC 范围矛盾作为来源 warning：股票和 ETF 保留原始正值有限�
 [问题处理与数据状态](../../../../docs/design/ingestion-issue-resolution.md)：Run 结束时同事务补齐有效问题的 pending。历史运行通过 `pnpm data issues reconcile [RUN_ID]` 幂等补齐。CLI 在修复事务内登记 resolved／accepted 或重开为 pending，前端和导出共同读取处理结果。已经修复的字段被覆盖时提示复核。
 
 
-副本采集使用同一 Run ID 串联采集、候选修复和人工发布。使用 `pnpm data runs inspect RUN_ID` 查看候选版本。维护者核验后用 `pnpm data runs accept RUN_ID --expect-candidate HASH` 发布，或用 `pnpm data runs reject RUN_ID --reason REASON` 拒绝。进程异常退出时，确认旧命令已结束后运行 `pnpm data runs recover RUN_ID --confirm-stopped`。详见 [副本采集计划](../../../../docs/design/ingestion-replica-plan.md)。
+副本采集使用同一 Run ID 串联采集、候选修复和人工发布。使用 `pnpm data runs inspect RUN_ID` 查看候选版本。维护者核验后用 `pnpm data runs accept RUN_ID` 发布：默认在维护写者锁内取得执行权并读取当前候选版本；也可加 `--expect-candidate HASH` 固定已核验版本。两种用法都重新校验候选已完成且没有 pending／review 问题，并检查主库基线；已修复或明确接受的问题可保留历史记录。HTTP 接收接口仍要求显式版本。维护者也可用 `pnpm data runs reject RUN_ID --reason REASON` 拒绝。进程异常退出时，确认旧命令已结束后运行 `pnpm data runs recover RUN_ID --confirm-stopped`。详见 [副本采集计划](../../../../docs/design/ingestion-replica-plan.md)。
 
 `runs inspect` 同时返回 Run 的起止时间和 `batches`。每次实际尝试独立列出，`elapsedMs` 为批次结束时间减开始时间，尚无结束时间时为 `null`。未发布时从就绪副本读取，发布后从主库读取。副本尚未就绪或已拒绝时没有批次可读，历史运行只返回仍保留的记录。
 
