@@ -274,12 +274,23 @@ A 股回测必须内置以下规则(写回测时别漏):
   body structure, breaking changes, and attribution. Contributor names and attribution trailers retain
   their original spelling. This policy supersedes the former allowance for Chinese commit messages.
 - The `commit-msg` hook runs `scripts/checks/check-commit-message.mjs`; reviewers also verify meaning and English wording.
-- Agree on the exact compliant message before implementation when using review-gated development.
+- Agree on the exact compliant message before implementation, following the mandatory workflow below.
+
+## 开发工作流（每个 session 默认强制）
+
+本项目显式启用 `review-gated-development` 技能。每个 session 开始仓库修改任务时，必须主动定位并完整读取当前可用的该技能 `SKILL.md`，无需用户再次点名或提醒。代码、测试、配置、脚本和文档修改均适用，包括小改动和单次任务；不得以技能描述中的普通单次编辑例外跳过本项目要求。只读分析和问答不触发开发门禁；用户当次明确指示可以调整或缩短流程。
+
+- **Gate 1：实现前确认范围。** 先说明当前阶段、准确的英文提交信息、交付位置与调用方式、技术方案、受影响文件／数据／schema／API／迁移、静态检查和审阅后验证计划，以及范围边界；然后停止，等待用户确认。只读调查可以先做，不能先改代码再补确认。范围或风险实质扩大时重新确认，提交信息变化也须在继续实现前沟通。
+- **实现与静态检查。** 范围确认后完整实现约定内容及相关测试，先完成格式、lint、类型和生成契约一致性等静态检查。检查组合命令，避免夹带测试、构建、服务启动、业务执行或数据库变更。
+- **Gate 2：产品代码先审阅。** 产品代码未获人工审阅通过前，不运行单测、集成测试、E2E、smoke、探针、构建或其他行为验证。提供行为变化、准确提交信息、审阅入口、风险／限制、静态结果、待执行验证，并明确说明尚未提交、等待代码审阅；然后停止。产品代码被修改后，重新静态检查并交审阅。
+- **测试专改例外。** 已批准范围内仅修改测试、夹具、mock 或验证工具且不改变产品行为时，可自主修正、静态检查和验证，无需重复人工代码审阅；但仍有产品改动待审阅时，不得借此提前运行测试。不得削弱断言或跳过失败来获得通过。
+- **审阅后验证与提交。** 产品代码审阅通过即授权执行约定验证，并在全部通过后按已确认信息自动提交，不另加提交确认门禁。仅测试缺陷或环境修正可自主处理并重试；需要修改产品代码时回到 Gate 2。验证失败或必需检查未完成时不得提交。只暂存本次范围内的文件，保留其他未提交工作，并报告提交号、验证结果和剩余工作区状态。
+- **接续与优先级。** 跨 session 延续已有范围、审阅和提交授权，不重启已完成门禁，也不把另一项任务的确认视为本任务审阅通过。本节约束下文自动执行和 Git 条款；具体执行细节遵循已读取的技能，用户最新明确指示优先。
 
 ## 协作风格
 
-- **本项目授权自动执行**:pnpm、Prisma(migrate dev / generate / db push / studio)、typecheck / 测试 / 构建 / 跑脚本 —— 判断安全的直接执行并汇报
-- **Git**:`git commit` 准备好(含 message)后**先确认,用户点头才执行**;`git push` **一律用户手动,我不代跑**
+- **本项目授权自动执行**:pnpm、Prisma(migrate dev / generate / db push / studio)、typecheck / 测试 / 构建 / 跑脚本 —— 在上述工作流对应门禁已经满足、且操作属于已授权范围时，判断安全的直接执行并汇报；工具执行权限不代替范围确认或产品代码审阅。
+- **Git**:按上述工作流在实现前确认准确 message；产品代码审阅和所需验证通过后自动 `git commit`，不再重复询问。非产品代码变更遵循技能中适用的门禁与已有授权；`git push` **一律用户手动,我不代跑**。
 - 仍先确认:`rm -rf`、force push、`git reset --hard`、删库 / `prisma migrate reset`、对外发送
 - **测试服务清理**:agent 为测试临时启动的 API / Web / dev server,验证结束后必须主动关闭,并确认监听端口和数据库连接已释放;不得把测试进程遗留给用户
 - **E2E 截图交付**:完成涉及 E2E 的任务后,不仅要运行并检查验收截图,还必须在最终回复中直接展示本次 E2E 截图,不能只给文件路径或口头说明

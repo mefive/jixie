@@ -62,9 +62,23 @@ Local hooks can be bypassed and are not a server-side enforcement mechanism.
 
 ## Review and verification
 
-Keep each change coherent and finish its agreed scope. Follow the review workflow
-agreed with the maintainer. When review-gated development is requested, settle the
-scope and exact commit message before implementation, run static checks before
-human review, and run behavioral verification only after review approval. Commit
-after the required verification and applicable authorization; do not push on the
-maintainer's behalf.
+Review-gated development is mandatory by default in every session, including small
+and one-shot changes to code, tests, configuration, scripts and documentation. Read
+the available `review-gated-development` skill in full before starting a repository
+change; the maintainer does not need to invoke it again. Follow the canonical
+workflow in [CLAUDE.md](CLAUDE.md). Read-only analysis does not require development
+approval, and explicit instructions from the maintainer may adjust the workflow.
+
+Keep each change coherent and finish its agreed scope. Before implementation,
+present the scope, exact commit message, deliverables, approach, affected surfaces
+and validation plan, then wait for scope approval. For product-code changes, finish
+static checks and stop for human code review before running tests, builds or other
+behavioral verification. Test-only corrections within the approved scope follow
+the skill's exception; they cannot authorize tests while product changes await
+review. Product changes made during verification require renewed review.
+
+Product-code review approval authorizes the planned verification and an automatic
+commit with the agreed message once all required checks pass. Do not request a
+separate commit confirmation. Preserve prior approvals when continuing across
+sessions, stage only in-scope files and leave unrelated work intact. Do not commit
+with failed or incomplete required checks, or push on the maintainer's behalf.
