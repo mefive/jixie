@@ -31,3 +31,6 @@ apps/docs/acceptance/
 !apps/api/src/backtesting/data/
 
 apps/api/prisma/ingestion-candidates/
+
+# 本地来源配额账本与账号锁不入库。 / Keep local source quota ledgers and account locks private.
+apps/api/prisma/source-quotas/
