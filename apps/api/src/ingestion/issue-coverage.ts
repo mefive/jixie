@@ -23,6 +23,7 @@ const receiptFields = {
   rejectedCount: true,
   filteredCount: true,
   scope: true,
+  run: { select: { targetDate: true } },
 } satisfies Prisma.IngestionBatchSelect;
 
 type Receipt = Prisma.IngestionBatchGetPayload<{ select: typeof receiptFields }>;
@@ -146,7 +147,34 @@ export function issueCoverageReader(
       }
     }
 
-    const [receipt] = await laterReceipts(batch, batch.scope, batch.period);
+    const receipts = await laterReceipts(batch, batch.scope, batch.period);
+    const payload = records(issue.payload)[0];
+    const listingDate = payload?.list_date;
+
+    // 旧目标范围外的 ETF 可由上市前的成功目录证明排除，不受上市后 partial 遮挡。
+    // A successful pre-listing catalog proves exclusion from the old target despite later partials.
+    if (
+      batch.dataset === 'etf-master' &&
+      issue.category === 'record' &&
+      isObservationDate(listingDate) &&
+      listingDate > run.targetDate
+    ) {
+      const exclusionReceipt = receipts.find(
+        (candidate) =>
+          complete(candidate) &&
+          candidate.run.targetDate < listingDate &&
+          coversRange(batch, candidate, run.targetDate),
+      );
+      if (exclusionReceipt) {
+        return {
+          reason: 'etf_listing_after_target',
+          receiptIds: [exclusionReceipt.id],
+          runIds: [exclusionReceipt.runId],
+        };
+      }
+    }
+
+    const [receipt] = receipts;
     if (
       !receipt ||
       !complete(receipt) ||
@@ -158,7 +186,6 @@ export function issueCoverageReader(
     }
 
     let reason = 'covered_by_later_complete_receipt';
-    const payload = records(issue.payload)[0];
     if (batch.dataset === 'stock-adjustments' && issue.category === 'record') {
       const code = payload?.ts_code;
       const date = payload?.trade_date;
