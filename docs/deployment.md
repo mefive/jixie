@@ -216,3 +216,49 @@ cd /opt/jixie
 维护使用 fs-ext 的 OS flock，生产 Ubuntu 必须在目标平台运行 pnpm install；不要复制 macOS node_modules。bootstrap 检查 g++、make、Python 3（用于 node-gyp 编译），应用维护逻辑仍为 TypeScript。Node ABI 或 CPU 架构变化时应重新安装／构建依赖。所有入口共用真实数据库目录中的 maintenance.lock、market-publish-intent.lock、market-access.lock，锁文件不得删除或轮换。
 
 生产维护 unit 直接启动 Node，由协调器取得锁。bootstrap 为迁移和停服使用 M→P→R，并直接启动 Node 传递真实 FD；不再使用环境布尔值作为持锁证明。没有发布基线时状态为 uninitialized；准备失败不会使已发布基线封站。
+
+## 旧采集升级失败后的恢复（2026-11-13）
+
+从 DataSyncRun／DatasetSyncPartition 版本切换时，bootstrap 在迁移前写入
+`/var/lib/jixie/ingestion-rebuild.required`。迁移后执行带备份的业务清空，仅保留四张认证表；
+清空成功才删除标记。迁移或重建失败时保持 API 停止；不要手工删除标记绕过重建。
+自动重建备份在 schema 迁移之后生成，升级前的完整旧库备份应另行保留。
+
+bootstrap 在取得维护写者锁之前禁用旧 maintenance／weekly timer，并停止对应 service，
+阻止旧程序在新 schema 上自动重试。不存在的 unit 正常跳过；查询、禁用或停止失败会中止部署。
+历史 failed 标记本身不代表进程仍运行，应结合 MainPID 和 Job 检查。
+
+`data reset` 的单事务删除时限默认为 1,800,000ms（30 分钟），可通过
+`JIXIE_RESET_TRANSACTION_TIMEOUT_MS` 调整；只接受 1–2,147,483,647 的整数，非法值在备份与删除前拒绝。
+它控制 Prisma 交互事务时限，不改变发布锁等待时限。所有删除仍在同一事务中，不分批提交。
+CLI 向 stderr 输出备份起止、事务开始、每张表删除前后的计数／耗时及最终提交或失败位置，
+stdout 保留 JSON 结果。表级 `uncommitted` 表示尚未提交，不能据此认定清空已完成。
+
+恢复前先停止旧 timer／service，保留已有备份；在空间充足的独立数据库副本上验证新版本，
+记录实际耗时，再重跑 bootstrap。配置示例（会按重建标记清空业务数据）：
+
+```bash
+JIXIE_RESET_TRANSACTION_TIMEOUT_MS=1800000 ./scripts/bootstrap.sh
+```
+
+本次修复提交信息：`fix(deploy): make legacy ingestion rebuild recoverable`。
+人工审阅后，清空集成测试 9 项、bootstrap／部署影响测试 23 项全部通过；格式、ESLint、
+API 类型检查、后端边界、Shell 语法与 diff 检查通过。生产机独立工作目录构建 API 成功，
+没有覆盖部署目录。
+
+2026-11-13 使用生产升级备份的独立副本验证（约 9GB、55,099,399 条业务记录）：
+
+| 项目 | 实测耗时 |
+| --- | ---: |
+| Daily，11,938,611 条 | 150.667 秒 |
+| AdjFactor，12,451,719 条 | 130.827 秒 |
+| DailyBasic，11,848,229 条 | 186.337 秒 |
+| StkLimit，14,431,070 条 | 155.303 秒 |
+| 发布锁申请至事务提交 | 840.482 秒（14 分 0.5 秒） |
+| CLI 全流程，含副本备份与连接收尾 | 899.91 秒（14 分 59.9 秒） |
+
+退出码 0；所有业务表为空，四张认证表的完整内容摘要与清空前一致（用户 10、会话 19、
+邀请码 25、登录验证记录 27），SQLite quick_check 为 ok，foreign_key_check 无错误。
+主库及重建标记的文件大小／修改时间保持一致，API 和旧维护服务无进程／无排队任务。
+这次测量说明原 120 秒事务时限不足；30 分钟覆盖本次规模，不保证更大库或不同磁盘条件下的耗时。
+没有清空主库、重跑 bootstrap 或启动服务。验证日志另行保留，隔离数据库与构建目录在核验后清理。

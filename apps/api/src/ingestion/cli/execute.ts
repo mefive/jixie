@@ -175,6 +175,11 @@ export async function executeDataCommand(
 
           return resetBusinessData({
             apply: request.apply,
+            transactionTimeoutMs:
+              process.env.JIXIE_RESET_TRANSACTION_TIMEOUT_MS === undefined
+                ? undefined
+                : Number(process.env.JIXIE_RESET_TRANSACTION_TIMEOUT_MS),
+            onLog: (message) => console.error(message),
             backup: async () => {
               const backupDirectory = join(dirname(filename), 'ingestion-backups');
               await promisify(execFile)(

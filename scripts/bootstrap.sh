@@ -375,6 +375,31 @@ PODMAN_CGROUP_VERSION="$(podman_as_deploy_user info --format '{{.Host.CgroupsVer
 [[ "$PODMAN_CGROUP_VERSION" == "v2" ]] ||
   die "Python 策略资源限制要求 cgroups v2，当前 Podman 报告 $PODMAN_CGROUP_VERSION"
 DB_FILE="$JIXIE_DATA_DIR/prod.db"
+
+# 先停止旧调度和自动重试，再取得写者锁；缺失 unit 正常跳过，停止失败必须中断。
+# Stop legacy scheduling and retries before taking the writer lock; skip absent units, abort on errors.
+stop_legacy_maintenance() {
+  local unit load_state
+  for unit in \
+    jixie-maintenance.timer \
+    jixie-maintenance-weekly.timer \
+    jixie-maintenance.service \
+    jixie-maintenance-weekly.service; do
+    load_state="$(systemctl show "$unit" --property=LoadState --value)" ||
+      die "无法检查旧维护 unit: $unit"
+    if [[ "$load_state" == "not-found" ]]; then
+      continue
+    fi
+    log "停止旧维护 unit: $unit"
+    case "$unit" in
+      *.timer) sudo systemctl disable --now "$unit" || die "无法禁用旧维护 timer: $unit" ;;
+      *.service) sudo systemctl stop "$unit" || die "无法停止旧维护 service: $unit" ;;
+    esac
+  done
+}
+
+stop_legacy_maintenance
+
 exec 9>>"$JIXIE_DATA_DIR/maintenance.lock"
 flock -n -E 75 9 || die "maintenance 正在运行,本次 bootstrap 不与其并发"
 export JIXIE_MAINTENANCE_LOCK_FD=9

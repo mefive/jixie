@@ -87,3 +87,56 @@ for (const failure of ['migration', 'reset', 'none']) {
     }
   });
 }
+
+for (const scenario of ['loaded', 'absent', 'stop-fails', 'inspect-fails']) {
+  test(`stops legacy timers and services before the writer lock: ${scenario}`, () => {
+    const start = bootstrap.indexOf('stop_legacy_maintenance() {');
+    const end = bootstrap.indexOf('exec 9>>', start);
+    assert.ok(start > 0 && end > start);
+    assert.ok(end < migrationStart);
+    const result = spawnSync(
+      'bash',
+      [
+        '-c',
+        `
+        set -Eeuo pipefail
+        log() { :; }
+        die() { echo "$*" >&2; exit 1; }
+        systemctl() {
+          if [[ "$1" == show ]]; then
+            if [[ "$SCENARIO" == inspect-fails ]]; then return 1; fi
+            if [[ "$SCENARIO" == absent ]]; then echo not-found; else echo loaded; fi
+          fi
+        }
+        sudo() {
+          echo "$*"
+          if [[ "$SCENARIO" == stop-fails && "$2" == stop ]]; then return 1; fi
+        }
+        ${bootstrap.slice(start, end)}
+        echo WRITER_LOCK_NEXT
+        `,
+      ],
+      { encoding: 'utf8', env: { ...process.env, SCENARIO: scenario } },
+    );
+
+    if (scenario.endsWith('fails')) {
+      assert.equal(result.status, 1);
+      assert.doesNotMatch(result.stdout, /WRITER_LOCK_NEXT/);
+    } else {
+      assert.equal(result.status, 0, result.stderr);
+      const commands = result.stdout.trim().split('\n');
+      assert.deepEqual(
+        commands,
+        scenario === 'absent'
+          ? ['WRITER_LOCK_NEXT']
+          : [
+              'systemctl disable --now jixie-maintenance.timer',
+              'systemctl disable --now jixie-maintenance-weekly.timer',
+              'systemctl stop jixie-maintenance.service',
+              'systemctl stop jixie-maintenance-weekly.service',
+              'WRITER_LOCK_NEXT',
+            ],
+      );
+    }
+  });
+}

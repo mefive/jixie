@@ -147,10 +147,23 @@ it(
       ).rejects.toThrow('controlled backup failure');
       expect(await database.factor.count()).toBe(1);
       const backup = vi.fn(async () => '/isolated/backup.db');
-      expect(await resetBusinessData({ apply: true, backup })).toMatchObject({
+      const messages: string[] = [];
+      const executeTransaction = database.$transaction.bind(database);
+      const transaction = vi.spyOn(database, '$transaction').mockImplementation(executeTransaction);
+      expect(
+        await resetBusinessData({
+          apply: true,
+          backup,
+          onLog: (message) => messages.push(message),
+        }),
+      ).toMatchObject({
         mode: 'applied',
         backup: '/isolated/backup.db',
       });
+      expect(transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 1_800_000 });
+      transaction.mockRestore();
+      expect(messages.at(-1)).toMatch(/transaction committed; elapsedMs=\d+/);
+      expect(messages.some((message) => message.includes('; uncommitted'))).toBe(true);
       expect(backup).toHaveBeenCalledOnce();
       expect(await auth()).toEqual(before);
       const counts = await Promise.all([
@@ -191,3 +204,56 @@ it('accounts for every non-auth model, including receipt tables cleared through 
     'user',
   ]);
 });
+
+it.each([0, -1, 1.5, NaN, Infinity, 2_147_483_648])(
+  'rejects invalid reset timeout %s before backup or database access',
+  async (transactionTimeoutMs) => {
+    const backup = vi.fn(async () => '/unused');
+
+    await expect(resetBusinessData({ apply: true, transactionTimeoutMs, backup })).rejects.toThrow(
+      'JIXIE_RESET_TRANSACTION_TIMEOUT_MS',
+    );
+    expect(backup).not.toHaveBeenCalled();
+  },
+);
+
+it(
+  'rolls back earlier deletions and logs the failing table without reporting a commit',
+  async () =>
+    withSyncDatabase(async (database) => {
+      await database.stockBasic.create({
+        data: { tsCode: '600000.SH', symbol: '600000', name: 'Fixture', listStatus: 'L' },
+      });
+      await database.daily.create({
+        data: { tsCode: '600000.SH', tradeDate: '20261030', close: 10 },
+      });
+      await database.$executeRawUnsafe(
+        `CREATE TRIGGER refuse_reset BEFORE DELETE ON "Daily" BEGIN SELECT RAISE(ABORT, 'controlled reset failure'); END`,
+      );
+      const messages: string[] = [];
+      const executeTransaction = database.$transaction.bind(database);
+      const transaction = vi.spyOn(database, '$transaction').mockImplementation(executeTransaction);
+
+      try {
+        await expect(
+          resetBusinessData({
+            apply: true,
+            transactionTimeoutMs: 240_000,
+            backup: async () => '/isolated/backup.db',
+            onLog: (message) => messages.push(message),
+          }),
+        ).rejects.toThrow();
+        expect(transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 240_000 });
+        expect(messages[0]).toBe('[reset] backup started');
+        expect(messages[1]).toBe('[reset] backup completed');
+        expect(messages).toContain('[reset] deleting daily');
+        expect(messages.at(-1)).toMatch(/transaction failed; table=daily; elapsedMs=\d+/);
+        expect(messages.some((message) => message.includes('transaction committed'))).toBe(false);
+        expect(await database.stockBasic.count()).toBe(1);
+        expect(await database.daily.count()).toBe(1);
+      } finally {
+        transaction.mockRestore();
+      }
+    }),
+  60_000,
+);
