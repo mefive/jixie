@@ -1,5 +1,7 @@
-import type { Prisma } from '@prisma/client';
-import { getDatabase } from '#infra/database/prisma.js';
+import { readMarketSnapshot } from '#infra/database/market-database.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+import type { Prisma } from '@jixie/market-db-client';
+
 import {
   databaseFilename,
   withMaintenanceLock,
@@ -191,12 +193,16 @@ function previewResult(
   };
 }
 
-/** 预览只读，执行重新核验并原子写入数据、版本和处理结果。 / Preview reads only; apply rechecks and commits data, revision and handling atomically. */
+/**
+ * 预览只读，执行重新核验并原子写入数据、版本和处理结果。
+ *
+ * Preview reads only; apply rechecks and commits data, revision and handling atomically.
+ */
 export async function repairIngestionIssues(plan: IssueRepairPlan, options: RepairOptions) {
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const expectedHash = options.expectedHash;
   if (!expectedHash) {
-    const result = await database.$transaction((transaction) =>
+    const result = await readMarketSnapshot((transaction) =>
       prepare(transaction, plan, undefined, options.candidatePath),
     );
 

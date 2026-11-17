@@ -1,10 +1,10 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { z } from 'zod';
 import {
   RESEARCH_PYTHON_RUNTIME_CAPABILITIES_V1,
   RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1,
   searchResearchSdkAgentCatalog,
 } from '@jixie/shared';
-import { getDatabase } from '#infra/database/prisma.js';
 import { researchCapabilityCatalog } from '#research/catalog/capabilities.js';
 import { resolveResearchConceptBindings } from '#research/catalog/concept-binding-resolver.js';
 import {
@@ -186,14 +186,14 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
       const [stocks, etfs, indexes, indexCodes, resolvedBindings] = await Promise.all([
         terms.length === 0
           ? Promise.resolve([])
-          : getDatabase().stockBasic.findMany({
+          : getMarketDatabase().stockBasic.findMany({
               where: { OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name'])) },
               select: { tsCode: true, name: true },
               take: 30,
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : getDatabase().etfBasic.findMany({
+          : getMarketDatabase().etfBasic.findMany({
               where: {
                 OR: terms.flatMap((term) =>
                   textSearch(term, ['tsCode', 'name', 'fundType', 'indexName']),
@@ -204,7 +204,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : getDatabase().indexBenchmark.findMany({
+          : getMarketDatabase().indexBenchmark.findMany({
               where: {
                 OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name', 'fullName'])),
               },
@@ -213,7 +213,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : getDatabase().indexDaily.findMany({
+          : getMarketDatabase().indexDaily.findMany({
               where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
               select: { tsCode: true },
               distinct: ['tsCode'],
@@ -224,7 +224,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
       const etfCoverage =
         etfs.length === 0
           ? []
-          : await getDatabase().etfDaily.groupBy({
+          : await getMarketDatabase().etfDaily.groupBy({
               by: ['tsCode'],
               where: { tsCode: { in: etfs.map((item) => item.tsCode) } },
               _count: { _all: true },

@@ -1,3 +1,4 @@
+import { backupMarketStorage } from './version-backup.mjs';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -57,6 +58,18 @@ function main() {
 
   mkdirSync(backupDir, { recursive: true });
   const stamp = timestamp();
+  const hasVersions = sqlite3([
+    '-readonly',
+    dbPath,
+    "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name='MarketPublication'",
+  ]);
+  if (
+    hasVersions === '1' &&
+    sqlite3(['-readonly', dbPath, "SELECT count(*) FROM MarketPublication WHERE key='global'"]) ===
+      '1'
+  ) {
+    return backupMarketStorage(dbPath, backupDir, keep, backupPrefix, stamp);
+  }
   const dest = join(backupDir, `${backupPrefix}-${stamp}.db`);
 
   // Online backup — consistent snapshot under WAL, safe while the api holds the DB open.

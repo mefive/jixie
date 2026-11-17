@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { AgentLlm } from '#infra/llm/agent-llm.js';
 import type { AgentStreamEvent, AgentTurnTrace } from '@jixie/shared';
@@ -23,6 +24,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: resources.llm }));
@@ -377,3 +379,8 @@ describe('Agent HTTP and durable turn boundaries', () => {
     });
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

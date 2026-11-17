@@ -86,10 +86,10 @@ describe('durable Job payload and Worker input contracts', () => {
   );
 
   it('derives Worker subsets without duplicating their fields', () => {
-    expectTypeOf<BacktestWorkerInput>().toEqualTypeOf<
+    expectTypeOf<Omit<BacktestWorkerInput, 'marketVersionId'>>().toEqualTypeOf<
       Omit<BacktestJobPayload, 'task' | 'reportId'>
     >();
-    expectTypeOf<StrategyScanWorkerInput>().toEqualTypeOf<
+    expectTypeOf<Omit<StrategyScanWorkerInput, 'marketVersionId'>>().toEqualTypeOf<
       Omit<StrategyScanJobPayload, 'task' | 'reportId'>
     >();
     const { task: _backtestTask, reportId: _backtestReport, ...backtestInput } = backtest;

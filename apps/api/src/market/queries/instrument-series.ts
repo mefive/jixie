@@ -1,5 +1,5 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import type { ResearchAssetTypeV1, StockSeries } from '@jixie/shared';
-import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 为已验证对象身份加载可绘图日序列。
@@ -47,13 +47,13 @@ function dateRange(start?: string, end?: string): TradeDateRange {
  */
 async function etfSeries(tsCode: string, tradeDate: TradeDateRange): Promise<StockSeries> {
   const [basic, prices, factors] = await Promise.all([
-    getDatabase().etfBasic.findUnique({ where: { tsCode }, select: { name: true } }),
-    getDatabase().etfDaily.findMany({
+    getMarketDatabase().etfBasic.findUnique({ where: { tsCode }, select: { name: true } }),
+    getMarketDatabase().etfDaily.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, open: true, high: true, low: true, close: true, vol: true },
       orderBy: { tradeDate: 'asc' },
     }),
-    getDatabase().etfAdjFactor.findMany({
+    getMarketDatabase().etfAdjFactor.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, adjFactor: true },
     }),
@@ -82,20 +82,20 @@ async function etfSeries(tsCode: string, tradeDate: TradeDateRange): Promise<Sto
  */
 async function stockSeries(tsCode: string, tradeDate: TradeDateRange): Promise<StockSeries> {
   const [prices, valuations, factors, basic] = await Promise.all([
-    getDatabase().daily.findMany({
+    getMarketDatabase().daily.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, open: true, high: true, low: true, close: true, vol: true },
       orderBy: { tradeDate: 'asc' },
     }),
-    getDatabase().dailyBasic.findMany({
+    getMarketDatabase().dailyBasic.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, pe: true },
     }),
-    getDatabase().adjFactor.findMany({
+    getMarketDatabase().adjFactor.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, adjFactor: true },
     }),
-    getDatabase().stockBasic.findUnique({ where: { tsCode }, select: { name: true } }),
+    getMarketDatabase().stockBasic.findUnique({ where: { tsCode }, select: { name: true } }),
   ]);
   const peByDate = new Map(valuations.map((row) => [row.tradeDate, row.pe]));
   const factorByDate = new Map(factors.map((row) => [row.tradeDate, row.adjFactor]));
@@ -122,13 +122,13 @@ async function stockSeries(tsCode: string, tradeDate: TradeDateRange): Promise<S
  */
 async function indexSeries(tsCode: string, tradeDate: TradeDateRange): Promise<StockSeries> {
   const [basic, prices, valuations] = await Promise.all([
-    getDatabase().indexBenchmark.findUnique({ where: { tsCode }, select: { name: true } }),
-    getDatabase().indexDaily.findMany({
+    getMarketDatabase().indexBenchmark.findUnique({ where: { tsCode }, select: { name: true } }),
+    getMarketDatabase().indexDaily.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, close: true },
       orderBy: { tradeDate: 'asc' },
     }),
-    getDatabase().indexDailyBasic.findMany({
+    getMarketDatabase().indexDailyBasic.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, pe: true },
     }),

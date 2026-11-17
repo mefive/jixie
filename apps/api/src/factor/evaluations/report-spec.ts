@@ -1,5 +1,5 @@
 import { FactorError } from '../errors.js';
-import type { FactorReport as FactorReportRow } from '@prisma/client';
+import type { FactorReport as FactorReportRow } from '@jixie/app-db-client';
 import type { FactorResearchSpecV1 } from '@jixie/shared';
 import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 

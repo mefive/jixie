@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { AgentCodeChangeProposal, Prisma } from '@prisma/client';
+import type { AgentCodeChangeProposal, Prisma } from '@jixie/app-db-client';
 import { normalizeChatMessage, type CodeChangeProposalV1, type MessagePart } from '@jixie/shared';
 import { AgentError } from '../errors.js';
 

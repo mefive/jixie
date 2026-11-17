@@ -1,4 +1,5 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+
 import { STOCK_CODE_CHANGES } from './stock-identity.js';
 
 /**
@@ -7,9 +8,9 @@ import { STOCK_CODE_CHANGES } from './stock-identity.js';
  * Seed confirmed code successions idempotently.
  */
 export async function seedStockCodeChanges(): Promise<number> {
-  await getDatabase().$transaction(
+  await getMarketDatabase().$transaction(
     STOCK_CODE_CHANGES.map((change) =>
-      getDatabase().stockCodeChange.upsert({
+      getMarketDatabase().stockCodeChange.upsert({
         where: { oldTsCode: change.oldTsCode },
         create: change,
         update: {

@@ -4,7 +4,7 @@ import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { factorQaProfile } from '#agent/profiles/qa.js';
 import { createPersistentTurnInput } from '#agent/turns/records.js';
 import { enqueueAgentTurn } from '#agent/turns/run.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { getDeepSeekAgentModel } from '#infra/llm/config.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
@@ -15,7 +15,7 @@ import type {
   FactorQuestionTurnV1,
   Locale,
 } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import { FactorError } from '../errors.js';
 import type { FactorQuestionInput } from '../schema.js';
@@ -67,7 +67,7 @@ export async function readFactorQuestions(
   query: FactorQuestionHistoryQuery,
   locale: Locale,
 ): Promise<FactorQuestionHistoryV1> {
-  return getDatabase().$transaction(async (database) => {
+  return getApplicationDatabase().$transaction(async (database) => {
     const conversation = await database.agentConversation.findUnique({
       where: { userId_questionFactorKey: { userId, questionFactorKey: factorKey } },
       select: { id: true, turns: { where: { status: 'running' }, select: { id: true }, take: 1 } },
@@ -109,7 +109,7 @@ export async function startFactorQuestion(
   const ownership = await acquireWorkOwner('agent', turnId);
   try {
     const model = getDeepSeekAgentModel();
-    const prepared = await getDatabase().$transaction(async (database) => {
+    const prepared = await getApplicationDatabase().$transaction(async (database) => {
       const context = await captureFactorQuestionContext(
         database,
         userId,

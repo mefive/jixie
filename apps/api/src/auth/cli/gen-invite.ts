@@ -7,7 +7,12 @@
 //
 // Output: one invite code per line, easy to copy and forward. No Resend, no email sent — just INSERTs into the DB.
 
-import { prisma, withDatabase, closeDatabase, getDatabase } from '#infra/database/prisma.js';
+import {
+  prisma,
+  withDatabase,
+  closeDatabase,
+  getApplicationDatabase,
+} from '#infra/database/prisma.js';
 import { generateInviteCode } from '../invite-code.js';
 
 /**
@@ -29,7 +34,7 @@ async function main(): Promise<void> {
     codes.push(generateInviteCode());
   }
 
-  await getDatabase().inviteCode.createMany({
+  await getApplicationDatabase().inviteCode.createMany({
     data: codes.map((code) => ({ code, note })),
   });
 

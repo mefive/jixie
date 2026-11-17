@@ -1,4 +1,5 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+
 import { calendarDay } from '../synchronization/date.js';
 
 /**
@@ -8,7 +9,10 @@ import { calendarDay } from '../synchronization/date.js';
  */
 export async function nextVerifiedSession(
   date: string,
-  database: Pick<import('@prisma/client').Prisma.TransactionClient, 'tradeCal'> = getDatabase(),
+  database: Pick<
+    import('@jixie/market-db-client').Prisma.TransactionClient,
+    'tradeCal'
+  > = getMarketDatabase(),
 ): Promise<string | null> {
   const next = await database.tradeCal.findFirst({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gt: date } },

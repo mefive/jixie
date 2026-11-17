@@ -1,3 +1,5 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { handleApiError } from '#infra/http/errors.js';
 
 import { Hono } from 'hono';
@@ -29,6 +31,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#agent/turns/run.js', async (importOriginal) => ({
@@ -171,10 +174,10 @@ describe('Factor HTTP business boundaries', () => {
     expect((await request('/factors/draft', undefined, 'other', 'GET')).status).toBe(404);
     expect((await request('/factors/draft/copy', undefined, 'other')).status).toBe(404);
     await expect(
-      captureFactorQuestionContext(prisma, 'other', 'draft', undefined, 'en'),
+      captureFactorQuestionContext(getApplicationDatabase(), 'other', 'draft', undefined, 'en'),
     ).rejects.toMatchObject({ reason: 'factor_not_found' });
     await expect(
-      captureEmbeddedContext(prisma, 'other', { type: 'factor', id: 'draft' }),
+      captureEmbeddedContext(getApplicationDatabase(), 'other', { type: 'factor', id: 'draft' }),
     ).rejects.toMatchObject({ reason: 'embedded_not_found' });
     const source = await prisma.factor.findUniqueOrThrow({ where: { id: 'draft' } });
     const copied = await request('/factors/draft/copy');
@@ -542,3 +545,8 @@ describe('Factor HTTP business boundaries', () => {
     expect((await request(path, undefined, 'owner', method)).status).toBe(404);
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

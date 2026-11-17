@@ -1,5 +1,5 @@
 import { sourceRequests } from '#market/synchronization/execution.js';
-import type { IngestionBatch, IngestionIssue, Prisma } from '@prisma/client';
+import type { IngestionBatch, IngestionIssue, Prisma } from '@jixie/market-db-client';
 import {
   DIVIDEND_DATE_FIELDS,
   dividendReceiptHasCompleteFields,
@@ -60,7 +60,9 @@ function coversRange(previous: IngestionBatch, receipt: Receipt, targetDate: str
 }
 
 /**
- * 只以晚于旧批次且有明确覆盖证据的收据归档。/ Archive only with later receipts proving coverage.
+ * 只以晚于旧批次且有明确覆盖证据的收据归档。
+ *
+ * Archive only with later receipts proving coverage.
  */
 export function issueCoverageReader(
   database: Prisma.TransactionClient,

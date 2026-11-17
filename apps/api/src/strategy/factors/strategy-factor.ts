@@ -66,8 +66,8 @@ export class StrategyFactor {
 
     // 纯源码操作不加载数据库模块；查询在当前执行作用域解析连接。
     // Source-only operations do not load storage; queries resolve the current execution client.
-    const { getDatabase } = await import('#infra/database/prisma.js');
-    const factorRows = await getDatabase().factor.findMany({
+    const { getApplicationDatabase } = await import('#infra/database/prisma.js');
+    const factorRows = await getApplicationDatabase().factor.findMany({
       where: {
         key: { in: keys },
         userId: { in: [userId, BUILTIN_USER_ID] },
@@ -89,7 +89,7 @@ export class StrategyFactor {
     const approvedReportIds = factorRows.flatMap((row) =>
       row.approvedReportId ? [row.approvedReportId] : [],
     );
-    const approvedReports = await getDatabase().factorReport.findMany({
+    const approvedReports = await getApplicationDatabase().factorReport.findMany({
       where: { id: { in: approvedReportIds } },
       select: { id: true, specJson: true },
     });

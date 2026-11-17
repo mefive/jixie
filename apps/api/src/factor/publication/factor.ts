@@ -2,7 +2,7 @@ import { isFactorV2FieldKey } from '../definitions/fields.js';
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { isRetiredFactorReport } from '#factor/evaluations/report-spec.js';
 import { FactorSandbox } from '../sandbox/factor-sandbox.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
 import { factorLanguage, normalizeAnalysisKind } from '../definitions/views.js';
 import { FactorError } from '../errors.js';
@@ -18,7 +18,7 @@ export async function publishFactor(
   factorId: string,
   approvedReportId: string,
 ): Promise<PublishedFactor> {
-  const factor = await getDatabase().factor.findFirst({
+  const factor = await getApplicationDatabase().factor.findFirst({
     where: { id: factorId, userId },
     select: {
       id: true,
@@ -38,7 +38,7 @@ export async function publishFactor(
     throw new FactorError('publication_not_draft');
   }
 
-  const report = await getDatabase().factorReport.findFirst({
+  const report = await getApplicationDatabase().factorReport.findFirst({
     where: {
       id: approvedReportId,
       userId,
@@ -85,7 +85,7 @@ export async function publishFactor(
   }
 
   const publishedAt = new Date();
-  const updated = await getDatabase().$transaction(async (transaction) => {
+  const updated = await getApplicationDatabase().$transaction(async (transaction) => {
     const retainedReport = await transaction.factorReport.findFirst({
       where: {
         id: report.id,
@@ -160,14 +160,16 @@ async function assetFactorCodeIsInvalid(
 
 export async function archiveFactor(userId: string, factorId: string): Promise<PublishedFactor> {
   const archivedAt = new Date();
-  const updated = await getDatabase().factor.updateMany({
+  const updated = await getApplicationDatabase().factor.updateMany({
     where: { id: factorId, userId, status: 'published' },
     data: { status: 'archived', archivedAt },
   });
   if (updated.count === 0) {
     throw new FactorError('factor_not_found');
   }
-  const factor = await getDatabase().factor.findUniqueOrThrow({ where: { id: factorId } });
+  const factor = await getApplicationDatabase().factor.findUniqueOrThrow({
+    where: { id: factorId },
+  });
   return publishedFactorResource(factor);
 }
 

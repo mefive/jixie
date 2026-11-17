@@ -1,11 +1,13 @@
+import { boundMarketVersionId } from '#infra/database/market-database.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import type { StrategyScanJobPayload } from './job-payload.js';
 import { inspectStrategyParameters } from './inspect-parameters.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { UserCodeError } from '#infra/errors.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type { BacktestConfig, Locale, StrategyParamValue, StrategyScanSpec } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import { StrategyError } from '../errors.js';
 import { strategyResultSettings, strategyInputSignature } from '../definitions/config.js';
@@ -72,13 +74,13 @@ export async function submitStrategyScan(
   const reportId = ulid();
   const jobId = ulid();
   const dataCutoff = (
-    await getDatabase().daily.findFirst({
+    await getMarketDatabase().daily.findFirst({
       where: { tradeDate: { lte: config.end } },
       orderBy: { tradeDate: 'desc' },
       select: { tradeDate: true },
     })
   )?.tradeDate;
-  const created = await getDatabase().$transaction(async (transaction) => {
+  const created = await getApplicationDatabase().$transaction(async (transaction) => {
     const strategy = await transaction.strategy.findFirst({
       where: { id: strategyId, userId },
       select: { id: true, name: true },
@@ -106,6 +108,7 @@ export async function submitStrategyScan(
 
     await transaction.strategyScanReport.create({
       data: {
+        marketVersionId: boundMarketVersionId(),
         id: reportId,
         userId,
         strategyId,
@@ -118,6 +121,7 @@ export async function submitStrategyScan(
         dataCutoff,
         job: {
           create: {
+            marketVersionId: boundMarketVersionId(),
             id: jobId,
             userId,
             kind: 'strategy-scan',
@@ -171,11 +175,11 @@ async function resolveRanges(config: BacktestConfig, spec: StrategyScanSpec) {
   }
 
   const [splitDay, nextDay] = await Promise.all([
-    getDatabase().tradeCal.findFirst({
+    getMarketDatabase().tradeCal.findFirst({
       where: { calDate: spec.splitDate, isOpen: 1 },
       select: { calDate: true },
     }),
-    getDatabase().tradeCal.findFirst({
+    getMarketDatabase().tradeCal.findFirst({
       where: { calDate: { gt: spec.splitDate, lte: config.end }, isOpen: 1 },
       orderBy: { calDate: 'asc' },
       select: { calDate: true },

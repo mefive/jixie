@@ -1,3 +1,4 @@
+import { boundMarketVersionId } from '#infra/database/market-database.js';
 import { marketRevision } from '#market/synchronization/readiness.js';
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
@@ -13,6 +14,7 @@ const MAX_LIVE_RESEARCH_SESSIONS = 4;
 interface ResearchSandboxEntry {
   sandbox: ResearchSandbox;
   dataRevision: number;
+  marketVersionId?: string;
   queue: Promise<void>;
   touchedAt: number;
   pendingOperations: number;
@@ -136,7 +138,10 @@ export class ResearchSandboxPool {
   ): Promise<ResearchSandboxEntry> {
     const dataRevision = await marketRevision();
     const existing = this.entries.get(documentId);
-    if (existing?.dataRevision === dataRevision) {
+    if (
+      existing?.dataRevision === dataRevision &&
+      existing.marketVersionId === boundMarketVersionId()
+    ) {
       return existing;
     }
     if (existing) {
@@ -162,6 +167,7 @@ export class ResearchSandboxPool {
     const entry: ResearchSandboxEntry = {
       sandbox,
       dataRevision,
+      marketVersionId: boundMarketVersionId(),
       queue: Promise.resolve(),
       touchedAt: Date.now(),
       pendingOperations: 0,

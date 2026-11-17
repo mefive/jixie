@@ -1,6 +1,7 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { sourceCaptureStartedAt } from '#market/synchronization/execution.js';
-import type { IngestionBatch } from '@prisma/client';
-import { getDatabase } from '#infra/database/prisma.js';
+import type { IngestionBatch } from '@jixie/market-db-client';
+
 import {
   FINANCIAL_REPORT_TYPES,
   FINANCIAL_STATEMENT_APIS,
@@ -105,7 +106,7 @@ export async function planStatementUnits(
     return [];
   }
 
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const batches = await database.ingestionBatch.findMany({
     where: {
       dataset: 'financial-statements',

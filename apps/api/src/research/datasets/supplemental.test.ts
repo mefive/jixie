@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -20,6 +21,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 
@@ -245,3 +247,8 @@ it('retains different payment dates, excludes pure stock distributions and emits
   expect(result).toHaveLength(2);
   expect(result.map((row) => row.cash_dividend_pre_tax)).toEqual([0.15, 0.15]);
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 
 /**
  * 关联因子报告与 Job 状态，供运行状态读取。

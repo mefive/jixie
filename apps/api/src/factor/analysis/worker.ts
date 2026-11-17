@@ -1,3 +1,4 @@
+import { withWorkerMarket } from '#infra/database/market-database.js';
 import { factorAnalysisWorkerInputSchema } from './worker-input.js';
 import type { FactorAnalysisWorkerMessage } from './worker-protocol.js';
 import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
@@ -5,7 +6,11 @@ import type { LogLevel, LogLine } from '@jixie/shared';
 import { parentPort, workerData } from 'node:worker_threads';
 import { runFactorEvaluation } from './evaluate.js';
 
-/** 正式因子评估的计算传输。 / Computation transport for formal factor evaluations. */
+/**
+ * 正式因子评估的计算传输。
+ *
+ * Computation transport for formal factor evaluations.
+ */
 const port = parentPort;
 if (!port) {
   throw new Error('factor-worker must be spawned as a worker thread');
@@ -19,16 +24,18 @@ const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', leve
 
 await withDatabase(prisma, async () => {
   try {
-    const { reportId, factor, source, spec, locale } =
-      factorAnalysisWorkerInputSchema.parse(workerData);
-    await runFactorEvaluation({
-      factor,
-      source,
-      spec,
-      locale,
-      onSystemLog,
-      onUserLog,
-      onResult: (result) => send({ type: 'done', reportId, payload: JSON.stringify(result) }),
+    await withWorkerMarket(workerData?.marketVersionId, async () => {
+      const { reportId, factor, source, spec, locale } =
+        factorAnalysisWorkerInputSchema.parse(workerData);
+      await runFactorEvaluation({
+        factor,
+        source,
+        spec,
+        locale,
+        onSystemLog,
+        onUserLog,
+        onResult: (result) => send({ type: 'done', reportId, payload: JSON.stringify(result) }),
+      });
     });
   } catch (e) {
     send({ type: 'error', message: e instanceof Error ? e.message : String(e) });

@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { researchSandboxPool } from './research-sandbox-pool.js';
 import {
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
@@ -32,6 +33,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 
@@ -615,3 +617,8 @@ async function waitForActiveExecution(
   }
   throw new Error('Research execution did not start');
 }
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

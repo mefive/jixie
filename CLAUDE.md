@@ -46,6 +46,13 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 
 ## 数据 / 存储宗旨(本项目核心原则)
 
+版本化布局的应用 schema 为 `apps/api/prisma/app/schema.prisma`，市场 schema 为
+`apps/api/prisma/market/schema.prisma`，迁移历史独立。应用数据用 `getApplicationDatabase()`，
+市场读者用已固定版本的 `getMarketDatabase()`；采集与修复绑定候选。原顶层 Prisma schema
+用于混合格式兼容。跨版本发布用短事务切换应用库指针，市场业务数据不在发布时重写。
+混合库升级使用离线转换，旧版 reset／首次重建协议不适用于分库切换。详见
+[市场数据库分离与版本发布](docs/design/market-database-publication.md)。
+
 - **ORM 优先:能用 Prisma 就用 Prisma。** 行情、因子、回测结果……默认都建 Prisma model,享受迁移、类型安全、Prisma Studio 可视化。
 - **只有实测性能扛不住,才下沉到 `$queryRaw` / 原生 SQL**,且只针对那一条热路径,不整体抛弃 ORM。判断依据是"真的测出来慢",不是"我觉得会慢"——避免过早优化。
 - 批量写入用 Prisma `createMany`，按业务键差异更新保证幂等；只有明确的完整快照可替换自身精确范围，来源无记录不授权删除已有价格。SQLite 不支持 createMany 的 skipDuplicates。

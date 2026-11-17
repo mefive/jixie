@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { readDownloadCodes } from '../downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '../registry/index-presets.js';
 
@@ -28,14 +28,14 @@ export async function validateIndexDate(
   );
   const membershipCodes = requiredCodes.filter((code) => code !== 'H00300.CSI');
   const [indexCodes, indexBasicCodes, indexSnapshots] = await Promise.all([
-    getDatabase().indexDaily.findMany({
+    getMarketDatabase().indexDaily.findMany({
       where: {
         tradeDate,
         tsCode: { in: requiredCodes },
       },
       select: { tsCode: true },
     }),
-    getDatabase().indexDailyBasic.findMany({
+    getMarketDatabase().indexDailyBasic.findMany({
       where: { tradeDate, tsCode: { in: valuationCodes } },
       select: { tsCode: true },
     }),
@@ -95,7 +95,7 @@ function readIndexWeightSnapshots(
 ): Promise<({ tradeDate: string } | null)[]> {
   return Promise.all(
     membershipCodes.map((indexCode) =>
-      getDatabase().indexWeight.findFirst({
+      getMarketDatabase().indexWeight.findFirst({
         where: { indexCode, tradeDate: { lte: tradeDate } },
         orderBy: { tradeDate: 'desc' },
         select: { tradeDate: true },

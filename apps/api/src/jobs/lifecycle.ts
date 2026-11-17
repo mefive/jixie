@@ -1,4 +1,4 @@
-import type { Job, Prisma } from '@prisma/client';
+import type { Job, Prisma } from '@jixie/app-db-client';
 import type { LogWriter } from './job-logs.js';
 
 /**

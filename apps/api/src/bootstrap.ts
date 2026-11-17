@@ -1,4 +1,9 @@
-import { prisma, withDatabase, type Prisma } from '#infra/database/prisma.js';
+import {
+  getApplicationDatabase,
+  prisma,
+  withDatabase,
+  type Prisma,
+} from '#infra/database/prisma.js';
 import { serve } from '@hono/node-server';
 import { buildApp } from './server.js';
 import { registerJobLifecycles } from '#jobs/register.js';
@@ -34,8 +39,8 @@ export async function startServer(port: number, database: Prisma = prisma) {
     // 先准备缺失内置版本和报告保留规则，再接收请求或启动排队任务。
     // Prepare missing builtin versions and report retention before serving or dispatching queued work.
     await seedBuiltinFactors();
-    await database.$transaction((transaction) => pruneFactorReports(transaction));
-    await database.$transaction((transaction) => pruneStrategyResults(transaction));
+    await getApplicationDatabase().$transaction((transaction) => pruneFactorReports(transaction));
+    await getApplicationDatabase().$transaction((transaction) => pruneStrategyResults(transaction));
     JobScheduler.initialize(JobService.execute);
     JobScheduler.wake();
     serve({ fetch: app.fetch, port });

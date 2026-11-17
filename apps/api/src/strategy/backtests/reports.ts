@@ -1,5 +1,5 @@
 import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type {
   BacktestSettings,
@@ -7,7 +7,7 @@ import type {
   BacktestReportSummary,
   BacktestSummary,
 } from '@jixie/shared';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@jixie/app-db-client';
 import { StrategyError } from '../errors.js';
 import { strategyResultSettings, strategyInputSignature } from '../definitions/config.js';
 import type {
@@ -19,7 +19,7 @@ export async function findActiveStrategyBacktestJob(
   userId: string,
   query: StrategyBacktestIdentityQuery,
 ) {
-  const job = await getDatabase().job.findFirst({
+  const job = await getApplicationDatabase().job.findFirst({
     where: {
       userId,
       kind: 'backtest',
@@ -43,7 +43,7 @@ export async function listStrategyBacktestReports(
   userId: string,
   query: StrategyBacktestIdentityQuery,
 ) {
-  const reports = await getDatabase().backtestReport.findMany({
+  const reports = await getApplicationDatabase().backtestReport.findMany({
     where: {
       userId: userId,
       strategyId: query.strategyId,
@@ -72,7 +72,7 @@ export async function listStrategyBacktestReports(
  * Authorize access and read a report's results and actual run settings.
  */
 export async function readStrategyBacktestReport(userId: string, reportId: string) {
-  const report = await getDatabase().backtestReport.findFirst({
+  const report = await getApplicationDatabase().backtestReport.findFirst({
     where: {
       id: reportId,
       userId: userId,
@@ -117,7 +117,7 @@ export async function readStrategyBacktestJob(
   jobId: string,
   query: StrategyBacktestJobQuery,
 ) {
-  const ownedJob = await getDatabase().job.findFirst({
+  const ownedJob = await getApplicationDatabase().job.findFirst({
     where: { id: jobId, userId, kind: 'backtest' },
     select: { id: true },
   });

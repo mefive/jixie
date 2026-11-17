@@ -18,21 +18,26 @@ import { isObservationDate } from '#market/synchronization/date.js';
  * pnpm data runs inspect RUN_ID
  * pnpm data runs accept RUN_ID [--expect-candidate HASH]
  * accept 默认在发布锁定流程内读取当前候选版本；可显式指定已核验版本。
+ *
  * Accept reads the current candidate under writer ownership by default, or checks an explicit version.
  * pnpm data runs reject RUN_ID --reason REASON
  * pnpm data runs recover RUN_ID --confirm-stopped
  * pnpm data runs retry RUN_ID
  * retry 在同一副本重试未成功批次，保留已成功批次和原始诊断。
+ *
  * Retry unsuccessful batches in the same candidate, retaining successes and original diagnostics.
  * inspect 返回运行详情和逐次批次耗时；accept 发布人工核验过的副本。recover 前确认旧进程已退出。
+ *
  * Inspect returns run details and per-attempt timings; accept publishes the reviewed version.
  * Verify the previous process stopped before recover.
  * pnpm data issues RUN_ID
  * RUN_ID：runs 返回的运行 ID；issues 原命令输出该轮全部历史诊断。
+ *
  * RUN_ID: a run ID from runs; the original issues command lists all historical diagnostics.
  *
  * pnpm data issues reconcile [RUN_ID]
  * 幂等补齐已结束运行的处理记录；省略 RUN_ID 时检查所有已结束且有问题的运行，不重置已有结果。
+ *
  * Idempotently reconcile finished-run handling; omit RUN_ID for all finished runs with issues, preserving existing results.
  *
  * pnpm data issues export RUN_ID --out FILE [--issue ISSUE_ID]
@@ -45,8 +50,10 @@ import { isObservationDate } from '#market/synchronization/date.js';
  *
  * pnpm data issues repair --plan FILE [--apply --expect-plan PLAN_HASH]
  * FILE：issues export 提供 repairContract 和各问题模板，计划为 {runId, actions}。
+ *
  * FILE: a {runId, actions} JSON plan built from the export's repairContract and issue templates.
  * 默认只读预览。--apply 与 --expect-plan 同时使用，提交已确认的预览。
+ *
  * Preview is read-only. Use --apply and --expect-plan together to apply a reviewed preview.
  *
  * pnpm data reset [--database /absolute/path.db] [--apply]
@@ -55,6 +62,7 @@ import { isObservationDate } from '#market/synchronization/date.js';
  * pnpm data etf list | select-top [--limit 100] | add CODE | remove CODE
  * pnpm data index list | add CODE | remove CODE
  * CODE：来源证券代码；--limit：ETF Top N，1 至 5000，默认 100。
+ *
  * CODE: provider security code; --limit: ETF Top N, 1 through 5000, default 100.
  * --help：显示帮助，不加载数据库或数据源。
  * --help: show usage without loading the database or providers.
@@ -64,7 +72,16 @@ export type DataRequest =
   | { action: 'ingest'; targetDate?: string }
   | { action: 'reset'; apply: boolean; database?: string }
   | { action: 'runs'; limit: number }
-  | { action: 'inspect-run' | 'recover-run' | 'retry-run'; runId: string }
+  | {
+      action:
+        | 'inspect-run'
+        | 'recover-run'
+        | 'retry-run'
+        | 'rollback-run'
+        | 'retain-run'
+        | 'release-run';
+      runId: string;
+    }
   | { action: 'accept-run'; runId: string; expectedVersion?: string }
   | { action: 'reject-run'; runId: string; reason: string }
   | { action: 'issues'; runId: string }
@@ -86,6 +103,7 @@ const usage = [
   '       pnpm data runs reject RUN_ID --reason REASON',
   '       pnpm data runs recover RUN_ID --confirm-stopped',
   '       pnpm data runs retry RUN_ID',
+  '       pnpm data runs rollback PREVIOUS_RUN_ID | retain RUN_ID | release RUN_ID',
   'Retry: retry unsuccessful candidate batches while retaining successful receipts.',
   '       pnpm data issues RUN_ID',
   '       pnpm data issues reconcile [RUN_ID]',
@@ -124,6 +142,15 @@ export function parseDataArguments(args: string[]): DataRequest {
   if (args[0] === 'runs') {
     const [, command, runId, option, value] = args;
     if (runId && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(runId)) {
+      if (command === 'rollback' && args.length === 3) {
+        return { action: 'rollback-run', runId };
+      }
+      if (command === 'retain' && args.length === 3) {
+        return { action: 'retain-run', runId };
+      }
+      if (command === 'release' && args.length === 3) {
+        return { action: 'release-run', runId };
+      }
       if (command === 'inspect' && args.length === 3) {
         return { action: 'inspect-run', runId };
       }

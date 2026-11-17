@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { proveStockCatalog } from '../../../tests/market-contract-fixtures.js';
 import type { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
@@ -15,7 +16,7 @@ describe('Research equity datasets', () => {
           minimum_listed_days: 0,
           risk_warning: 'exclude',
         },
-        database,
+        getMarketDatabase(),
       );
 
       expect(result.rows).toEqual([
@@ -59,7 +60,7 @@ describe('Research equity datasets', () => {
           minimum_listed_days: 0,
           risk_warning: 'include',
         },
-        database,
+        getMarketDatabase(),
       );
 
       expect(result.rows.map((row) => `${row.date}:${row.code}`)).toEqual([
@@ -94,7 +95,7 @@ describe('Research equity datasets', () => {
             minimum_listed_days: 0,
             risk_warning: 'include',
           },
-          database,
+          getMarketDatabase(),
           { maxPanelRows: 3 },
         ),
       ).rejects.toThrow('exceeds the 3-row limit');

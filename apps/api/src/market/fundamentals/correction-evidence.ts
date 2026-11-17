@@ -1,5 +1,7 @@
+import type { MarketDatabase as Prisma } from '#infra/database/market-database.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { ulid } from 'ulid';
-import { getDatabase, type Prisma } from '#infra/database/prisma.js';
+
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import type { FinancialCorrectionEvidence } from './source-contract.js';
 
@@ -19,7 +21,7 @@ type CorrectionEvidenceDatabase = Pick<
 export async function storeFinancialCorrectionEvidence(
   evidence: readonly FinancialCorrectionEvidence[],
   observedAt = new Date(),
-  database: CorrectionEvidenceDatabase = getDatabase(),
+  database: CorrectionEvidenceDatabase = getMarketDatabase(),
 ): Promise<number> {
   if (!Number.isFinite(observedAt.getTime())) {
     throw new Error('Financial correction evidence has invalid observedAt');

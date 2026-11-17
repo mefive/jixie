@@ -1,5 +1,5 @@
 import { strategyScanReportState, strategyScanReportStatusWhere } from '#strategy/scans/state.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type {
   BacktestSettings,
@@ -8,13 +8,13 @@ import type {
   StrategyScanReportSummary,
   StrategyScanSpec,
 } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { StrategyError } from '../errors.js';
 import { strategyResultSettings, strategyInputSignature } from '../definitions/config.js';
 import type { StrategyScanIdentityQuery, StrategyScanJobQuery } from '@jixie/shared/api/strategy';
 
 export async function listStrategyScanReports(userId: string, query: StrategyScanIdentityQuery) {
-  const rows = await getDatabase()
+  const rows = await getApplicationDatabase()
     .strategyScanReport.findMany({
       include: { job: true },
       where: { userId: userId, strategyId: query.strategyId },
@@ -27,7 +27,7 @@ export async function listStrategyScanReports(userId: string, query: StrategySca
 }
 
 export async function findActiveStrategyScanJob(userId: string, query: StrategyScanIdentityQuery) {
-  const row = await getDatabase().strategyScanReport.findFirst({
+  const row = await getApplicationDatabase().strategyScanReport.findFirst({
     where: {
       userId: userId,
       strategyId: query.strategyId,
@@ -51,7 +51,7 @@ export async function readStrategyScanJob(
   jobId: string,
   query: StrategyScanJobQuery,
 ) {
-  const ownedJob = await getDatabase().job.findFirst({
+  const ownedJob = await getApplicationDatabase().job.findFirst({
     where: { id: jobId, userId, kind: 'strategy-scan' },
     select: { id: true },
   });
@@ -70,7 +70,7 @@ export async function readStrategyScanJob(
 }
 
 export async function readStrategyScanReport(userId: string, reportId: string) {
-  const row = await getDatabase()
+  const row = await getApplicationDatabase()
     .strategyScanReport.findFirst({
       where: { id: reportId, userId: userId },
       include: { job: true, strategy: { select: { config: true } } },

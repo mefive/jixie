@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const fixture = vi.hoisted(() => ({ revision: 7, start: vi.fn() }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -10,6 +11,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#infra/coordination/market-access.js', () => ({
@@ -45,3 +47,8 @@ describe('Research market revision invalidation', () => {
     expect(fixture.start).toHaveBeenCalledTimes(2);
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

@@ -1,5 +1,5 @@
 import { factorRuntimeVersion, type Locale } from '@jixie/shared';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { builtinCatalog, BUILTIN_USER_ID } from './builtin-factors.js';
 import { timeSeriesTemplateCatalog } from './templates/time-series.js';
 import { panelTemplateCatalog } from './templates/panel.js';
@@ -12,7 +12,7 @@ import { strategyKey, factorLanguage, normalizeAnalysisKind } from './views.js';
  */
 export async function listFactorCatalog(userId: string, locale: Locale) {
   // Preset factors (registry identity; code lives on their seeded rows) + this user's custom factors.
-  const custom = await getDatabase().factor.findMany({
+  const custom = await getApplicationDatabase().factor.findMany({
     where: { userId: userId },
     select: {
       id: true,
@@ -58,7 +58,7 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
         ? (['equity', 'fixed_income', 'commodity'] as const)
         : (['equity'] as const),
   }));
-  const storedPresets = await getDatabase().factor.findMany({
+  const storedPresets = await getApplicationDatabase().factor.findMany({
     where: {
       userId: BUILTIN_USER_ID,
       id: {

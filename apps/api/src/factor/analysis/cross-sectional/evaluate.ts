@@ -1,6 +1,7 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { minusDays } from '#date';
 import { t } from '#i18n/messages.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { UserLogSink } from '#infra/sandbox/console.js';
 import { StockNameLookup } from '#market/instruments/stock-identity.js';
 import * as st from '#math/stats.js';
@@ -102,7 +103,7 @@ export async function analyzeFactor(
   const indexMembership =
     evaluationScope.universe.kind === 'index'
       ? new PointInTimeIndexMembership(
-          await getDatabase().indexWeight.findMany({
+          await getMarketDatabase().indexWeight.findMany({
             where: {
               indexCode: evaluationScope.universe.indexCode,
               tradeDate: { lte: end },
@@ -148,7 +149,7 @@ export async function analyzeFactor(
   // IC-decay: for each rebalance date D, the trading day D+h (h ∈ horizons) via the open-day calendar,
   // and a snapshot at those forward days — so we can measure Rank IC at multiple forward horizons.
   const calendar = (
-    await getDatabase().tradeCal.findMany({
+    await getMarketDatabase().tradeCal.findMany({
       where: { exchange: 'SSE', isOpen: 1, calDate: { gte: start, lte: minusDays(end, -130) } },
       select: { calDate: true },
       orderBy: { calDate: 'asc' },
@@ -177,14 +178,14 @@ export async function analyzeFactor(
 
   // List date per stock, to enforce the configured minimum listing age. Missing metadata fails open.
   const firstBar = new Map(
-    (await getDatabase().stockBasic.findMany({ select: { tsCode: true, listDate: true } })).map(
-      (s) => [s.tsCode, s.listDate ?? '00000000'],
-    ),
+    (
+      await getMarketDatabase().stockBasic.findMany({ select: { tsCode: true, listDate: true } })
+    ).map((s) => [s.tsCode, s.listDate ?? '00000000']),
   );
   const stockNames =
     spec.version >= 3
       ? new StockNameLookup(
-          await getDatabase().stockNameHistory.findMany({
+          await getMarketDatabase().stockNameHistory.findMany({
             select: { tsCode: true, name: true, startDate: true, endDate: true },
             orderBy: [{ tsCode: 'asc' }, { startDate: 'asc' }],
           }),
@@ -537,8 +538,12 @@ export async function analyzeFactor(
   // Preset and custom factors both label from their Factor row (presets are seeded code rows).
   const label =
     source?.label ??
-    (await getDatabase().factor.findUnique({ where: { id: factorKey }, select: { name: true } }))
-      ?.name ??
+    (
+      await getApplicationDatabase().factor.findUnique({
+        where: { id: factorKey },
+        select: { name: true },
+      })
+    )?.name ??
     factorKey;
   const icMean = st.mean(icSeries);
   const icStd = st.std(icSeries);
@@ -611,7 +616,7 @@ export async function analyzeFactor(
       : undefined;
   const dataCutoff =
     (
-      await getDatabase().daily.findFirst({
+      await getMarketDatabase().daily.findFirst({
         where: { tradeDate: { lte: end } },
         orderBy: { tradeDate: 'desc' },
         select: { tradeDate: true },

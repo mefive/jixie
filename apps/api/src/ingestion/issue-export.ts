@@ -1,5 +1,6 @@
+import { readMarketSnapshot } from '#infra/database/market-database.js';
 import { z } from 'zod';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import { readRepairContext, repairIssueTemplates } from './repair-context.js';
 import { describeIssueRepairPlan } from './repair-schema.js';
 import { dividendReceiptHasCompleteFields } from '#market/fundamentals/dividend-identity.js';
@@ -24,7 +25,7 @@ import {
 export async function exportIngestionIssues(input: IssueExportInput): Promise<DiagnosticBundle> {
   const request = issueExportInputSchema.parse(input);
 
-  return getDatabase().$transaction(
+  return readMarketSnapshot(
     async (database) => {
       const readOnlyState = z
         .array(z.object({ query_only: z.coerce.number().int().min(0).max(1) }))

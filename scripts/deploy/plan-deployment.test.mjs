@@ -228,7 +228,16 @@ test('unknown paths fail safe to a full deployment', () => {
 });
 
 test('ingestion rebuild changes require the complete deployment path', () => {
-  for (const filename of ['apps/api/src/ingestion/reset.ts', 'scripts/bootstrap.sh']) {
+  for (const filename of [
+    'apps/api/src/ingestion/reset.ts',
+    'scripts/bootstrap.sh',
+    'apps/api/prisma/app/schema.prisma',
+    'apps/api/prisma/market/migrations/example/migration.sql',
+    'apps/api/scripts/initialize-market-storage.mjs',
+    'apps/api/scripts/convert-market-storage.mjs',
+    'apps/api/scripts/version-backup.mjs',
+    'apps/api/scripts/restore-market-backup.mjs',
+  ]) {
     const plan = classifyChangedPaths([filename], manifest);
     assert.equal(plan.fullDeploy, true);
     for (const component of manifest.allComponents) {

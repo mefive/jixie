@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { type FactorAnalysisSource } from './snapshot.js';
 
@@ -11,7 +11,7 @@ export async function resolveFactorSource(
   userId: string,
   factorId: string,
 ): Promise<FactorAnalysisSource | null> {
-  const custom = await getDatabase().factor.findFirst({
+  const custom = await getApplicationDatabase().factor.findFirst({
     where: { id: factorId, userId: { in: [userId, BUILTIN_USER_ID] } },
     select: {
       code: true,
@@ -44,7 +44,7 @@ export async function resolveTimeSeriesFactorSource(
   userId: string,
   factorId: string,
 ): Promise<FactorAnalysisSource | null> {
-  const custom = await getDatabase().factor.findFirst({
+  const custom = await getApplicationDatabase().factor.findFirst({
     where: { id: factorId, userId: { in: [userId, BUILTIN_USER_ID] }, analysisKind: 'time_series' },
     select: { code: true, name: true, language: true, runtimeVersion: true },
   });
@@ -68,7 +68,7 @@ export async function resolvePanelFactorSource(
   userId: string,
   factorId: string,
 ): Promise<Extract<FactorAnalysisSource, { kind: 'panel' }> | null> {
-  const custom = await getDatabase().factor.findFirst({
+  const custom = await getApplicationDatabase().factor.findFirst({
     where: { id: factorId, userId: { in: [userId, BUILTIN_USER_ID] }, analysisKind: 'panel' },
     select: { code: true, name: true, language: true, runtimeVersion: true },
   });

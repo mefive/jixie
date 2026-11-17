@@ -1,3 +1,4 @@
+import { historicalOmit } from '../../../tests/historical-columns.js';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdtemp, readdir, mkdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -10,7 +11,10 @@ it('removes proof storage while preserving documents, editable source, images an
   const schema = join(directory, 'schema.prisma');
   const migrations = join(directory, 'migrations');
   const databaseUrl = `file:${directory}/upgrade.db`;
-  const database = new prismaPackage.PrismaClient({ datasourceUrl: databaseUrl });
+  const database = new prismaPackage.PrismaClient({
+    datasourceUrl: databaseUrl,
+    omit: historicalOmit,
+  });
   const migration = '20261026010000_remove_research_evidence';
   try {
     await writeFile(join(directory, 'upgrade.db'), '');

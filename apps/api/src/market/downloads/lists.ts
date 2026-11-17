@@ -1,6 +1,10 @@
+import { usesMarketVersions } from '#infra/database/prisma.js';
+import { withMarketAccess } from '#infra/coordination/market-access.js';
+import { configuredSelection, saveSelectionEdit } from './version-selection.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '../registry/index-presets.js';
 import { z } from 'zod';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
 import { etfDownloadRange } from '../etfs/download-range.js';
 
@@ -22,7 +26,7 @@ const codesSchema = z.array(z.string()).refine((codes) => new Set(codes).size ==
  * Persist codes without research roles, proxy classes or admission requirements.
  */
 export async function readDownloadCodes(assetType: DownloadAssetType): Promise<string[]> {
-  const row = await getDatabase().ingestionSelection.findUnique({ where: { assetType } });
+  const row = await getMarketDatabase().ingestionSelection.findUnique({ where: { assetType } });
 
   const codes = row ? codesSchema.parse(row.codes) : [];
   if (codes.some((code) => !validDownloadCode(assetType, code))) {
@@ -32,10 +36,13 @@ export async function readDownloadCodes(assetType: DownloadAssetType): Promise<s
   return codes;
 }
 
-/** 初始化与人工空名单分开；已存在的配置永不被默认值覆盖。
- * Initialize only absent settings; saved empty lists never acquire defaults implicitly. */
+/**
+ * 初始化与人工空名单分开；已存在的配置永不被默认值覆盖。
+ *
+ * Initialize only absent settings; saved empty lists never acquire defaults implicitly.
+ */
 export async function initializeIndexDownloads(publish = withMarketPublication): Promise<void> {
-  const database = getDatabase();
+  const database = getMarketDatabase();
   await publish(() =>
     database.$transaction(async (transaction) => {
       await transaction.ingestionSelection.upsert({
@@ -79,7 +86,25 @@ export async function changeDownloadList(
   }
 
   return withMaintenanceLock(async () => {
-    const database = getDatabase();
+    if (usesMarketVersions()) {
+      return withMarketAccess(async () => {
+        if (action === 'add' && assetType === 'etf') {
+          const row = await getMarketDatabase().etfBasic.findUnique({ where: { tsCode: code } });
+          if (row?.listStatus !== 'L') {
+            throw new Error('ETF is not listed in the published catalog');
+          }
+        }
+        const defaults =
+          assetType === 'index' ? DEFAULT_INDEX_DOWNLOADS.map((row) => row.tsCode) : [];
+        return saveSelectionEdit(
+          assetType,
+          action === 'add' ? [code] : [],
+          action === 'remove' ? [code] : [],
+          defaults,
+        );
+      });
+    }
+    const database = getMarketDatabase();
     if (assetType === 'index') {
       await initializeIndexDownloads();
     }
@@ -117,12 +142,16 @@ export async function changeDownloadList(
   });
 }
 
-/** 返回名单、规模日期和实际价格覆盖，不将元数据目录冒充已下载行情。
- * Return saved codes, size dates and actual prices, never treating metadata as price coverage. */
+/**
+ * 返回名单、规模日期和实际价格覆盖，不将元数据目录冒充已下载行情。
+ *
+ * Return saved codes, size dates and actual prices, never treating metadata as price coverage.
+ */
 export async function listDownloads(assetType: DownloadAssetType) {
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const setting = await database.ingestionSelection.findUnique({ where: { assetType } });
-  const codes = await readDownloadCodes(assetType);
+  const config = usesMarketVersions() ? await configuredSelection(assetType) : undefined;
+  const codes = config?.codes ?? (await readDownloadCodes(assetType));
   const etfMetadata =
     assetType === 'etf'
       ? await database.etfBasic.findMany({
@@ -177,8 +206,8 @@ export async function listDownloads(assetType: DownloadAssetType) {
 
   return {
     assetType,
-    initialized: Boolean(setting),
-    updatedAt: setting?.updatedAt ?? null,
+    initialized: config?.initialized ?? Boolean(setting),
+    updatedAt: config?.updatedAt ?? setting?.updatedAt ?? null,
     rows: codes.map((tsCode) => ({
       tsCode,
       name: metadata.find((row) => row.tsCode === tsCode)?.name ?? tsCode,

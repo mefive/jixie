@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { validateStockDate } from './daily-quality.js';
 const query = vi.hoisted(() => vi.fn());
@@ -9,6 +10,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 const row = {
@@ -43,3 +45,8 @@ describe('stock date quality', () => {
     await expect(validateStockDate('20260918')).rejects.toThrow('Superseded stock codes');
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

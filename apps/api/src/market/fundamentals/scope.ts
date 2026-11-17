@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { stockMarketRanges } from '../instruments/market-range.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 
@@ -8,7 +8,7 @@ import { canonicalStockCode } from '../instruments/stock-identity.js';
  * The listing cutoff selects securities without truncating their pre-listing reports.
  */
 export async function financialStockCodes(targetDate: string): Promise<Set<string>> {
-  const stocks = await getDatabase().stockBasic.findMany();
+  const stocks = await getMarketDatabase().stockBasic.findMany();
   const ranges = stockMarketRanges(stocks);
 
   return new Set(

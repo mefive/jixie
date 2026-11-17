@@ -1,3 +1,4 @@
+import { withWorkerMarket } from '#infra/database/market-database.js';
 import { backtestWorkerInputSchema } from './job-payload.js';
 import type { BacktestWorkerMessage } from './worker-protocol.js';
 import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
@@ -31,11 +32,13 @@ const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', leve
 let locale: Locale = 'zh';
 await withDatabase(prisma, async () => {
   try {
-    const input = backtestWorkerInputSchema.parse(workerData);
-    const { config, userId } = input;
-    locale = input.locale;
-    const result = await runBacktest(config, userId, locale, onSystemLog, onUserLog);
-    send({ type: 'done', payload: result });
+    await withWorkerMarket(workerData?.marketVersionId, async () => {
+      const input = backtestWorkerInputSchema.parse(workerData);
+      const { config, userId } = input;
+      locale = input.locale;
+      const result = await runBacktest(config, userId, locale, onSystemLog, onUserLog);
+      send({ type: 'done', payload: result });
+    });
   } catch (e) {
     console.error('[backtest-worker] run failed', e);
     send({ type: 'error', message: errorMessage(e, locale) });

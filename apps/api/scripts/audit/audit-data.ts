@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
 import { runDataQualityAudit, type DataQualityAuditOptions } from '#market/quality/audit.js';
@@ -21,7 +22,7 @@ interface CliOptions extends DataQualityAuditOptions {
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const startedAt = Date.now();
-  const report = await runDataQualityAudit(prisma, options);
+  const report = await runDataQualityAudit(getMarketDatabase(), options);
 
   if (options.json) {
     console.log(JSON.stringify(report, null, 2));

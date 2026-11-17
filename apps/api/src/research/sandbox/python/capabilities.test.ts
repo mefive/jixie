@@ -1,4 +1,5 @@
-import { withDatabase, type Prisma } from '#infra/database/prisma.js';
+import { withMarketFixture } from '../../../../tests/market-scope-fixture.js';
+import { type Prisma } from '#infra/database/prisma.js';
 import { researchSandboxPool } from '../research-sandbox-pool.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PythonSession } from '#infra/sandbox/python/python-session.js';
@@ -35,7 +36,7 @@ afterEach(() => {
 
 describe('Research runtime parameter capability negotiation', () => {
   it('keeps ordinary Cells compatible with a sandbox that has no parameter capability', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       sessionFixture();
       expect(
         (
@@ -48,7 +49,7 @@ describe('Research runtime parameter capability negotiation', () => {
   });
 
   it('rejects embedded execution before sending source if the sandbox would ignore its parameters', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = sessionFixture();
       await expect(
         researchSandboxPool.withSandbox(documentId, (sandbox) =>
@@ -66,7 +67,7 @@ describe('Research runtime parameter capability negotiation', () => {
   });
 
   it('sends explicit parameters without rewriting Python source and records the capability in the environment', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = sessionFixture(['explicit_parameters']);
       const source = 'from __future__ import annotations\nparameters["window"]';
       const parameters = { window: 12, enabled: true, absent: null };

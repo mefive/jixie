@@ -1,5 +1,5 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { z } from 'zod';
-import { getDatabase } from '#infra/database/prisma.js';
 import { resolveInstruments } from '#market/instruments/instrument-resolver.js';
 import type { AgentTool } from './types.js';
 
@@ -37,11 +37,11 @@ export const searchInstruments: AgentTool = {
     const codes = (await resolveInstruments(parsed.data.query)).slice(0, MAX_MATCHES);
     const [stocks, etfs, etfCoverage] = codes.length
       ? await Promise.all([
-          getDatabase().stockBasic.findMany({
+          getMarketDatabase().stockBasic.findMany({
             where: { tsCode: { in: codes } },
             select: { tsCode: true, name: true },
           }),
-          getDatabase().etfBasic.findMany({
+          getMarketDatabase().etfBasic.findMany({
             where: { tsCode: { in: codes } },
             select: {
               tsCode: true,
@@ -54,7 +54,7 @@ export const searchInstruments: AgentTool = {
               delistDate: true,
             },
           }),
-          getDatabase().etfDaily.groupBy({
+          getMarketDatabase().etfDaily.groupBy({
             by: ['tsCode'],
             where: { tsCode: { in: codes } },
             _count: { _all: true },

@@ -1,4 +1,5 @@
-import pkg from '@prisma/client';
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
+import pkg from '@jixie/market-db-client';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -17,6 +18,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 
@@ -103,3 +105,8 @@ describe('financial audit against migrated SQLite', () => {
     }
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

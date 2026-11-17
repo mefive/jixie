@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type {
   MessagePart,
   ResearchClarificationAnswerV1,
@@ -8,7 +8,10 @@ import type {
   ResearchClarificationStatusV1,
   ResearchClarificationV1,
 } from '@jixie/shared';
-import { Prisma, type ResearchClarification as ResearchClarificationRow } from '@prisma/client';
+import {
+  Prisma,
+  type ResearchClarification as ResearchClarificationRow,
+} from '@jixie/app-db-client';
 import { ResearchError } from '../errors.js';
 
 /**
@@ -90,7 +93,7 @@ export async function resolveResearchClarificationAnswer(
   clarificationId: string,
   selections: ResearchClarificationSelectionV1[],
 ): Promise<ResearchClarificationV1> {
-  return getDatabase().$transaction(async (transaction) => {
+  return getApplicationDatabase().$transaction(async (transaction) => {
     const clarification = await transaction.researchClarification.findFirst({
       where: { id: clarificationId, document: { userId, conversationId, embeddedVersion: null } },
     });

@@ -1,5 +1,7 @@
 # Ingestion 数据采集
 
+采用分库布局时，正式 ingest／retry／repair 写入候选市场库，accept 封存并切换应用库指针。下文涉及差量清单与其事务预算的记录描述旧混合库协议。见[市场数据库分离与版本发布](../../../../docs/design/market-database-publication.md)。
+
 `pnpm data ingest [--to YYYYMMDD]` 从各数据集约定起点推进到固定目标；省略日期时取启动时的上海自然日。下载和字段接纳归 Market，执行、事务、恢复与诊断归 Ingestion。
 
 | 阅读入口 | 职责 |

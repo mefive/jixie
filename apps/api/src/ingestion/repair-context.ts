@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/market-db-client';
 import { z } from 'zod';
 import { loadMarketDiagnosticContext } from '#market/synchronization/diagnostic-context.js';
 import { marketRepairRecord } from '#market/synchronization/repair.js';
@@ -16,7 +16,11 @@ function sourceRows(payload: unknown) {
   });
 }
 
-/** 导出与修复共用 Issue 范围和可定位记录。 / Share issue scope and addressable records between export and repair. */
+/**
+ * 导出与修复共用 Issue 范围和可定位记录。
+ *
+ * Share issue scope and addressable records between export and repair.
+ */
 export async function readRepairContext(database: Prisma.TransactionClient, item: ActiveIssue) {
   const dataset = item.batch?.dataset ?? null;
   const issue = item.issue;
@@ -81,7 +85,11 @@ export async function readRepairContext(database: Prisma.TransactionClient, item
 
 type RepairContext = Awaited<ReturnType<typeof readRepairContext>>;
 
-/** 同一判断用于列出可写目标和拒绝越界修复。 / Use the same rule to advertise and enforce writable targets. */
+/**
+ * 同一判断用于列出可写目标和拒绝越界修复。
+ *
+ * Use the same rule to advertise and enforce writable targets.
+ */
 export function isIssueRepairTarget(
   item: ActiveIssue,
   context: RepairContext,
@@ -121,7 +129,11 @@ export function isIssueRepairTarget(
   );
 }
 
-/** 模板只预填可定位的目标，值和证据由维护者核实。 / Prefill addressable targets and leave values and evidence for review. */
+/**
+ * 模板只预填可定位的目标，值和证据由维护者核实。
+ *
+ * Prefill addressable targets and leave values and evidence for review.
+ */
 export function repairIssueTemplates(item: ActiveIssue, context: RepairContext, finished: boolean) {
   if (!finished) {
     return [];

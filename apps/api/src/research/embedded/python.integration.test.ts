@@ -1,3 +1,5 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { proveRange, seedSessions } from '../../../tests/market-contract-fixtures.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { quantile, std } from '#math/stats.js';
@@ -23,6 +25,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: vi.fn() } }));
@@ -73,7 +76,7 @@ async function execute(run: ResearchEmbeddedRunSummaryV1) {
       (await prisma.job.findUniqueOrThrow({ where: { id: run.jobId } })).payload,
     ),
   );
-  await prisma.$transaction(async (transaction) => {
+  await getApplicationDatabase().$transaction(async (transaction) => {
     await completeEmbeddedRun(transaction, output);
     await transaction.job.update({
       where: { id: run.jobId },
@@ -388,7 +391,7 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
       message: 'Check this sample',
       model: 'fixture',
     });
-    const source = await captureEmbeddedContext(prisma, 'owner', base.host);
+    const source = await captureEmbeddedContext(getApplicationDatabase(), 'owner', base.host);
     const tools = embeddedAnalysisTools({ userId: 'owner', source });
     const tool = tools.find((item) => item.name === 'runEmbeddedAnalysis')!;
     const result = await tool.run(
@@ -476,3 +479,8 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
     expect(messages[0].parts).toEqual([{ type: 'text', text: 'The sample failed.' }, part]);
   }, 30_000);
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

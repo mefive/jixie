@@ -1,5 +1,5 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type {
   ResearchCellChangeConflictV1,
   ResearchCellChangeOperationV1,
@@ -8,7 +8,7 @@ import type {
   ResearchCellChangeReviewResolutionResultV1,
   ResearchCellKindV1,
 } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import {
   reconcileResearchCellChanges,
@@ -116,7 +116,7 @@ export async function prepareResearchCellChangeProposal(
     );
   }
 
-  const document = await getDatabase().researchDocument.findFirst({
+  const document = await getApplicationDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: {
       id: true,
@@ -282,7 +282,7 @@ export async function applyResearchCellChangeProposal(
   userId: string,
   proposalId: string,
 ): Promise<ResearchCellChangeResolutionResultV1> {
-  const transactionResult = await getDatabase().$transaction(
+  const transactionResult = await getApplicationDatabase().$transaction(
     async (transaction): Promise<ApplyTransactionResult> => {
       const proposal = await transaction.researchCellChangeProposal.findFirst({
         where: { id: proposalId, document: { userId, embeddedVersion: null } },
@@ -394,7 +394,7 @@ export async function rejectResearchCellChangeProposal(
   userId: string,
   proposalId: string,
 ): Promise<ResearchCellChangeResolutionResultV1> {
-  const transactionResult = await getDatabase().$transaction(async (transaction) => {
+  const transactionResult = await getApplicationDatabase().$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
       where: { id: proposalId, document: { userId, embeddedVersion: null } },
     });
@@ -432,7 +432,7 @@ export async function acceptResearchCellChangeReview(
   proposalId: string,
   expectedContentRevision: number,
 ): Promise<ResearchCellChangeReviewResolutionResultV1> {
-  const documentId = await getDatabase().$transaction(async (transaction) => {
+  const documentId = await getApplicationDatabase().$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
       where: { id: proposalId, document: { userId, embeddedVersion: null } },
       include: { document: { select: { id: true, contentRevision: true } } },
@@ -493,7 +493,7 @@ export async function revertResearchCellChangeReview(
   proposalId: string,
   expectedContentRevision: number,
 ): Promise<ResearchCellChangeReviewResolutionResultV1> {
-  const transactionResult = await getDatabase().$transaction(async (transaction) => {
+  const transactionResult = await getApplicationDatabase().$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
       where: { id: proposalId, document: { userId, embeddedVersion: null } },
       include: {

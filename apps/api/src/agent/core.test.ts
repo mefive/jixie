@@ -1,4 +1,5 @@
-import { withDatabase, type Prisma } from '#infra/database/prisma.js';
+import { withMarketFixture } from '../../tests/market-scope-fixture.js';
+import { type Prisma } from '#infra/database/prisma.js';
 import { describe, expect, it, vi } from 'vitest';
 import { agentTurn, turnParts, type AgentProfile } from './core.js';
 import { strategyProfile } from './profiles/strategy.js';
@@ -36,7 +37,7 @@ function fakeTool(name: string, run: AgentTool['run']): AgentTool {
 
 describe('agentTurn(strategyProfile)', () => {
   it('extracts a full python fence without leaving the short py alias behind', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const code = 'from jixie import Strategy\nstrategy = Strategy(name="x")';
       const profile: AgentProfile = {
         system: 'Return Python code.',
@@ -56,7 +57,7 @@ describe('agentTurn(strategyProfile)', () => {
   });
 
   it('applies a fenced code change + returns the explanation without the fence', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([
         { text: `把清仓改成买入 100 股。\n\`\`\`ts\n${STRATEGY2}\n\`\`\`` },
       ]);
@@ -69,7 +70,7 @@ describe('agentTurn(strategyProfile)', () => {
   });
 
   it('keeps the current code for a pure answer (no fence)', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([{ text: '这个策略每天开盘清仓,属于示例。' }]);
       const result = await agentTurn(strategyProfile(), [], '这策略在做什么?', STRATEGY, llm);
       expect(result.changed).toBe(false);
@@ -79,7 +80,7 @@ describe('agentTurn(strategyProfile)', () => {
   });
 
   it('feeds compile errors back, then keeps working code if it never compiles', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([{ text: '改好了\n```ts\nexport default {{ broken\n```' }]);
       const result = await agentTurn(strategyProfile(), [], '改一下', STRATEGY, llm, {
         maxRepairs: 1,
@@ -93,7 +94,7 @@ describe('agentTurn(strategyProfile)', () => {
   });
 
   it('threads prior history into the model call', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([{ text: `好的。\n\`\`\`ts\n${STRATEGY2}\n\`\`\`` }]);
       await agentTurn(
         strategyProfile(),
@@ -112,7 +113,7 @@ describe('agentTurn(strategyProfile)', () => {
   });
 
   it('lets a profile bound model history without changing the caller history', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const history = [
         { role: 'user' as const, parts: [{ type: 'text' as const, text: 'older' }] },
         { role: 'assistant' as const, parts: [{ type: 'text' as const, text: 'recent' }] },
@@ -137,7 +138,7 @@ describe('agentTurn(strategyProfile)', () => {
   it.each(['typescript', 'python'] as const)(
     'offers only read-only tools for %s strategies',
     async (language) => {
-      return withDatabase(testDatabase, async () => {
+      return withMarketFixture(testDatabase, async () => {
         const llm = scriptedLlm([{ text: '好的。' }]);
         await agentTurn(strategyProfile(undefined, undefined, language), [], '你好', STRATEGY, llm);
         const offeredTools = llm.mock.calls[0][1];
@@ -151,7 +152,7 @@ describe('agentTurn(strategyProfile)', () => {
   );
 
   it('rejects a retired backtest tool call and continues the conversation', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([
         { toolCalls: [{ id: 'retired-call', name: 'runQuickBacktest', args: '{}' }] },
         { text: '请在策略工作台运行回测。' },
@@ -174,7 +175,7 @@ describe('agentTurn(strategyProfile)', () => {
   it.each(['sqlQuery', 'analyzeData', 'renderChart', 'renderComputedChart'])(
     'rejects a stale %s call without executing it or changing the artifact',
     async (name) => {
-      return withDatabase(testDatabase, async () => {
+      return withMarketFixture(testDatabase, async () => {
         const llm = scriptedLlm([
           { toolCalls: [{ id: 'retired-analysis', name, args: '{}' }] },
           { text: 'Continue this calculation in Research.' },
@@ -193,7 +194,7 @@ describe('agentTurn(strategyProfile)', () => {
 
 describe('agentTurn(factorProfile)', () => {
   it('applies a fenced code change + returns the explanation without the fence', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([{ text: `改成账面市值比。\n\`\`\`ts\n${FACTOR2}\n\`\`\`` }]);
       const result = await agentTurn(factorProfile(), [], '改成 BP', FACTOR, llm);
       expect(result.changed).toBe(true);
@@ -203,7 +204,7 @@ describe('agentTurn(factorProfile)', () => {
   });
 
   it('feeds compile errors back, then keeps working code if it never compiles', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([{ text: '改好了\n```ts\nexport default {{ broken\n```' }]);
       const result = await agentTurn(factorProfile(), [], '改一下', FACTOR, llm, { maxRepairs: 1 });
       expect(result.changed).toBe(false);
@@ -215,7 +216,7 @@ describe('agentTurn(factorProfile)', () => {
   });
 
   it('threads prior history into the model call', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([{ text: `好的。\n\`\`\`ts\n${FACTOR2}\n\`\`\`` }]);
       await agentTurn(
         factorProfile(),
@@ -232,7 +233,7 @@ describe('agentTurn(factorProfile)', () => {
   });
 
   it('offers factor analysis only when the factor route supplies research context', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([{ text: '好的。' }]);
       await agentTurn(
         factorProfile({
@@ -253,7 +254,7 @@ describe('agentTurn(factorProfile)', () => {
   });
 
   it('authors Factor Definition V2 for time-series factors without exposing the cross-sectional research tool', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([
         { text: `改成 60 日趋势。\n\`\`\`ts\n${TIME_SERIES_FACTOR2}\n\`\`\`` },
       ]);
@@ -283,7 +284,7 @@ describe('agentTurn(factorProfile)', () => {
   });
 
   it('authors and validates Python Factors with a Python conversation contract', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([
         { text: `已改为盈利收益率。\n\`\`\`python\n${PYTHON_FACTOR}\n\`\`\`` },
       ]);
@@ -311,7 +312,7 @@ describe('agentTurn(factorProfile)', () => {
 
 describe('agentTurn(factorQaProfile — no artifact)', () => {
   it('is a plain call: reply verbatim, code untouched, no code wrapper in the prompt', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([{ text: 'Rank IC 越高说明因子排序能力越强。\n```\n例子\n```' }]);
       const result = await agentTurn(
         factorQaProfile({
@@ -355,7 +356,7 @@ describe('agentTurn tool loop', () => {
   }
 
   it('executes a requested tool, feeds the observation back, then takes the final reply', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const tool = fakeTool('echo', async (args) => ({
         observation: JSON.stringify({ got: args }),
         rows: 1,
@@ -388,7 +389,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('feeds tool failures back as observations (bad args / unknown tool), turn survives', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const tool = fakeTool('strict', async () => {
         throw new Error('参数不合法:query 必填');
       });
@@ -412,7 +413,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('repairs plain-text tool protocol before publishing or returning a final reply', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const leaked = '< | DSML | tool_calls> < | DSML | invoke name="searchInstruments">510300';
       const replies = [leaked, '查询调用失败，暂时无法得出可靠结论。'];
       let call = 0;
@@ -436,7 +437,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('recovers fullwidth DSML requests as whitelisted tool calls', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const tool = fakeTool('searchInstruments', async (args) => ({
         observation: JSON.stringify({ args }),
         rows: 1,
@@ -473,7 +474,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('asks for a structured retry when serialized protocol cannot be parsed', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const tool = fakeTool('searchInstruments', async () => ({
         observation: '{"rows":[{"tsCode":"510300.SH"}]}',
         rows: 1,
@@ -498,7 +499,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('fails the turn when tool protocol still leaks after repair', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const leaked = '<tool_calls><invoke name="searchInstruments"><parameter name="query">510300';
       const llm = scriptedLlm([{ text: leaked }]);
       const onDelta = vi.fn();
@@ -511,7 +512,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('caps tool rounds, then forces a text finish with tools disabled', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const tool = fakeTool('loop', async () => ({ observation: '{}' }));
       const llm = vi.fn<AgentLlm>(async (_messages, tools) =>
         tools.length
@@ -534,7 +535,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('keeps a pending candidate available for discussion without adopting it as current code', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const llm = scriptedLlm([{ text: 'Please review the pending suggestion.' }]);
       const candidate = 'const pendingCandidate = 20;';
       const result = await agentTurn(
@@ -572,7 +573,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('repair rounds run with tools disabled', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const tool = fakeTool('echo', async () => ({ observation: '{}' }));
       const validate = vi
         .fn()
@@ -593,7 +594,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('collects universe artifacts side-produced by tools', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const spec = {
         version: 1 as const,
         source: { kind: 'equity_market' as const, market: 'CN' as const },
@@ -622,7 +623,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('collects Cell change proposals as durable review parts', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const proposal = {
         version: 1 as const,
         id: 'proposal-1',
@@ -666,7 +667,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('keeps clarification as the only durable outcome when a provider also drafts changes', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const proposal = {
         version: 1 as const,
         id: 'proposal-1',
@@ -743,7 +744,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('fires streaming hooks: deltas forwarded, tool start/done, repair announced (no repair deltas)', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const tool = fakeTool('echo', async () => ({ observation: '{}', rows: 2 }));
       const validate = vi
         .fn()
@@ -795,7 +796,7 @@ describe('agentTurn tool loop', () => {
   });
 
   it('aborts between rounds when the signal fires', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const controller = new AbortController();
       const tool = fakeTool('echo', async () => {
         controller.abort(); // cancelled while a tool is running

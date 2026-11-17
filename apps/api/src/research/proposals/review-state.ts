@@ -1,8 +1,8 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { ResearchError } from '../errors.js';
 
 export async function assertNoOpenCellChangeReview(documentId: string): Promise<void> {
-  const review = await getDatabase().researchCellChangeProposal.findFirst({
+  const review = await getApplicationDatabase().researchCellChangeProposal.findFirst({
     where: { documentId, reviewStatus: 'open' },
     select: { id: true },
   });

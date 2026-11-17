@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferLatestDividendBases } from './dividend-selection.js';
 import {
@@ -18,7 +19,7 @@ import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import { ulid } from 'ulid';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import {
   canonicalStockCode,
   hasStockCodePredecessor,
@@ -345,7 +346,7 @@ async function prepareDividendPartition(
     ...new Set(selected.map((row) => canonicalStockCode(String(row.ts_code)))),
   ];
   const reportPeriods = [...new Set(selected.map((row) => String(row.end_date)))];
-  const existing = await getDatabase().dividend.findMany({
+  const existing = await getMarketDatabase().dividend.findMany({
     where: {
       tsCode: { in: affectedCodes },
       endDate: { in: reportPeriods },
@@ -478,13 +479,13 @@ interface StatementPartitionIdentity {
 
 async function loadStatementContext(identity: StatementPartitionIdentity, rows: TushareRow[]) {
   const { statementKind, reportType, period, fetchedAt } = identity;
-  const dates = await getDatabase().tradeCal.findMany({
+  const dates = await getMarketDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1 },
     orderBy: { calDate: 'asc' },
     select: { calDate: true },
   });
   const siblings: FinancialStatementSourceRow[] = [];
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const where = {
     endDate: period,
     reportType,
@@ -641,7 +642,7 @@ function mapStatementVersion(
  * Use an explicit Prisma query for each statement kind.
  */
 async function loadStoredStatements(
-  database: ReturnType<typeof getDatabase>,
+  database: ReturnType<typeof getMarketDatabase>,
   kind: FinancialStatementKind,
   where: { endDate: string; reportType: string; tsCode?: string | { in: string[] } },
 ) {
@@ -706,7 +707,11 @@ const INDICATOR_COLUMNS = {
   ocfToProfit: 'ocf_to_profit',
 };
 
-/** 财务下载不读取版本、分红身份或合并上下文。 / Download financial rows without reading versions or merge identities. */
+/**
+ * 财务下载不读取版本、分红身份或合并上下文。
+ *
+ * Download financial rows without reading versions or merge identities.
+ */
 export async function downloadFinancialPartition(
   source: SyncSource,
   partition: MarketPartition,

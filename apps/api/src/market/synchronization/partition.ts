@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/market-db-client';
 
 export type MarketValue = string | number | boolean | Date | null;
 export type MarketRow = Record<string, MarketValue>;
@@ -10,7 +10,11 @@ export type MarketRow = Record<string, MarketValue>;
  */
 export interface MarketPartition {
   fullHistory?: boolean;
-  /** 按来源上限拆分连续区间。 / Split continuous ranges only when source limits require it. */
+  /**
+   * 按来源上限拆分连续区间。
+   *
+   * Split continuous ranges only when source limits require it.
+   */
   adaptiveRange?: true;
   /**
    * 财报公告查询字段；省略时按报告期或证券历史获取。

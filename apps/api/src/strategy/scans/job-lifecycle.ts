@@ -1,8 +1,9 @@
+import { boundMarketVersionId } from '#infra/database/market-database.js';
 import { strategyScanWorkerMessageSchema } from './worker-protocol.js';
 import { finishStrategyJob } from '../results/retention.js';
 import { Worker } from 'node:worker_threads';
 import type { StrategyScanPayload } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { t } from '#i18n/messages.js';
 import type { JobLifecycle } from '#jobs/lifecycle.js';
 import { runWorker } from '#jobs/worker.js';
@@ -28,6 +29,7 @@ export const strategyScanLifecycle = {
       start: () =>
         new Worker(workerUrl, {
           workerData: {
+            marketVersionId: boundMarketVersionId(),
             config: input.config,
             spec: input.spec,
             parameters: input.parameters,

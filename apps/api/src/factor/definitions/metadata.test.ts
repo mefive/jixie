@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import type { LlmCall } from '#infra/llm/deepseek.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -12,6 +13,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#infra/llm/deepseek.js', () => ({ chatJson: mocks.chatJson }));
@@ -162,3 +164,8 @@ describe('factor metadata', () => {
     expect(mocks.update).not.toHaveBeenCalled();
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

@@ -35,7 +35,10 @@ export function classifyChangedPaths(changedPaths, manifest) {
       continue;
     }
 
-    if (manifest.fullDeployFiles.includes(changedPath)) {
+    if (
+      manifest.fullDeployFiles.includes(changedPath) ||
+      manifest.fullDeployPrefixes.some((prefix) => changedPath.startsWith(prefix))
+    ) {
       fullDeploy = true;
       reasons.add(changedPath);
       continue;
@@ -52,11 +55,7 @@ export function classifyChangedPaths(changedPaths, manifest) {
       continue;
     }
 
-    if (
-      manifest.sharedPrefixes.some((prefix) => changedPath.startsWith(prefix)) ||
-      manifest.fullDeployFiles.includes(changedPath) ||
-      manifest.fullDeployPrefixes.some((prefix) => changedPath.startsWith(prefix))
-    ) {
+    if (manifest.sharedPrefixes.some((prefix) => changedPath.startsWith(prefix))) {
       fullDeploy = true;
       reasons.add(changedPath);
       continue;

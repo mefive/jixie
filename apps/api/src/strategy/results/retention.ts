@@ -1,5 +1,5 @@
-import pkg from '@prisma/client';
-import type { Prisma, Job } from '@prisma/client';
+import pkg from '@jixie/app-db-client';
+import type { Prisma, Job } from '@jixie/app-db-client';
 import { strategyInputSignature, strategyResultSettings } from '../definitions/config.js';
 
 const { Prisma: PrismaValues } = pkg;

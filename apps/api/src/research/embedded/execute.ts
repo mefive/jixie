@@ -1,5 +1,5 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { type ResearchCellOutputBlockV1, type ResearchEmbeddedErrorCodeV1 } from '@jixie/shared';
 import { ResearchError, ResearchPythonExecutionError } from '../errors.js';
 import {
@@ -49,7 +49,7 @@ export async function executeEmbeddedRun(
   let poll: ReturnType<typeof setInterval> | undefined;
   let abortListener: (() => void) | undefined;
   try {
-    const run = await getDatabase().$transaction(async (transaction) => {
+    const run = await getApplicationDatabase().$transaction(async (transaction) => {
       const row = await transaction.researchExecution.findFirst({
         where: {
           id: runId,
@@ -92,7 +92,7 @@ export async function executeEmbeddedRun(
         return;
       }
       polling = true;
-      void getDatabase()
+      void getApplicationDatabase()
         .researchExecution.findUnique({ where: { id: runId }, select: { status: true } })
         .then((current) => {
           if (!signal.aborted && current?.status !== 'running') {

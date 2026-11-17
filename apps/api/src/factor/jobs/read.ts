@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { JobService, type JobKind } from '#jobs/job-service.js';
 
 /**
@@ -12,7 +12,7 @@ export async function readOwnedFactorJob(
   kind: Extract<JobKind, 'factor-analysis'>,
   since: number,
 ) {
-  const job = await getDatabase().job.findFirst({
+  const job = await getApplicationDatabase().job.findFirst({
     where: {
       id: jobId,
       userId,

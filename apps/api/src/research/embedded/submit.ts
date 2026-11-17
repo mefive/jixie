@@ -1,5 +1,6 @@
+import { boundMarketVersionId } from '#infra/database/market-database.js';
 import type { ResearchEmbeddedAnalysisJobPayload } from './job-payload.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
@@ -19,7 +20,7 @@ export async function submitEmbeddedRun(
   versionId: string,
   input: ResearchEmbeddedRunInput,
 ) {
-  const result = await getDatabase().$transaction(async (transaction) => {
+  const result = await getApplicationDatabase().$transaction(async (transaction) => {
     await ownedAnalysis(transaction, userId, analysisId);
     const version = await transaction.researchEmbeddedAnalysisVersion.findFirst({
       where: { id: versionId, analysisId },
@@ -72,6 +73,7 @@ export async function submitEmbeddedRun(
 
     const run = await transaction.researchExecution.create({
       data: {
+        marketVersionId: boundMarketVersionId(),
         id: runId,
         documentId: version.documentId,
         embeddedVersionId: versionId,
@@ -95,6 +97,7 @@ export async function submitEmbeddedRun(
         },
         job: {
           create: {
+            marketVersionId: boundMarketVersionId(),
             id: ulid(),
             userId,
             kind: 'research-embedded-analysis',

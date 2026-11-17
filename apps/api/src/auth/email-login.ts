@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { isEmailConfigured, sendEmail } from '#infra/email/email.js';
 import type { Locale } from '@jixie/shared';
 import { createHash, randomInt } from 'node:crypto';
@@ -23,7 +23,7 @@ export async function requestEmailLogin(
   { email, inviteCode }: { email: string; inviteCode?: string },
   locale: Locale,
 ): Promise<{ challengeId: string; expiresIn: number }> {
-  const existingUser = await getDatabase().user.findUnique({ where: { email } });
+  const existingUser = await getApplicationDatabase().user.findUnique({ where: { email } });
 
   if (existingUser) {
     // login case
@@ -53,7 +53,9 @@ export async function requestEmailLogin(
         },
       });
     }
-    const code = await getDatabase().inviteCode.findUnique({ where: { code: inviteCode } });
+    const code = await getApplicationDatabase().inviteCode.findUnique({
+      where: { code: inviteCode },
+    });
     if (!code || code.status !== 'unused') {
       throw new AuthError('invite_code_invalid_or_used', {
         details: {
@@ -64,7 +66,7 @@ export async function requestEmailLogin(
   }
 
   // Rate limit: refuse to resend if an unconsumed, unexpired challenge exists within 60s
-  const recent = await getDatabase().emailLoginChallenge.findFirst({
+  const recent = await getApplicationDatabase().emailLoginChallenge.findFirst({
     where: {
       email,
       consumedAt: null,
@@ -84,7 +86,7 @@ export async function requestEmailLogin(
   const codeHash = createHash('sha256').update(verificationCode).digest('hex');
   const now = new Date();
 
-  await getDatabase().emailLoginChallenge.create({
+  await getApplicationDatabase().emailLoginChallenge.create({
     data: {
       id: challengeId,
       email,
@@ -107,7 +109,7 @@ export async function requestEmailLogin(
       const template = buildVerificationEmail(verificationCode, locale);
       await sendEmail({ to: email, ...template });
     } catch (error) {
-      await getDatabase()
+      await getApplicationDatabase()
         .emailLoginChallenge.delete({ where: { id: challengeId } })
         .catch(() => {});
       console.error('[auth] sendEmail failed', error);
@@ -130,7 +132,7 @@ export async function verifyEmailLogin({
   challengeId: string;
   code: string;
 }): Promise<{ user: SessionUser; session: CreatedSession }> {
-  const challenge = await getDatabase().emailLoginChallenge.findUnique({
+  const challenge = await getApplicationDatabase().emailLoginChallenge.findUnique({
     where: { id: challengeId },
   });
   if (!challenge) {
@@ -148,7 +150,7 @@ export async function verifyEmailLogin({
 
   const expected = createHash('sha256').update(code).digest('hex');
   if (expected !== challenge.codeHash) {
-    await getDatabase().emailLoginChallenge.update({
+    await getApplicationDatabase().emailLoginChallenge.update({
       where: { id: challengeId },
       data: { attempts: { increment: 1 } },
     });
@@ -157,12 +159,12 @@ export async function verifyEmailLogin({
 
   // Passed verification: mark consumed. Even if creating the user later fails, this challenge must
   // not be retried (replay protection).
-  await getDatabase().emailLoginChallenge.update({
+  await getApplicationDatabase().emailLoginChallenge.update({
     where: { id: challengeId },
     data: { consumedAt: new Date() },
   });
 
-  let user = await getDatabase().user.findUnique({ where: { email: challenge.email } });
+  let user = await getApplicationDatabase().user.findUnique({ where: { email: challenge.email } });
 
   if (!user) {
     // Registration path: re-validate the invite code (it may have been consumed by someone else
@@ -171,13 +173,15 @@ export async function verifyEmailLogin({
       throw new AuthError('register_needs_invite');
     }
     const inviteCode = challenge.inviteCode;
-    const codeRow = await getDatabase().inviteCode.findUnique({ where: { code: inviteCode } });
+    const codeRow = await getApplicationDatabase().inviteCode.findUnique({
+      where: { code: inviteCode },
+    });
     if (!codeRow || codeRow.status !== 'unused') {
       throw new AuthError('invite_code_expired');
     }
 
     // Transaction: create user + mark invite used. Roll back if either fails.
-    user = await getDatabase().$transaction(async (transaction) => {
+    user = await getApplicationDatabase().$transaction(async (transaction) => {
       const createdUser = await transaction.user.create({
         data: { id: ulid(), email: challenge.email, status: 'active' },
       });

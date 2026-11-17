@@ -15,6 +15,10 @@ const mocks = vi.hoisted(() => ({
   pruneStrategy: vi.fn(),
   transaction: vi.fn(),
 }));
+vi.mock('#infra/database/prisma.js', async (original) => {
+  const actual = await original<typeof import('#infra/database/prisma.js')>();
+  return { ...actual, getApplicationDatabase: actual.getDatabase };
+});
 vi.mock('./server.js', () => ({ buildApp: mocks.buildApp }));
 vi.mock('@hono/node-server', () => ({ serve: mocks.serve }));
 vi.mock('#jobs/register.js', () => ({ registerJobLifecycles: mocks.register }));

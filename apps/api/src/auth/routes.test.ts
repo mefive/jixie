@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
@@ -31,6 +32,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 
@@ -361,3 +363,8 @@ describe('authentication HTTP contract with an isolated database', () => {
     expect(await prisma.user.count()).toBe(0);
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

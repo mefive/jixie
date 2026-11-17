@@ -1,3 +1,5 @@
+import { getApplicationDatabase } from '#infra/database/prisma.js';
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import type { ResearchSandbox } from '../sandbox/research-sandbox.js';
 
 import { analyzeResearchDocument } from '../dependencies/analyze.js';
@@ -30,6 +32,10 @@ vi.mock('#infra/database/prisma.js', async () => {
   fixture.directory = mkdtempSync('/tmp/jixie-research-http-');
   const databasePath = `${fixture.directory}/research.db`;
   writeFileSync(databasePath, '');
+  const { default: application } = await import('@jixie/app-db-client');
+  const applicationDatabase = new application.PrismaClient({
+    datasourceUrl: `file:${databasePath}`,
+  });
   const mocked = {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${databasePath}` }),
   };
@@ -39,6 +45,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => applicationDatabase,
   };
 });
 vi.mock('#agent/turns/run.js', async (importOriginal) => ({
@@ -211,6 +218,7 @@ describe('Research HTTP business boundaries', () => {
     await prisma.user.deleteMany();
   });
   afterAll(async () => {
+    await getApplicationDatabase().$disconnect();
     await prisma.$disconnect();
     await rm(fixture.directory, { recursive: true, force: true });
   });
@@ -761,3 +769,8 @@ describe('Research HTTP business boundaries', () => {
     expect(await prisma.job.count()).toBe(0);
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

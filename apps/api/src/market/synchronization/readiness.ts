@@ -1,5 +1,6 @@
-import type { Prisma } from '@prisma/client';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+import type { Prisma } from '@jixie/market-db-client';
+
 import { MarketError } from '../errors.js';
 
 export interface InputRequirement {
@@ -36,7 +37,7 @@ type InputDatabase = Pick<
 
 export async function datasetInputReadiness(
   requirements: InputRequirement[],
-  database: InputDatabase = getDatabase(),
+  database: InputDatabase = getMarketDatabase(),
 ): Promise<InputReadiness> {
   const gaps: string[] = [];
   for (const requirement of requirements) {
@@ -122,7 +123,7 @@ export async function assertPriceSeriesReadiness(
   if (assetType === 'index' || startDate > endDate) {
     return;
   }
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const where = { tsCode: code, tradeDate: { gte: startDate, lte: endDate } };
   const [prices, adjustments] =
     assetType === 'stock'
@@ -147,6 +148,7 @@ export async function assertPriceSeriesReadiness(
 
 export async function marketRevision(): Promise<number> {
   return (
-    (await getDatabase().marketDataState.findUnique({ where: { key: 'global' } }))?.revision ?? 0
+    (await getMarketDatabase().marketDataState.findUnique({ where: { key: 'global' } }))
+      ?.revision ?? 0
   );
 }

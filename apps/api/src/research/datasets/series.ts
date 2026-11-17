@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { assertPriceSeriesReadiness } from '#market/synchronization/readiness.js';
 import { ResearchError } from '../errors.js';
 import type {
@@ -6,7 +7,6 @@ import type {
   ResearchSeriesInputSpecV1,
   ResearchTransformV1,
 } from '@jixie/shared';
-import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 保存研究序列的日期、数值及相关标记。
@@ -201,7 +201,7 @@ async function loadInstrumentSeries(
   await assertPriceSeriesReadiness(assetType, id, start, end);
 
   if (assetType === 'index') {
-    const rows = await getDatabase().indexDaily.findMany({
+    const rows = await getMarketDatabase().indexDaily.findMany({
       where: { tsCode: id, tradeDate: { gte: start, lte: end } },
       select: { tradeDate: true, close: true },
       orderBy: { tradeDate: 'asc' },
@@ -215,23 +215,23 @@ async function loadInstrumentSeries(
   const isEtf = assetType === 'etf';
   const [prices, adjustments] = isEtf
     ? await Promise.all([
-        getDatabase().etfDaily.findMany({
+        getMarketDatabase().etfDaily.findMany({
           where: { tsCode: id, tradeDate: { gte: start, lte: end } },
           select: { tradeDate: true, close: true },
           orderBy: { tradeDate: 'asc' },
         }),
-        getDatabase().etfAdjFactor.findMany({
+        getMarketDatabase().etfAdjFactor.findMany({
           where: { tsCode: id, tradeDate: { gte: start, lte: end } },
           select: { tradeDate: true, adjFactor: true },
         }),
       ])
     : await Promise.all([
-        getDatabase().daily.findMany({
+        getMarketDatabase().daily.findMany({
           where: { tsCode: id, tradeDate: { gte: start, lte: end } },
           select: { tradeDate: true, close: true },
           orderBy: { tradeDate: 'asc' },
         }),
-        getDatabase().adjFactor.findMany({
+        getMarketDatabase().adjFactor.findMany({
           where: { tsCode: id, tradeDate: { gte: start, lte: end } },
           select: { tradeDate: true, adjFactor: true },
         }),

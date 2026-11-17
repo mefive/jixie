@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { describe, expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
 import { acceptSource, seedSessions } from '../../../tests/market-contract-fixtures.js';
@@ -64,11 +65,11 @@ describe('financial stock source succession', () => {
         expect(first.accepted.errors).toEqual([]);
         const before = await resolveFinancialState(
           { tsCode: newCode, asOfDate: '20260901' },
-          database,
+          getMarketDatabase(),
         );
         const after = await resolveFinancialState(
           { tsCode: newCode, asOfDate: '20260903' },
-          database,
+          getMarketDatabase(),
         );
         const key = { income: 'income', balance_sheet: 'balanceSheet', cash_flow: 'cashFlow' }[
           kind

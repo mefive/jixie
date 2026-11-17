@@ -1,8 +1,9 @@
+import { historicalOmit } from './historical-columns.js';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import pkg from '@prisma/client';
+import pkg from '@jixie/app-db-client';
 import { expect, it } from 'vitest';
 import { pruneStrategyResults } from '#strategy/results/retention.js';
 import { strategyInputSignature, strategyResultSettings } from '#strategy/definitions/config.js';
@@ -13,7 +14,7 @@ it('upgrades legacy snapshots, keeps the newest failed result and removes source
   const schema = join(directory, 'schema.prisma');
   const migrations = join(directory, 'migrations');
   const databaseUrl = `file:${directory}/upgrade.db`;
-  const database = new pkg.PrismaClient({ datasourceUrl: databaseUrl });
+  const database = new pkg.PrismaClient({ datasourceUrl: databaseUrl, omit: historicalOmit });
   const deploy = () =>
     execFileSync(
       process.execPath,

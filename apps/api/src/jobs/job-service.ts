@@ -1,3 +1,4 @@
+import { boundMarketVersionId } from '#infra/database/market-database.js';
 import {
   acquireMarketScope,
   acquireWorkOwner,
@@ -6,8 +7,8 @@ import {
   type MarketLock,
 } from '#infra/coordination/market-access.js';
 import { ulid } from 'ulid';
-import type { Job, Prisma } from '@prisma/client';
-import { getDatabase } from '#infra/database/prisma.js';
+import type { Job, Prisma } from '@jixie/app-db-client';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { JobLogs } from './job-logs.js';
 import type { JobLifecycle } from './lifecycle.js';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -34,7 +35,7 @@ export type ActiveJobStatus = Extract<JobStatus, 'queued' | 'running'>;
 
 export const ACTIVE_JOB_STATUSES: ActiveJobStatus[] = ['queued', 'running'];
 
-export type { Job } from '@prisma/client';
+export type { Job } from '@jixie/app-db-client';
 type JobRelation = Exclude<Extract<keyof Job, `${string}Id`>, 'userId'>;
 
 export class JobService {
@@ -77,7 +78,17 @@ export class JobService {
     payload: Prisma.InputJsonValue,
   ): Promise<string> {
     const id = ulid();
-    await getDatabase().job.create({ data: { id, userId, kind, key, status: 'queued', payload } });
+    await getApplicationDatabase().job.create({
+      data: {
+        id,
+        userId,
+        kind,
+        key,
+        status: 'queued',
+        payload,
+        marketVersionId: boundMarketVersionId(),
+      },
+    });
     return id;
   }
 
@@ -87,14 +98,14 @@ export class JobService {
    * Read a job and its business association for status and lifecycle handling.
    */
   static async get(userId: string, jobId: string, since = 0) {
-    const job = await getDatabase().job.findFirst({ where: { id: jobId, userId } });
+    const job = await getApplicationDatabase().job.findFirst({ where: { id: jobId, userId } });
     if (!job) {
       return null;
     }
     const logs = JobLogs.read(jobId, job.logs);
     const queuePosition =
       job.status === 'queued'
-        ? await getDatabase().job.count({
+        ? await getApplicationDatabase().job.count({
             where: {
               status: 'queued',
               OR: [
@@ -116,7 +127,11 @@ export class JobService {
   }
 
   static async claim(jobId: string): Promise<boolean> {
-    const reader = await acquireMarketScope();
+    const queued = await getApplicationDatabase().job.findUnique({
+      where: { id: jobId },
+      select: { marketVersionId: true },
+    });
+    const reader = await acquireMarketScope(queued?.marketVersionId ?? undefined);
     let owner: MarketLock | undefined;
     let claimed = false;
     try {
@@ -128,7 +143,7 @@ export class JobService {
         }
         throw error;
       }
-      const { count } = await getDatabase().job.updateMany({
+      const { count } = await getApplicationDatabase().job.updateMany({
         where: { id: jobId, status: 'queued' },
         data: { status: 'running', startedAt: new Date(), error: null },
       });
@@ -161,7 +176,7 @@ export class JobService {
       if (signal.aborted) {
         return 'running';
       }
-      const job = await getDatabase().job.findUnique({
+      const job = await getApplicationDatabase().job.findUnique({
         where: { id: jobId },
         select: { status: true },
       });
@@ -206,7 +221,7 @@ export class JobService {
   }
 
   private static async executeOwned(jobId: string, signal?: AbortSignal): Promise<void> {
-    const job = await getDatabase().job.findUnique({ where: { id: jobId } });
+    const job = await getApplicationDatabase().job.findUnique({ where: { id: jobId } });
     if (!job || job.status !== 'running') {
       return;
     }
@@ -249,7 +264,7 @@ export class JobService {
   }
 
   static async recoverInterrupted(kind?: JobKind, signal?: AbortSignal): Promise<number> {
-    const jobs = await getDatabase().job.findMany({
+    const jobs = await getApplicationDatabase().job.findMany({
       where: { status: 'running', ...(kind ? { kind } : {}) },
     });
     let count = 0;
@@ -281,7 +296,7 @@ export class JobService {
    * Record interruption only while owning the real lock; retry without terminal notifications.
    */
   private static async interruptOwned(job: Job): Promise<number> {
-    return getDatabase().$transaction(async (transaction) => {
+    return getApplicationDatabase().$transaction(async (transaction) => {
       const claimed = await transaction.job.updateMany({
         where: { id: job.id, status: 'running' },
         data: { status: 'stale', finishedAt: new Date() },
@@ -303,7 +318,7 @@ export class JobService {
     result: unknown,
   ): Promise<boolean> {
     const logs = JobLogs.snapshot(job.id);
-    const committed = await getDatabase().$transaction(async (transaction) => {
+    const committed = await getApplicationDatabase().$transaction(async (transaction) => {
       const claimed = await transaction.job.updateMany({
         where: { id: job.id, status: 'running' },
         data: { status: 'done', error: null, finishedAt: new Date(), logs },
@@ -328,7 +343,7 @@ export class JobService {
   private static async fail(job: Job, error: unknown): Promise<boolean> {
     const logs = JobLogs.snapshot(job.id);
     const message = error instanceof Error ? error.message : String(error);
-    const committed = await getDatabase().$transaction(async (transaction) => {
+    const committed = await getApplicationDatabase().$transaction(async (transaction) => {
       const claimed = await transaction.job.updateMany({
         where: { id: job.id, status: 'running' },
         data: { status: 'error', error: message, finishedAt: new Date(), logs },

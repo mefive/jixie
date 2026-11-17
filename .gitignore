@@ -11,7 +11,8 @@ dist
 data
 *.log
 .jixie-import/
-# 本地维护候选与稳定锁文件不入库。 / Keep local maintenance candidates and stable lock files private.
+# 本地维护候选与稳定锁文件不入库。
+# Keep local maintenance candidates and stable lock files private.
 apps/api/prisma/maintenance-staging/
 apps/api/prisma/maintenance.lock
 apps/api/prisma/market-publish-intent.lock
@@ -32,5 +33,11 @@ apps/docs/acceptance/
 
 apps/api/prisma/ingestion-candidates/
 
-# 本地来源配额账本与账号锁不入库。 / Keep local source quota ledgers and account locks private.
+# 本地来源配额账本与账号锁不入库。
+# Keep local source quota ledgers and account locks private.
 apps/api/prisma/source-quotas/
+
+# 本地已发布市场版本与版本锁。
+# Local version files and reader locks.
+apps/api/prisma/market/versions/
+apps/api/prisma/market/locks/

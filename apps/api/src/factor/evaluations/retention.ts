@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 
 interface FactorReportScope {

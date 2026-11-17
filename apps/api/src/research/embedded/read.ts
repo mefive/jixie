@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import {
   type ResearchCellOutputBlockV1,
   type ResearchEmbeddedPageV1,
@@ -26,7 +26,7 @@ function page<T extends { id: string }, View>(
 }
 
 export async function listEmbeddedAnalyses(userId: string, input: ResearchEmbeddedListQuery) {
-  const rows = await getDatabase().researchEmbeddedAnalysis.findMany({
+  const rows = await getApplicationDatabase().researchEmbeddedAnalysis.findMany({
     where: {
       userId,
       hostType: input.hostType,
@@ -40,11 +40,11 @@ export async function listEmbeddedAnalyses(userId: string, input: ResearchEmbedd
 }
 
 export async function getEmbeddedAnalysis(userId: string, analysisId: string) {
-  return analysisView(await ownedAnalysis(getDatabase(), userId, analysisId));
+  return analysisView(await ownedAnalysis(getApplicationDatabase(), userId, analysisId));
 }
 
 export async function getEmbeddedVersion(userId: string, analysisId: string, versionId: string) {
-  const row = await getDatabase().researchEmbeddedAnalysisVersion.findFirst({
+  const row = await getApplicationDatabase().researchEmbeddedAnalysisVersion.findFirst({
     where: { id: versionId, analysisId, analysis: { userId } },
   });
   if (!row) {
@@ -58,8 +58,8 @@ export async function listEmbeddedRuns(
   analysisId: string,
   input: ResearchEmbeddedPageQuery,
 ) {
-  await ownedAnalysis(getDatabase(), userId, analysisId);
-  const rows = await getDatabase().researchExecution.findMany({
+  await ownedAnalysis(getApplicationDatabase(), userId, analysisId);
+  const rows = await getApplicationDatabase().researchExecution.findMany({
     where: {
       embeddedVersion: { analysisId },
       ...(input.cursor ? { id: { lt: input.cursor } } : {}),
@@ -81,7 +81,7 @@ export async function getEmbeddedRun(
   analysisId: string,
   runId: string,
 ): Promise<ResearchEmbeddedRunV1> {
-  const row = await getDatabase().researchExecution.findFirst({
+  const row = await getApplicationDatabase().researchExecution.findFirst({
     where: { id: runId, embeddedVersion: { analysisId, analysis: { userId } } },
     include: {
       embeddedVersion: true,
@@ -92,7 +92,7 @@ export async function getEmbeddedRun(
   if (!row) {
     throw new ResearchError('embedded_not_found');
   }
-  const continuation = await getDatabase().researchDocument.findUnique({
+  const continuation = await getApplicationDatabase().researchDocument.findUnique({
     where: { embeddedRunKey: `${userId}:${runId}` },
     select: { id: true },
   });

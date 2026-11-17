@@ -1,6 +1,6 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { analyzeAndPersist } from '../dependencies/analyze.js';
 import { assertResearchCellsRunnable } from '../dependencies/runnable.js';
@@ -24,7 +24,7 @@ export async function runResearchDocument(
   clean: boolean,
 ): Promise<ResearchDocumentRunResultV1> {
   return withMarketAccess(async () => {
-    const owner = await getDatabase().researchDocument.findFirst({
+    const owner = await getApplicationDatabase().researchDocument.findFirst({
       where: { id: documentId, userId, embeddedVersion: null },
       select: { id: true },
     });
@@ -43,7 +43,7 @@ export async function runResearchDocument(
         assertResearchCellsRunnable(input.cells);
         await researchSandboxPool.reset(documentId);
         if (!control.interrupted) {
-          await getDatabase().researchCell.updateMany({
+          await getApplicationDatabase().researchCell.updateMany({
             where: {
               documentId,
               kind: 'python',

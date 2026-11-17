@@ -1,4 +1,8 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { usesMarketVersions } from '#infra/database/prisma.js';
+import { withMarketAccess } from '#infra/coordination/market-access.js';
+import { saveSelectionEdit } from './version-selection.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+
 import { z } from 'zod';
 import type { MarketTransaction } from '../synchronization/partition.js';
 import {
@@ -133,7 +137,7 @@ export async function prepareHistoricalEtfSelection(input: HistoricalEtfSelectio
     throw new Error('ETF selection requires a limit from 1 to 5000');
   }
   const snapshot = await fetchEtfSizes(input.source, input.date);
-  const catalog = await getDatabase().etfBasic.findMany({
+  const catalog = await getMarketDatabase().etfBasic.findMany({
     where: {
       listDate: { lte: input.date },
       ...(input.exchanges
@@ -238,7 +242,17 @@ export async function selectEtfsUnderMaintenance(input: SelectEtfsInput) {
     })),
     limit,
   );
-  const database = getDatabase();
+  if (usesMarketVersions()) {
+    const codes = await withMarketAccess(() => saveSelectionEdit('etf', selectedCodes, []));
+    return {
+      date: snapshot.date,
+      catalogCount: catalog.length,
+      selectedCodes,
+      codes,
+      missingSizeCodes,
+    };
+  }
+  const database = getMarketDatabase();
   let codes: string[] = [];
 
   await withMarketPublication(() =>
@@ -296,8 +310,11 @@ export async function mergeEtfSelection(
   return codes;
 }
 
-/** 管理员可额外选取当期 Top N，已有历史入选者继续保留。
- * Administrators may add a current top N while retaining earlier historical selections. */
+/**
+ * 管理员可额外选取当期 Top N，已有历史入选者继续保留。
+ *
+ * Administrators may add a current top N while retaining earlier historical selections.
+ */
 export async function selectTopEtfs(input: SelectEtfsInput) {
   return withMaintenanceLock(() => selectEtfsUnderMaintenance(input));
 }

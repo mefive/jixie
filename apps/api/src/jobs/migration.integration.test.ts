@@ -1,3 +1,4 @@
+import { historicalOmit } from '../../tests/historical-columns.js';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { cp, mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
@@ -10,7 +11,10 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
   const schema = join(directory, 'schema.prisma');
   const migrations = join(directory, 'migrations');
   const databaseUrl = `file:${directory}/upgrade.db`;
-  const database = new prismaPackage.PrismaClient({ datasourceUrl: databaseUrl });
+  const database = new prismaPackage.PrismaClient({
+    datasourceUrl: databaseUrl,
+    omit: historicalOmit,
+  });
   try {
     const names = await readdir(resolve('prisma/migrations'));
     const migration = names.find((name) => name.endsWith('_simplify_background_jobs'));

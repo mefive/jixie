@@ -3,6 +3,7 @@ import { factorAnalysisSpecSchema, factorResearchSpecV1Schema } from '@jixie/sha
 import { factorAnalysisRuntimeSourceSchema } from '../sources/snapshot.js';
 
 export const factorAnalysisWorkerInputSchema = z.object({
+  marketVersionId: z.string().ulid().optional(),
   reportId: z.string().min(1),
   factor: z.string().min(1),
   source: factorAnalysisRuntimeSourceSchema,

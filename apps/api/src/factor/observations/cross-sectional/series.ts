@@ -1,8 +1,9 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { DEFAULT_CROSS_SECTIONAL_MINIMUM_WINDOW_COVERAGE } from '../contract.js';
 import { FactorSandbox } from '../../sandbox/factor-sandbox.js';
 import type { FactorBatchItem } from '../../sandbox/contract.js';
 import { t } from '#i18n/messages.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { UserLogSink } from '#infra/sandbox/console.js';
 import type { FactorBar } from '@jixie/shared';
 import { DEFAULT_LOCALE, type FactorLanguage, type Locale } from '@jixie/shared';
@@ -81,7 +82,7 @@ export async function computeFactorSeries(
 
   const currentFactor = factorCodeSnapshot
     ? null
-    : await getDatabase().factor.findUnique({
+    : await getApplicationDatabase().factor.findUnique({
         where: { id: factorKey },
         select: { code: true, language: true },
       });
@@ -126,7 +127,7 @@ export async function computeFactorSeries(
   const marketCloseByDate = needsMarketCloseHistory
     ? new Map(
         (
-          await getDatabase().indexDaily.findMany({
+          await getMarketDatabase().indexDaily.findMany({
             where: { tsCode: '000985.CSI' },
             select: { tradeDate: true, close: true },
           })
@@ -146,7 +147,7 @@ export async function computeFactorSeries(
    * Batch-load historical bars required to compute factor observations.
    */
   const loadBars = async (date: string): Promise<Map<string, FactorBar>> => {
-    const basicRows = await getDatabase().dailyBasic.findMany({
+    const basicRows = await getMarketDatabase().dailyBasic.findMany({
       where: { tradeDate: date },
       select: {
         tsCode: true,
@@ -211,7 +212,7 @@ export async function computeFactorSeries(
     }
     const rebalanceSet = new Set(dates);
     const marketDates = (
-      await getDatabase().tradeCal.findMany({
+      await getMarketDatabase().tradeCal.findMany({
         where: { exchange: 'SSE', isOpen: 1, calDate: { lte: dates.at(-1) ?? '00000000' } },
         select: { calDate: true },
         orderBy: { calDate: 'asc' },
@@ -225,9 +226,9 @@ export async function computeFactorSeries(
     }
 
     const listDateMap = new Map(
-      (await getDatabase().stockBasic.findMany({ select: { tsCode: true, listDate: true } })).map(
-        (s) => [s.tsCode, s.listDate],
-      ),
+      (
+        await getMarketDatabase().stockBasic.findMany({ select: { tsCode: true, listDate: true } })
+      ).map((s) => [s.tsCode, s.listDate]),
     );
     // Stock universe = tsCodes already found quoted on some rebalance date by loadSnapshots.
     // A stock absent from every snapshot can never survive the snapDate/snapNextDate lookup below
@@ -247,18 +248,18 @@ export async function computeFactorSeries(
         onLog(t(locale, 'factorComputeProgress', { done, total: tsCodes.size }));
       }
       const [priceRows, adjRows, basicRows] = await Promise.all([
-        getDatabase().daily.findMany({
+        getMarketDatabase().daily.findMany({
           where: { tsCode },
           select: { tradeDate: true, close: true, amount: true },
           orderBy: { tradeDate: 'asc' },
         }),
-        getDatabase().adjFactor.findMany({
+        getMarketDatabase().adjFactor.findMany({
           where: { tsCode },
           select: { tradeDate: true, adjFactor: true },
           orderBy: { tradeDate: 'asc' },
         }),
         needsTurnoverRateFHistory
-          ? getDatabase().dailyBasic.findMany({
+          ? getMarketDatabase().dailyBasic.findMany({
               where: { tsCode },
               select: { tradeDate: true, turnoverRateF: true },
               orderBy: { tradeDate: 'asc' },

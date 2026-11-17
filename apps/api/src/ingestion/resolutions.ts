@@ -1,6 +1,7 @@
-import pkg, { type Prisma } from '@prisma/client';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+import pkg, { type Prisma } from '@jixie/market-db-client';
 import { z } from 'zod';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import { withMaintenanceLock } from '#infra/coordination/market-access.js';
 import { loadMarketDiagnosticContext } from '#market/synchronization/diagnostic-context.js';
 import { diagnosticJson } from './diagnostic-json.js';
@@ -47,7 +48,7 @@ export async function ensureRunIssueResolutions(database: Prisma.TransactionClie
  */
 export async function reconcileIssueResolutions(runId?: string) {
   return withMaintenanceLock(async () => {
-    const database = getDatabase();
+    const database = getMarketDatabase();
     const runs = runId
       ? [{ id: runId }]
       : await database.ingestionRun.findMany({
@@ -70,7 +71,7 @@ export async function reconcileIssueResolutions(runId?: string) {
 }
 
 async function verifyRows(
-  database: Prisma.TransactionClient,
+  database: Parameters<typeof loadMarketDiagnosticContext>[0],
   item: ActiveIssue,
   expected: ResolutionRows,
 ) {
@@ -120,7 +121,10 @@ function matchesFields(row: unknown, fields: Record<string, unknown>): boolean {
  *
  * Reopen confirmed changes as pending and distinguish evidence that still needs review.
  */
-export async function readIssueHandling(database: Prisma.TransactionClient, item: ActiveIssue) {
+export async function readIssueHandling(
+  database: Parameters<typeof loadMarketDiagnosticContext>[0],
+  item: ActiveIssue,
+) {
   const stored = item.resolution;
   const status = resolutionStatusSchema.parse(stored?.status ?? 'pending');
   let verification: 'verified' | 'changed' | 'unknown' | null = null;

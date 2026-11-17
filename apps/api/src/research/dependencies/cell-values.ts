@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import type { ResearchCellDependencyIssueV1 } from '@jixie/shared';
 
 export function jsonStringArray(value: Prisma.JsonValue): string[] {

@@ -1,0 +1,636 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../../node_modules/@jixie/market-db-client"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("MARKET_DATABASE_URL")
+}
+
+// ============================================================================
+// Market base data. Field names use camelCase (Prisma convention), converted from Tushare's
+// snake_case on ingest. Primary key is "code + trade date", which together with
+// "delete the day first, then createMany" makes repeatable syncs idempotent.
+// ============================================================================
+
+/// 已上市、退市及暂停上市的股票目录。
+/// Stock catalog for listed, delisted and suspended-listing securities.
+model StockBasic {
+  tsCode     String  @id
+  symbol     String
+  name       String
+  area       String?
+  market     String?
+  /// 来源明确提供的交易所；旧数据在目录刷新前保持未知。
+  /// Source-declared exchange; legacy entries remain unknown until catalog refresh.
+  exchange   String?
+  listDate   String?
+  delistDate String?
+  listStatus String
+}
+
+/// Exchange-confirmed security-code succession. Market tables use `newTsCode` as their canonical
+/// storage identity; this table preserves the old identity and its effective-date boundary.
+model StockCodeChange {
+  oldTsCode     String @id
+  newTsCode     String
+  effectiveDate String
+  source        String
+
+  @@index([newTsCode])
+}
+
+/// Point-in-time stock-name spell from Tushare namechange. Risk-warning and delisting-period states
+/// are derived from the historical name that covers the evaluated date, never from today's name.
+model StockNameHistory {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode     String?
+  tsCode           String
+  name             String
+  startDate        String
+  endDate          String?
+  announcementDate String?
+  changeReason     String?
+
+  @@id([tsCode, startDate])
+  @@index([tsCode, endDate])
+  @@index([announcementDate])
+}
+
+/// Trading calendar
+model TradeCal {
+  exchange     String
+  calDate      String
+  isOpen       Int
+  pretradeDate String?
+
+  @@id([exchange, calDate])
+}
+
+/// Daily bars (unadjusted). Backtests derive backward-adjusted (hfq) prices via close × adjFactor.
+model Daily {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  tsCode       String
+  tradeDate    String
+  open         Float?
+  high         Float?
+  low          Float?
+  close        Float?
+  preClose     Float?
+  pctChg       Float?
+  vol          Float?
+  amount       Float?
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// Adjustment factor
+model AdjFactor {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  tsCode       String
+  tradeDate    String
+  adjFactor    Float
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// ETF metadata. Listed and delisted funds are both retained so historical ETF research does not
+/// acquire survivorship bias. `sameDayTurnover` records whether secondary-market units may be sold
+/// on the purchase day under the fund category's exchange rule.
+model EtfBasic {
+  tsCode          String  @id
+  name            String
+  fullName        String?
+  indexCode       String?
+  indexName       String?
+  setupDate       String?
+  listDate        String?
+  delistDate      String?
+  listStatus      String
+  exchange        String
+  managerName     String?
+  custodianName   String?
+  managementFee   Float?
+  fundType        String?
+  etfType         String?
+  sameDayTurnover Boolean
+  lotSize         Int     @default(100)
+}
+
+/// ETF daily bars (unadjusted). Kept separate from stock Daily because stock day-refreshes replace
+/// all stock rows for a date. Tushare volume is in lots and amount is in thousand yuan.
+model EtfDaily {
+  tsCode    String
+  tradeDate String
+  open      Float?
+  high      Float?
+  low       Float?
+  close     Float?
+  preClose  Float?
+  pctChg    Float?
+  vol       Float?
+  amount    Float?
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// ETF adjustment factor. After-adjustment ETF price = raw price × adjFactor.
+model EtfAdjFactor {
+  tsCode    String
+  tradeDate String
+  adjFactor Float
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// Daily price limits (unadjusted up/down limit prices). The engine blocks buys at the up-limit open and sells at
+/// the down-limit open (covers board-specific limits: Main Board ±10 / ST ±5 / ChiNext & STAR ±20 / BSE ±30).
+model StkLimit {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  tsCode       String
+  tradeDate    String
+  upLimit      Float // up-limit price (raw)
+  downLimit    Float // down-limit price (raw)
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// Daily valuation metrics (point-in-time by construction). Unlocks value/dividend/size factors.
+model DailyBasic {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode  String?
+  tsCode        String
+  tradeDate     String
+  pe            Float?
+  peTtm         Float?
+  pb            Float?
+  ps            Float?
+  psTtm         Float?
+  dvRatio       Float? // dividend yield %
+  dvTtm         Float?
+  totalMv       Float? // total market cap (10k yuan)
+  circMv        Float? // circulating market cap (10k yuan)
+  turnoverRate  Float?
+  turnoverRateF Float? // turnover rate based on free-float shares (%)
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// 同一报告期按来源代码、公告及修订规则选择的当前快照；历史可得性由版本表管理。
+/// Current snapshot selected by source code, announcement and revision per period; the version
+/// table governs historical availability.
+model FinaIndicator {
+  tsCode            String
+  /// 当前快照的原始来源代码；旧记录未知时保留 null。
+  /// Original source code of the current snapshot; legacy unknowns remain null.
+  sourceTsCode      String?
+  endDate           String // report period end, e.g. 20231231
+  annDate           String? // announcement date — the PIT gate (value is only public on/after this)
+  roe               Float? // return on equity %
+  roeWaa            Float? // weighted-average return on equity %
+  roa               Float? // return on assets %
+  grossprofitMargin Float? // gross profit margin %
+  netprofitMargin   Float? // net profit margin %
+  debtToAssets      Float? // debt-to-assets ratio %
+  orYoy             Float? // operating revenue YoY growth %
+  netprofitYoy      Float? // net profit attributable to parent, YoY growth %
+  ocfToProfit       Float? // operating cash flow / operating profit (accrual quality)
+
+  @@id([tsCode, endDate])
+  @@index([annDate])
+}
+
+/// Append-only Tushare income-statement versions for consolidated industrial companies. Flow
+/// values are cumulative year-to-date CNY. `availableDate` is the first strictly later SSE session.
+model FinancialIncomeStatement {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode         String?
+  id                   String   @id // ULID
+  source               String
+  contractVersion      Int
+  tsCode               String
+  annDate              String?
+  fAnnDate             String?
+  endDate              String
+  reportType           String
+  compType             String
+  updateFlag           String?
+  observedAt           DateTime
+  sourceRowFingerprint String   @unique
+  announcementDate     String
+  availableDate        String
+  availabilityQuality  String // 'exact' | 'conservative' | 'reconstructed'
+  evidenceSource       String // 'tushare_statement' | 'cninfo_announcement'
+  evidenceId           String?
+  totalRevenue         Float?
+  revenue              Float?
+  operCost             Float?
+  operateProfit        Float?
+  totalProfit          Float?
+  incomeTax            Float?
+  nIncome              Float?
+  nIncomeAttrP         Float?
+  ebit                 Float?
+  rdExp                Float?
+  finExpIntExp         Float?
+
+  @@index([tsCode, endDate, availableDate])
+  @@index([endDate, reportType, compType])
+  @@index([availableDate])
+}
+
+/// Append-only Tushare balance-sheet versions for consolidated industrial companies. Stock values
+/// are CNY at the reporting date, except `totalShare`, which is the issued-share count.
+model FinancialBalanceSheet {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode          String?
+  id                    String   @id // ULID
+  source                String
+  contractVersion       Int
+  tsCode                String
+  annDate               String?
+  fAnnDate              String?
+  endDate               String
+  reportType            String
+  compType              String
+  updateFlag            String?
+  observedAt            DateTime
+  sourceRowFingerprint  String   @unique
+  announcementDate      String
+  availableDate         String
+  availabilityQuality   String // 'exact' | 'conservative' | 'reconstructed'
+  evidenceSource        String // 'tushare_statement' | 'cninfo_announcement'
+  evidenceId            String?
+  moneyCap              Float?
+  tradAsset             Float?
+  notesReceiv           Float?
+  accountsReceiv        Float?
+  accountsReceivBill    Float?
+  othReceiv             Float?
+  othRcvTotal           Float?
+  inventories           Float?
+  prepayment            Float?
+  contractAssets        Float?
+  othCurAssets          Float?
+  totalCurAssets        Float?
+  fixAssets             Float?
+  fixAssetsTotal        Float?
+  cip                   Float?
+  cipTotal              Float?
+  intanAssets           Float?
+  goodwill              Float?
+  deferTaxAssets        Float?
+  othNca                Float?
+  totalNca              Float?
+  totalAssets           Float?
+  notesPayable          Float?
+  acctPayable           Float?
+  accountsPay           Float?
+  advReceipts           Float?
+  contractLiab          Float?
+  payrollPayable        Float?
+  taxesPayable          Float?
+  othPayable            Float?
+  othPayTotal           Float?
+  stBorr                Float?
+  nonCurLiabDue1y       Float?
+  ltBorr                Float?
+  bondPayable           Float?
+  othCurLiab            Float?
+  totalCurLiab          Float?
+  othNcl                Float?
+  totalNcl              Float?
+  totalLiab             Float?
+  minorityInt           Float?
+  totalHldrEqyExcMinInt Float?
+  totalShare            Float?
+
+  @@index([tsCode, endDate, availableDate])
+  @@index([endDate, reportType, compType])
+  @@index([availableDate])
+}
+
+/// Append-only Tushare cash-flow-statement versions for consolidated industrial companies. Flow
+/// values are cumulative year-to-date CNY.
+model FinancialCashFlowStatement {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode         String?
+  id                   String   @id // ULID
+  source               String
+  contractVersion      Int
+  tsCode               String
+  annDate              String?
+  fAnnDate             String?
+  endDate              String
+  reportType           String
+  compType             String
+  updateFlag           String?
+  observedAt           DateTime
+  sourceRowFingerprint String   @unique
+  announcementDate     String
+  availableDate        String
+  availabilityQuality  String // 'exact' | 'conservative' | 'reconstructed'
+  evidenceSource       String // 'tushare_statement' | 'cninfo_announcement'
+  evidenceId           String?
+  nCashflowAct         Float?
+  cPayAcqConstFiolta   Float?
+  nCashflowInvAct      Float?
+  nCashFlowsFncAct     Float?
+  cPayDistDpcpIntExp   Float?
+  nIncrCashCashEqu     Float?
+  cCashEquBegPeriod    Float?
+  cCashEquEndPeriod    Float?
+  netProfit            Float?
+  deprFaCogaDpba       Float?
+  amortIntangAssets    Float?
+  freeCashflow         Float?
+
+  @@index([tsCode, endDate, availableDate])
+  @@index([endDate, reportType, compType])
+  @@index([availableDate])
+}
+
+/// Official public evidence that dates a financial correction. A single announcement may cover
+/// several report periods; the verified period list is stored as JSON.
+model FinancialCorrectionEvidence {
+  id                String   @id // ULID
+  source            String
+  sourceId          String
+  tsCode            String
+  publishedAt       DateTime
+  publishedDate     String
+  title             String
+  documentUrl       String
+  affectedPeriods   Json
+  sourceFingerprint String   @unique
+  observedAt        DateTime
+
+  @@unique([source, sourceId])
+  @@index([tsCode, publishedDate])
+}
+
+/// Dividend distributions (raw; a period yields several rows across proposal→execution stages).
+/// Only divProc '实施' (the "implemented" stage) is an actually-paid dividend; exDate is the PIT gate for when it took effect.
+model Dividend {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  /// 规范证券、报告期、公告日、除权日、阶段与分配形态组成的来源身份；唯一匹配的旧 ID 保留。
+  /// Source identity includes distribution shape; uniquely matched legacy IDs are preserved.
+  id           String  @id
+  tsCode       String
+  endDate      String // distribution's report period
+  annDate      String? // announcement date
+  exDate       String? // ex-dividend date (PIT gate)
+  divProc      String? // distribution stage (raw Chinese values from source): '预案' | '股东大会通过' | '实施' | ...
+  cashDiv      Float? // 税后每股现金分红 / Post-tax cash dividend per share
+  cashDivTax   Float? // 税前每股现金分红 / Pre-tax cash dividend per share
+
+  /// 分红股本基准日，仅用于同一事件的新旧取舍，不代表已核实公告时间。
+  /// Dividend share-base date used to prefer newer values, never a verified announcement time.
+  baseDate  String?
+  /// 来源基准股本，单位万股；缺失值不推算。
+  /// Source share base in ten thousand shares; missing values are never inferred.
+  baseShare Float?
+
+  /// 当前值首次捕获时间；未知时不能据公告日回填。
+  /// First capture of the current value; announcements cannot fill unknown capture dates.
+  observedAt          DateTime?
+  availabilityQuality String    @default("unknown")
+
+  /// 来源分配形态，非稳定方案编号；旧记录未知时为 null。
+  /// Source distribution shape, not a stable plan ID; unknown legacy rows remain null.
+  distributionKind               String?
+  /// 每股送转合计，不与其送股／转增分量重复相加。
+  /// Total shares distributed per share; do not add its bonus/capitalization components again.
+  stockDividend                  Float?
+  /// 每股送股比例 / Bonus shares per share.
+  stockBonusRate                 Float?
+  /// 每股转增比例 / Capitalization shares per share.
+  stockCapitalizationRate        Float?
+  /// 股权登记日 / Record date.
+  recordDate                     String?
+  /// 派息日 / Cash payment date.
+  payDate                        String?
+  /// 来源实施公告日，不作为已核实首次公开时间。
+  /// Source implementation announcement date, not verified first-publication time.
+  implementationAnnouncementDate String?
+  /// 红股上市日 / Distributed-share listing date.
+  shareListingDate               String?
+
+  @@index([tsCode])
+}
+
+/// Index constituents over time (monthly snapshots from index_weight). Used for point-in-time
+/// universe membership (e.g. breadth over CSI 1000 = 000852.SH as-of each date).
+model IndexWeight {
+  /// 原始股票来源代码；无法确认的历史来源保持 null。
+  /// Original stock source code; unverified legacy origins remain null.
+  sourceTsCode String?
+  indexCode    String
+  conCode      String
+  tradeDate    String // snapshot date (month-end)
+  weight       Float?
+
+  @@id([indexCode, conCode, tradeDate])
+  @@index([indexCode, tradeDate])
+}
+
+/// Index daily close (e.g. CSI 300 = 000300.SH) — benchmark return curve + future regime filter.
+model IndexDaily {
+  tsCode    String
+  tradeDate String
+  close     Float
+
+  @@id([tsCode, tradeDate])
+}
+
+/// Daily valuation metrics for broad-market indices. Values come from Tushare index_dailybasic
+/// rather than being reconstructed from constituent stock PEs, so provider methodology is preserved.
+model IndexDailyBasic {
+  tsCode        String
+  tradeDate     String
+  totalMv       Float? // total market cap (yuan)
+  floatMv       Float? // float market cap (yuan)
+  totalShare    Float? // total shares
+  floatShare    Float? // float shares
+  freeShare     Float? // free-float shares
+  turnoverRate  Float? // turnover rate (%)
+  turnoverRateF Float? // free-float turnover rate (%)
+  pe            Float?
+  peTtm         Float?
+  pb            Float?
+
+  @@id([tsCode, tradeDate])
+  @@index([tradeDate])
+}
+
+/// Official public-fund benchmark catalog from Tushare mkt_idx_bmk. The type fields distinguish
+/// broad, style, strategy, industry, and thematic indices without inferring categories from names.
+model IndexBenchmark {
+  tsCode    String  @id
+  symbol    String
+  name      String
+  fullName  String?
+  bmkLevel  String?
+  bmkType   String?
+  bmkSource String?
+  indexType String?
+}
+
+// ============================================================================
+// 采集记录只描述实际执行；进程互斥与读取一致性由基础设施负责。
+// Ingestion records describe actual work; infrastructure owns exclusion and read consistency.
+// ============================================================================
+
+/// 一轮固定目标的数据采集；摘要不承担恢复游标。
+/// One ingestion run with a fixed target; summaries never act as recovery cursors.
+model IngestionRun {
+  id            String           @id
+  trigger       String
+  targetDate    String
+  scopeSnapshot Json
+  status        String
+  summary       Json?
+  startedAt     DateTime         @default(now())
+  finishedAt    DateTime?
+  batches       IngestionBatch[]
+  issues        IngestionIssue[]
+
+  @@index([startedAt])
+}
+
+/// 一个稳定采集单元的一次实际尝试；成功记录与业务数据共同提交。
+/// One actual attempt of a stable ingestion unit, committed atomically with business data.
+model IngestionBatch {
+  id               String           @id
+  runId            String
+  run              IngestionRun     @relation(fields: [runId], references: [id], onDelete: Cascade)
+  dataset          String
+  scope            String
+  period           String
+  api              String
+  request          Json
+  rangeStart       String?
+  rangeEnd         String?
+  sourceStart      String?
+  status           String
+  responseComplete Boolean          @default(false)
+  receivedCount    Int              @default(0)
+  acceptedCount    Int              @default(0)
+  filteredCount    Int              @default(0)
+  rejectedCount    Int              @default(0)
+  startedAt        DateTime         @default(now())
+  finishedAt       DateTime?
+  issues           IngestionIssue[]
+
+  @@index([runId, dataset, scope, period, startedAt])
+  @@index([dataset, scope, period, startedAt])
+  @@index([status])
+}
+
+/// 来源请求、未接纳错误与已接纳记录的警告；原始内容不包含凭证。
+/// Source failures, rejected-record errors and admitted-record warnings; payloads exclude credentials.
+model IngestionIssue {
+  id          String                    @id
+  runId       String
+  run         IngestionRun              @relation(fields: [runId], references: [id], onDelete: Cascade)
+  batchId     String?
+  batch       IngestionBatch?           @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  category    String
+  severity    String                    @default("error")
+  reasonCode  String
+  message     String
+  businessKey Json?
+  field       String?
+  payload     Json?
+  createdAt   DateTime                  @default(now())
+  resolution  IngestionIssueResolution?
+
+  @@index([runId, createdAt])
+  @@index([batchId])
+}
+
+/// 问题的后续处理，不改写原始诊断及采集结果；issueId 保证重复补齐不重复创建。
+/// Follow-up handling preserves diagnostics and run outcomes; issueId makes reconciliation idempotent.
+model IngestionIssueResolution {
+  issueId        String         @id
+  issue          IngestionIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  status         String         @default("pending")
+  reason         String?
+  evidence       Json?
+  before         Json?
+  after          Json?
+  marketRevision Int?
+  history        Json           @default("[]")
+  resolvedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([status, updatedAt])
+}
+
+/// 管理员保存的下载名单；存在的空名单不会被默认值覆盖。
+/// Administrator download selections; an existing empty list is never reset to defaults.
+model IngestionSelection {
+  assetType String   @id
+  codes     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// 市场业务数据修订号，用于消费者失效，不代表采集完成范围。
+/// Market-data revision for consumer invalidation, never ingestion coverage.
+model MarketDataState {
+  key       String   @id
+  revision  Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+/// 追加式财务指标版本；未知历史公开时间不能仅凭公告日期推断。
+/// Append-only indicator versions; an announcement date alone cannot prove historical availability.
+model FinaIndicatorVersion {
+  id                  String   @id
+  tsCode              String
+  /// 来源证券代码独立于统一证券身份；不推测旧记录来源。
+  /// Source security code is separate from canonical identity; never infer legacy origins.
+  sourceTsCode        String?
+  /// 来源修订标记；旧记录未知时保留 null。
+  /// Source revision flag; legacy unknowns remain null.
+  updateFlag          String?
+  endDate             String
+  annDate             String?
+  availableDate       String
+  availabilityQuality String
+  sourceFingerprint   String   @unique
+  observedAt          DateTime
+  roe                 Float?
+  roeWaa              Float?
+  roa                 Float?
+  grossprofitMargin   Float?
+  netprofitMargin     Float?
+  debtToAssets        Float?
+  orYoy               Float?
+  netprofitYoy        Float?
+  ocfToProfit         Float?
+
+  @@index([tsCode, availableDate])
+}

@@ -1,9 +1,9 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { assertPriceSeriesReadiness } from '#market/synchronization/readiness.js';
 import type { TimeSeriesEvaluationObservation } from './contract.js';
 import type { TimeSeriesFactorSandbox } from '../sandbox/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
-import { getDatabase } from '#infra/database/prisma.js';
 
 import { type FactorV2FieldKey } from '../definitions/fields.js';
 
@@ -35,7 +35,7 @@ export async function loadEtfTimeSeriesObservations(
   );
   const upperBound = researchSpec.dataPolicy.dataCutoff ?? undefined;
   const [bars, adjustments] = await Promise.all([
-    getDatabase().etfDaily.findMany({
+    getMarketDatabase().etfDaily.findMany({
       where: {
         tsCode: { in: researchSpec.assets },
         tradeDate: { gte: historyStart, ...(upperBound ? { lte: upperBound } : {}) },
@@ -44,7 +44,7 @@ export async function loadEtfTimeSeriesObservations(
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     }),
-    getDatabase().etfAdjFactor.findMany({
+    getMarketDatabase().etfAdjFactor.findMany({
       where: {
         tsCode: { in: researchSpec.assets },
         tradeDate: { gte: historyStart, ...(upperBound ? { lte: upperBound } : {}) },

@@ -24,8 +24,10 @@ export const strategyScanJobPayloadSchema = z.object({
 
 export type StrategyScanJobPayload = z.infer<typeof strategyScanJobPayloadSchema>;
 
-export const strategyScanWorkerInputSchema = strategyScanJobPayloadSchema.omit({
-  task: true,
-  reportId: true,
-});
+export const strategyScanWorkerInputSchema = strategyScanJobPayloadSchema
+  .omit({
+    task: true,
+    reportId: true,
+  })
+  .extend({ marketVersionId: z.string().ulid().optional() });
 export type StrategyScanWorkerInput = z.infer<typeof strategyScanWorkerInputSchema>;

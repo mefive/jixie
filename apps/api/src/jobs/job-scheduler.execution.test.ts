@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('#infra/coordination/market-access.js', async (original) => ({
@@ -32,6 +33,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 
@@ -160,7 +162,9 @@ describe('queue execution with injected business handlers', () => {
     queue.JobScheduler.initialize(executor.execute);
     queue.JobScheduler.wake();
     await vi.waitFor(() => expect(run).toHaveBeenCalledWith('invalid-payload'));
-    expect(fixture.findUnique).not.toHaveBeenCalled();
+    expect(fixture.findUnique.mock.calls).toEqual([
+      [{ where: { id: 'invalid-payload' }, select: { marketVersionId: true } }],
+    ]);
     release.get('invalid-payload')!();
   });
 });
@@ -239,3 +243,8 @@ describe('process scheduler singleton', () => {
     await vi.waitFor(() => expect(fixture.findFirst).toHaveBeenCalledTimes(2));
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

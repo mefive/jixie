@@ -1,6 +1,6 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import type { AcceptCodeChangeInput } from '@jixie/shared/api/strategy';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { AgentError } from '#agent/errors.js';
 import {
   acceptCodeProposalRecord,
@@ -36,7 +36,7 @@ export async function getStrategyCodeProposal(
   strategyId: string,
   proposalId: string,
 ) {
-  return getDatabase().$transaction(async (transaction) => {
+  return getApplicationDatabase().$transaction(async (transaction) => {
     await ownedStrategy(transaction, userId, strategyId);
 
     return codeProposalView(
@@ -56,7 +56,7 @@ export async function acceptStrategyCodeProposal(
   proposalId: string,
   input: AcceptCodeChangeInput,
 ) {
-  return getDatabase().$transaction(async (transaction) => {
+  return getApplicationDatabase().$transaction(async (transaction) => {
     const strategy = await ownedStrategy(transaction, userId, strategyId);
     const proposal = await readCodeProposal(
       transaction,

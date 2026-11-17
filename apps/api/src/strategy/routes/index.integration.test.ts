@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { UserCodeError } from '#infra/errors.js';
 import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
@@ -32,6 +33,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#agent/turns/run.js', async (importOriginal) => ({
@@ -645,3 +647,8 @@ describe('Strategy HTTP business boundaries', () => {
     );
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

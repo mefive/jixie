@@ -217,7 +217,7 @@ cd /opt/jixie
 
 生产维护 unit 直接启动 Node，由协调器取得锁。bootstrap 为迁移和停服使用 M→P→R，并直接启动 Node 传递真实 FD；不再使用环境布尔值作为持锁证明。没有发布基线时状态为 uninitialized；准备失败不会使已发布基线封站。
 
-## 旧采集升级失败后的恢复（2026-11-13）
+## 旧采集升级失败后的恢复（2026-11-13 历史记录，仅适用于混合库版本）
 
 从 DataSyncRun／DatasetSyncPartition 版本切换时，bootstrap 在迁移前写入
 `/var/lib/jixie/ingestion-rebuild.required`。迁移后执行带备份的业务清空，仅保留四张认证表；
@@ -262,3 +262,22 @@ API 类型检查、后端边界、Shell 语法与 diff 检查通过。生产机�
 主库及重建标记的文件大小／修改时间保持一致，API 和旧维护服务无进程／无排队任务。
 这次测量说明原 120 秒事务时限不足；30 分钟覆盖本次规模，不保证更大库或不同磁盘条件下的耗时。
 没有清空主库、重跑 bootstrap 或启动服务。验证日志另行保留，隔离数据库与构建目录在核验后清理。
+
+
+## 切换到独立市场版本库
+
+`DATABASE_URL` 指向应用库。市场文件按该库的实际父目录定位；部署、备份、systemd 的可写目录必须指向同一布局。首次安装由 bootstrap 初始化空市场基线。对已有混合库，bootstrap 会报告需离线转换，旧版 `data reset --apply` 不用于拆库。
+
+1. 在维护窗口停 API、Worker、采集与定时器，确认没有执行中操作。保留整套旧目录、部署文件与备份；用 SQLite 在线备份分别快照旧主库和未决候选，不直接复制存在活动 WAL 的单个数据库文件。
+2. 在已构建的同版本代码目录执行下列命令（路径替换为实际快照路径）。默认只预览。使用隔离、尚不存在的输出目录，检查磁盘预算；转换使用 sqlite3 CLI 的 sha3_query 校验同序、同列的值摘要。无未决候选时省略 `--candidate`。
+
+   ```bash
+   pnpm --filter api db:convert /snapshot/prod.db /staging/jixie-split --candidate /snapshot/candidate.db
+   pnpm --filter api db:convert /snapshot/prod.db /staging/jixie-split --candidate /snapshot/candidate.db --apply
+   ```
+
+3. 核验 `conversion.json` 中的基线、Run 和逐表计数／字段摘要。用隔离部署配置设置 `JIXIE_DATA_DIR` 指向转换目录，保留来源配额账本和应用数据库外的私有产物。核对用户、文档、最新报告、候选与修复结论后，在停服窗口切换整套配置并重启。挂起的候选仍需人工接受，迁移本身不发布。
+4. 版本化布局的 `runs accept` 会验证候选、封存文件，最后在应用库切换指针。已发布版本可 `runs retain RUN_ID`，通过 `runs release RUN_ID` 取消显式保留；`runs rollback PREVIOUS_RUN_ID` 仅允许退回上一已发布版本，并要求没有未决候选，产生独立回退凭据。
+5. 备份目录中的 `.bundle` 连同 manifest、应用库、引用的市场版本和可恢复候选一起保管。使用 `node apps/api/scripts/restore-market-backup.mjs /backup/name.bundle /restore/new-directory` 预览，添加 `--apply` 恢复至新目录并检查 SQLite 和外键完整性。在隔离配置中验证登录、市场版本、未决操作和 Run，再切服务。若备份中操作仍有 owner，先核实原进程已停止再显式 recover。
+
+本地测试与生产切换分别授权。[设计与十年缺口验收](design/market-database-publication.md)记录基线、名单、收据、长任务与备份要求。

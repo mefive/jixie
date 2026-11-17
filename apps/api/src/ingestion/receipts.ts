@@ -1,5 +1,6 @@
-import type { IngestionBatch } from '@prisma/client';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+import type { IngestionBatch } from '@jixie/market-db-client';
+
 import {
   DIVIDEND_DATE_FIELDS,
   dividendReceiptMatchesRequests,
@@ -25,7 +26,7 @@ export async function isSettledReceipt(batch: IngestionBatch): Promise<boolean> 
     return false;
   }
 
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const issues = await database.ingestionIssue.findMany({
     where: { batchId: batch.id, severity: 'error' },
     include: { resolution: true },
@@ -56,7 +57,7 @@ export async function isSettledReceipt(batch: IngestionBatch): Promise<boolean> 
  * Retain recent detail and successful recovery receipts; never remove issues or their batches.
  */
 export async function compactSuccessfulReceipts(): Promise<number> {
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const recent = await database.ingestionRun.findMany({
     orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
     take: 20,

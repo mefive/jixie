@@ -540,26 +540,15 @@ fi
 if [[ "$DEPLOY_API" == "1" ]]; then
   SCHEMA_DATA_READY=0
   log "prisma generate"
-  pnpm --filter api exec prisma generate
+  pnpm --filter api db:generate
 
   log "构建 API"
   NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter api build
 
-  # 旧采集状态仅用于识别一次性重建，业务历史不迁移；标记保证失败重试仍先重建。
-  # Detect a one-time rebuild without migrating business history; retain the marker across retries.
-  SCHEMA_DATA_READY=0
-  OLD_INGESTION_TABLES="$(sqlite3 "$DB_FILE" "SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('DataSyncRun','DatasetSyncPartition');" 2>/dev/null || echo 0)"
-  if [[ "$OLD_INGESTION_TABLES" -gt 0 ]]; then
-    : > "$INGESTION_REBUILD_MARKER"
-  fi
-
-  log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
-  pnpm --filter api exec prisma migrate deploy
-  if [[ -f "$INGESTION_REBUILD_MARKER" ]]; then
-    log "备份并重建业务数据，仅保留用户登录数据"
-    DATABASE_URL="file:$DB_FILE" node --conditions=production "$JIXIE_DIR/apps/api/dist/src/ingestion/cli/data.js" reset --apply
-    rm -- "$INGESTION_REBUILD_MARKER"
-  fi
+  # 已有混合库由离线转换接入；新库与已转换的应用库使用各自迁移历史。
+  # Convert mixed layouts offline; initialize or migrate the application layout independently.
+  [[ ! -e "$INGESTION_REBUILD_MARKER" ]] || die "旧业务重建标记尚未解决；请先核查旧库和备份"
+  node "$JIXIE_DIR/apps/api/scripts/initialize-market-storage.mjs" "$DB_FILE"
 
   SCHEMA_DATA_READY=1
 fi

@@ -1,5 +1,6 @@
-import type { Prisma } from '@prisma/client';
-import { getDatabase } from '#infra/database/prisma.js';
+import { readMarketSnapshot } from '#infra/database/market-database.js';
+import type { Prisma } from '@jixie/market-db-client';
+
 import type {
   IngestionHealth,
   IngestionIssueList,
@@ -119,11 +120,15 @@ export async function readIssueOverview(
   return { health, items, latestError };
 }
 
-/** 已登录用户的安全摘要，不返回来源 payload。 / Safe authenticated summaries without source payloads. */
+/**
+ * 已登录用户的安全摘要，不返回来源 payload。
+ *
+ * Safe authenticated summaries without source payloads.
+ */
 export async function getIngestionIssueList(
   input: IngestionIssueListInput,
 ): Promise<IngestionIssueList> {
-  const result = await getDatabase().$transaction(
+  const result = await readMarketSnapshot(
     (transaction) => readIssueOverview(transaction, null, true),
     { timeout: 120_000 },
   );

@@ -1,5 +1,5 @@
 import { factorReportState } from '#factor/evaluations/state.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { FactorReport } from '@jixie/shared';
 import { FactorError } from '../errors.js';
 import { readOwnedFactorJob } from '../jobs/read.js';
@@ -13,7 +13,7 @@ import { parseResearchPayload, reportSummary } from './report-views.js';
  * List authorized factor reports and execution state with their selected parameters.
  */
 export async function listFactorReports(userId: string, input: FactorReportListQuery) {
-  const rows = await getDatabase().factorReport.findMany({
+  const rows = await getApplicationDatabase().factorReport.findMany({
     where: { userId, factor: input.factor },
     include: { job: true },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -33,7 +33,7 @@ export async function listFactorReports(userId: string, input: FactorReportListQ
  * Authorize a report before returning the full result.
  */
 export async function readFactorReport(userId: string, reportId: string) {
-  const row = await getDatabase()
+  const row = await getApplicationDatabase()
     .factorReport.findFirst({
       where: { id: reportId, userId },
       include: { job: true },
@@ -97,7 +97,7 @@ export async function readFactorAnalysisResult(
   error?: string;
   payload?: FactorReport;
 } | null> {
-  const row = await getDatabase()
+  const row = await getApplicationDatabase()
     .factorReport.findFirst({
       where: { id: reportId, userId },
       select: {

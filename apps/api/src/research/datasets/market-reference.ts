@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 
 /**
  * 指定受控参考数据的身份和日期范围。
@@ -17,7 +17,7 @@ export interface ResearchReferenceDatasetRequestV1 {
  * Preserve the provider's official index-level methodology instead of reconstructing valuations.
  */
 export async function loadResearchIndexValuation(request: ResearchReferenceDatasetRequestV1) {
-  const rows = await getDatabase().indexDailyBasic.findMany({
+  const rows = await getMarketDatabase().indexDailyBasic.findMany({
     where: {
       tsCode: request.identifier,
       tradeDate: { gte: request.start, lte: request.end },

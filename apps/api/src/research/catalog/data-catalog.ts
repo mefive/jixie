@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { isRetiredFactorReport } from '#factor/evaluations/report-spec.js';
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { strategyScanReportStatusWhere } from '#strategy/scans/state.js';
@@ -18,8 +19,8 @@ import {
   type ResearchDataCatalogStrategyScanReportV1,
   type ResearchMeasureDefinitionV1,
 } from '@jixie/shared';
-import { Prisma } from '@prisma/client';
-import { getDatabase } from '#infra/database/prisma.js';
+import { Prisma } from '@jixie/app-db-client';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { researchCapabilityCatalog } from './capabilities.js';
 
 /**
@@ -149,7 +150,7 @@ export async function searchResearchDataCatalog(
 
   const [stocks, etfs, indexes, indexCodes] = await Promise.all([
     assetTypes.includes('stock')
-      ? getDatabase().stockBasic.findMany({
+      ? getMarketDatabase().stockBasic.findMany({
           where: {
             OR: [
               { tsCode: { contains: query } },
@@ -162,7 +163,7 @@ export async function searchResearchDataCatalog(
         })
       : Promise.resolve([]),
     assetTypes.includes('etf')
-      ? getDatabase().etfBasic.findMany({
+      ? getMarketDatabase().etfBasic.findMany({
           where: {
             OR: [
               { tsCode: { contains: query } },
@@ -182,7 +183,7 @@ export async function searchResearchDataCatalog(
         })
       : Promise.resolve([]),
     assetTypes.includes('index')
-      ? getDatabase().indexBenchmark.findMany({
+      ? getMarketDatabase().indexBenchmark.findMany({
           where: {
             OR: [
               { tsCode: { contains: query } },
@@ -196,7 +197,7 @@ export async function searchResearchDataCatalog(
         })
       : Promise.resolve([]),
     assetTypes.includes('index')
-      ? getDatabase().indexDaily.findMany({
+      ? getMarketDatabase().indexDaily.findMany({
           where: { tsCode: { contains: query } },
           select: { tsCode: true },
           distinct: ['tsCode'],
@@ -302,41 +303,47 @@ async function searchDatasets(
     financialBalanceCoverage,
     financialCashFlowCoverage,
   ] = await Promise.all([
-    getDatabase().daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
-    getDatabase().daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
-    getDatabase().dailyBasic.findFirst({
+    getMarketDatabase().daily.findFirst({
       orderBy: { tradeDate: 'asc' },
       select: { tradeDate: true },
     }),
-    getDatabase().dailyBasic.findFirst({
+    getMarketDatabase().daily.findFirst({
       orderBy: { tradeDate: 'desc' },
       select: { tradeDate: true },
     }),
-    getDatabase().indexWeight.groupBy({
+    getMarketDatabase().dailyBasic.findFirst({
+      orderBy: { tradeDate: 'asc' },
+      select: { tradeDate: true },
+    }),
+    getMarketDatabase().dailyBasic.findFirst({
+      orderBy: { tradeDate: 'desc' },
+      select: { tradeDate: true },
+    }),
+    getMarketDatabase().indexWeight.groupBy({
       by: ['indexCode'],
       where: { indexCode: { in: indexCodes } },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    getDatabase().indexDailyBasic.groupBy({
+    getMarketDatabase().indexDailyBasic.groupBy({
       by: ['tsCode'],
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    getDatabase().indexBenchmark.findMany({
+    getMarketDatabase().indexBenchmark.findMany({
       select: { tsCode: true, name: true, indexType: true },
     }),
-    getDatabase().financialIncomeStatement.aggregate({
+    getMarketDatabase().financialIncomeStatement.aggregate({
       where: { availabilityQuality: { not: 'reconstructed' } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    getDatabase().financialBalanceSheet.aggregate({
+    getMarketDatabase().financialBalanceSheet.aggregate({
       where: { availabilityQuality: { not: 'reconstructed' } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    getDatabase().financialCashFlowStatement.aggregate({
+    getMarketDatabase().financialCashFlowStatement.aggregate({
       where: { availabilityQuality: { not: 'reconstructed' } },
       _min: { availableDate: true },
       _max: { availableDate: true },
@@ -633,7 +640,7 @@ async function searchBacktestReports(
   query: string,
   limit: number,
 ): Promise<ResearchDataCatalogBacktestReportV1[]> {
-  const reports = await getDatabase().backtestReport.findMany({
+  const reports = await getApplicationDatabase().backtestReport.findMany({
     where: {
       userId,
       AND: [backtestReportStatusWhere(['done'])],
@@ -689,7 +696,7 @@ async function searchStrategyScanReports(
   query: string,
   limit: number,
 ): Promise<ResearchDataCatalogStrategyScanReportV1[]> {
-  const reports = await getDatabase().strategyScanReport.findMany({
+  const reports = await getApplicationDatabase().strategyScanReport.findMany({
     where: {
       userId,
       AND: [strategyScanReportStatusWhere(['done'])],
@@ -751,7 +758,7 @@ async function searchFactorReports(
   query: string,
   limit: number,
 ): Promise<ResearchDataCatalogFactorReportV1[]> {
-  const factors = await getDatabase().factor.findMany({
+  const factors = await getApplicationDatabase().factor.findMany({
     where: { userId: { in: ['builtin', userId] } },
     select: { key: true, name: true },
   });
@@ -768,7 +775,7 @@ async function searchFactorReports(
   let cursor: string | undefined;
 
   while (reports.length < limit) {
-    const batch = await getDatabase().factorReport.findMany({
+    const batch = await getApplicationDatabase().factorReport.findMany({
       where: {
         userId,
         AND: [factorReportStatusWhere(['done'])],
@@ -856,21 +863,21 @@ async function attachLocalDataCoverage(
     )
     .map((instrument) => instrument.identifier);
   const [stocks, etfs, indexes] = await Promise.all([
-    getDatabase().daily.groupBy({
+    getMarketDatabase().daily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: stockCodes } },
       _count: { _all: true },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    getDatabase().etfDaily.groupBy({
+    getMarketDatabase().etfDaily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: etfCodes } },
       _count: { _all: true },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    getDatabase().indexDaily.groupBy({
+    getMarketDatabase().indexDaily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: indexCodes } },
       _count: { _all: true },

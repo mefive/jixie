@@ -1,5 +1,5 @@
-import type { Prisma } from '@prisma/client';
-import { getDatabase } from '#infra/database/prisma.js';
+import type { Prisma } from '@jixie/app-db-client';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 
 /**
  * 保留可执行 Cell 的源码、修订和依赖字段。
@@ -31,7 +31,7 @@ export interface ExecutableResearchCellRow {
  * Load document code and revisions as in-memory input for this call.
  */
 export async function loadResearchRunInput(userId: string, documentId: string) {
-  const document = await getDatabase().researchDocument.findFirst({
+  const document = await getApplicationDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: {
       id: true,
@@ -66,7 +66,7 @@ export async function loadExecutableResearchCell(
   userId: string,
   cellId: string,
 ): Promise<ExecutableResearchCellRow | null> {
-  return getDatabase().researchCell.findFirst({
+  return getApplicationDatabase().researchCell.findFirst({
     where: { id: cellId, document: { userId, embeddedVersion: null } },
     include: { document: { include: { conversation: true } } },
   });

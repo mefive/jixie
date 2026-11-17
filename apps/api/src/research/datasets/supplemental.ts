@@ -1,7 +1,7 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { selectImplementedCashDividends } from '#market/fundamentals/dividend-cash-events.js';
 import { localDate } from '#market/synchronization/date.js';
 import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
-import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 指定带日期稳定对象标识的数据查询。
@@ -50,7 +50,7 @@ export async function loadResearchEquityFundamentals(request: ResearchDatedIdent
  * availability.
  */
 export async function loadResearchEquityDividends(request: ResearchDatedIdentifierRequestV1) {
-  const rows = await getDatabase().dividend.findMany({
+  const rows = await getMarketDatabase().dividend.findMany({
     where: {
       tsCode: request.identifier,
       divProc: '实施',
@@ -58,7 +58,7 @@ export async function loadResearchEquityDividends(request: ResearchDatedIdentifi
     },
     orderBy: [{ exDate: 'asc' }, { endDate: 'asc' }],
   });
-  const sessions = await getDatabase().tradeCal.findMany({
+  const sessions = await getMarketDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1 },
     orderBy: { calDate: 'asc' },
     select: { calDate: true },

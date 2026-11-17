@@ -23,7 +23,7 @@ vi.mock('#infra/database/prisma.js', async () => {
       '#infra/database/prisma.js',
     )),
     ...mocked,
-    getDatabase: () => ({
+    getApplicationDatabase: () => ({
       ...mocked.prisma,
       $transaction: (run: (transaction: typeof mocked.prisma) => Promise<unknown>) =>
         run(mocked.prisma),

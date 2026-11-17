@@ -7,7 +7,7 @@ import {
 } from '#agent/tools/search-research-catalog.js';
 import * as turnBus from '#agent/turns/bus.js';
 import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { Locale, MessagePart } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
@@ -30,7 +30,7 @@ export async function startResearchAgentTurn(
   const { attemptId, clarificationAnswer } = input;
   let conversationId = input.conversationId;
   if (conversationId) {
-    const existing = await getDatabase().agentConversation.findFirst({
+    const existing = await getApplicationDatabase().agentConversation.findFirst({
       where: {
         id: conversationId,
         userId,
@@ -45,7 +45,7 @@ export async function startResearchAgentTurn(
     }
   } else {
     conversationId = ulid();
-    await getDatabase().agentConversation.create({
+    await getApplicationDatabase().agentConversation.create({
       data: {
         id: conversationId,
         userId,
@@ -71,7 +71,7 @@ export async function startResearchAgentTurn(
     message = researchClarificationAnswerMessage(locale, clarification);
   }
 
-  const document = await getDatabase().researchDocument.findUnique({
+  const document = await getApplicationDatabase().researchDocument.findUnique({
     where: { conversationId },
     select: {
       id: true,
@@ -105,7 +105,7 @@ export async function startResearchAgentTurn(
   }
 
   const attempt = attemptId
-    ? await getDatabase().researchCellChangeAttempt.findFirst({
+    ? await getApplicationDatabase().researchCellChangeAttempt.findFirst({
         where: {
           id: attemptId,
           document: { conversationId, userId },
@@ -145,7 +145,7 @@ export async function startResearchAgentTurn(
   const catalogEvidence = createResearchCatalogTurnEvidence();
   const catalogTool = createSearchResearchCatalogTool(catalogEvidence);
   if (attempt) {
-    await getDatabase().researchCellChangeAttempt.update({
+    await getApplicationDatabase().researchCellChangeAttempt.update({
       where: { id: attempt.id },
       data: { explanationTurnId: turnId },
     });

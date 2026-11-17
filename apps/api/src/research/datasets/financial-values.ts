@@ -1,9 +1,10 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import {
   RESEARCH_FINANCIAL_FIELDS_V1,
   RESEARCH_FINANCIAL_PERIODS_V1,
   type ResearchFinancialPeriodV1,
 } from '@jixie/shared';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@jixie/market-db-client';
 
 import { normalizeCumulativeFlows } from '#market/fundamentals/normalize.js';
 import {
@@ -11,7 +12,7 @@ import {
   type ResolvedFinancialStatement,
 } from '#market/fundamentals/resolver.js';
 import { canonicalStockCode } from '#market/instruments/stock-identity.js';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import { normalizeFinancialFields, validateFinancialReportRange } from './financial.js';
 
 /**
@@ -35,7 +36,7 @@ export interface ResearchFinancialValuesRequestV1 {
  */
 export async function loadResearchFinancialValues(
   request: ResearchFinancialValuesRequestV1,
-  database: PrismaClient = getDatabase(),
+  database: PrismaClient = getMarketDatabase(),
 ) {
   const identifiers =
     typeof request.identifiers === 'string' ? [request.identifiers] : request.identifiers;

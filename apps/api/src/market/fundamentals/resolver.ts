@@ -1,7 +1,8 @@
+import type { MarketDatabase as Prisma } from '#infra/database/market-database.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { createHash } from 'node:crypto';
 
-import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { canonicalStockCode, hasStockCodePredecessor } from '../instruments/stock-identity.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
 import {
@@ -233,7 +234,7 @@ const QUALITY_PRIORITY: Record<FinancialAvailabilityQuality, number> = {
  */
 export async function resolveFinancialState(
   input: { tsCode: string; asOfDate: string },
-  database: FinancialResolverDatabase = getDatabase(),
+  database: FinancialResolverDatabase = getMarketDatabase(),
 ): Promise<ResolvedFinancialState> {
   assertTsCode(input.tsCode);
   assertDate(input.asOfDate, 'asOfDate');
@@ -284,7 +285,7 @@ export async function resolveFinancialStates(
     reportStart?: string;
     reportEnd?: string;
   },
-  database: FinancialResolverDatabase = getDatabase(),
+  database: FinancialResolverDatabase = getMarketDatabase(),
 ): Promise<ResolvedFinancialState[]> {
   assertDate(input.asOfDate, 'asOfDate');
   const tsCodes = sortedUnique(

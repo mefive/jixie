@@ -1,5 +1,6 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { ulid } from 'ulid';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import type { IngestionResult } from './schema.js';
 
 export function unitKey(unit: { dataset: string; scope: string; period: string }): string {
@@ -31,7 +32,7 @@ export function latestAttempts<Attempt extends { dataset: string; scope: string;
  * Resume the latest unfinished run for this target; refresh sources only in a new completed-cycle run.
  */
 export async function openIngestionRun(targetDate: string, trigger: string, invokedAt: Date) {
-  const database = getDatabase();
+  const database = getMarketDatabase();
 
   return database.$transaction(async (transaction) => {
     await transaction.ingestionBatch.updateMany({
@@ -82,7 +83,7 @@ export async function summarizeIngestionRun(
   targetDate: string,
   required: Set<string>,
 ): Promise<IngestionResult> {
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const [attempts, warnings] = await Promise.all([
     database.ingestionBatch.findMany({
       where: { runId },

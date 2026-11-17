@@ -1,4 +1,5 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+
 import {
   calendarDay,
   isObservationDate,
@@ -87,7 +88,7 @@ export async function planEtfSelections(
   targetDate: string,
   startedAt: Date,
 ): Promise<IngestionUnit[]> {
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const end = ingestionEnd(targetDate, startedAt);
   const catalog = await database.etfBasic.findMany({
     where: { listDate: { lte: end }, listStatus: { in: ['L', 'D'] } },
@@ -151,7 +152,7 @@ export async function planIngestion(
   startedAt: Date,
   runId?: string,
 ): Promise<IngestionPlan> {
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const today = localDate(startedAt);
   const end = ingestionEnd(targetDate, startedAt);
   const stocks = await database.stockBasic.findMany();

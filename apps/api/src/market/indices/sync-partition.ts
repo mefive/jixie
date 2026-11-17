@@ -1,7 +1,7 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { calendarDay, isObservationDate } from '../synchronization/date.js';
-import { getDatabase } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import type {
   MarketPartition,
@@ -195,7 +195,11 @@ const INDEX_DEFINITIONS = {
   },
 };
 
-/** 已提交的阶段日历决定请求日期。 / The committed phase calendar determines the request date. */
+/**
+ * 已提交的阶段日历决定请求日期。
+ *
+ * The committed phase calendar determines the request date.
+ */
 async function indexWeightDate(partition: MarketPartition) {
   if (
     !isObservationDate(partition.startDate) ||
@@ -205,7 +209,7 @@ async function indexWeightDate(partition: MarketPartition) {
   ) {
     throw new Error('Index weights require a valid monthly window');
   }
-  const calendar = await getDatabase().tradeCal.findMany({
+  const calendar = await getMarketDatabase().tradeCal.findMany({
     where: {
       exchange: 'SSE',
       calDate: { gte: partition.startDate, lte: partition.endDate },
@@ -226,7 +230,11 @@ async function indexWeightDate(partition: MarketPartition) {
   return calendar.find((day) => day.isOpen === 1)?.calDate ?? partition.endDate;
 }
 
-/** 指数下载只依赖固定区间及阶段日历。 / Index downloads depend only on fixed bounds and the phase calendar. */
+/**
+ * 指数下载只依赖固定区间及阶段日历。
+ *
+ * Index downloads depend only on fixed bounds and the phase calendar.
+ */
 export async function downloadIndexPartition(source: SyncSource, partition: MarketPartition) {
   if (partition.dataset === 'index-weights') {
     const tradeDate = await indexWeightDate(partition);

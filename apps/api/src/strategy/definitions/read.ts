@@ -1,13 +1,13 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { strategyInputSignature } from './config.js';
 import { backtestReportState } from '../backtests/state.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { readCodeProposalHistory } from '#agent/conversations/code-proposals.js';
 import { type BacktestSummary, type StrategyCard } from '@jixie/shared';
 import { StrategyError } from '../errors.js';
 
 export async function listStrategies(userId: string) {
-  const rows = await getDatabase().strategy.findMany({
+  const rows = await getApplicationDatabase().strategy.findMany({
     where: { userId: userId },
     select: {
       id: true,
@@ -56,7 +56,7 @@ function strategyCardSnapshot(lastResult: unknown): StrategyCard['snapshot'] {
  * Read an owned strategy, its configuration and current execution information.
  */
 export async function readStrategy(userId: string, strategyId: string) {
-  const row = await getDatabase().strategy.findFirst({
+  const row = await getApplicationDatabase().strategy.findFirst({
     where: { id: strategyId, userId: userId },
     include: {
       backtestReports: {
@@ -79,7 +79,13 @@ export async function readStrategy(userId: string, strategyId: string) {
     config: row.config,
     ...latestBacktest(row.backtestReports[0], row.config),
     messages: Array.isArray(row.messages)
-      ? await readCodeProposalHistory(getDatabase(), userId, 'strategy', strategyId, row.messages)
+      ? await readCodeProposalHistory(
+          getApplicationDatabase(),
+          userId,
+          'strategy',
+          strategyId,
+          row.messages,
+        )
       : row.messages,
   };
 }

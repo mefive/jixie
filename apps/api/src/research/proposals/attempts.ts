@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type {
   ResearchCellChangeAttemptScopeV1,
   ResearchCellChangeAttemptStatusV1,
@@ -26,7 +26,7 @@ export async function runResearchCellChangeProposalAttempt(
   userId: string,
   proposalId: string,
 ): Promise<ResearchCellChangeRunResultV1> {
-  const proposal = await getDatabase().researchCellChangeProposal.findFirst({
+  const proposal = await getApplicationDatabase().researchCellChangeProposal.findFirst({
     where: { id: proposalId, document: { userId, embeddedVersion: null } },
     include: {
       document: {
@@ -57,7 +57,7 @@ export async function runResearchCellChangeProposalAttempt(
   }
 
   const reviewProposals = proposal.reviewSessionId
-    ? await getDatabase().researchCellChangeProposal.findMany({
+    ? await getApplicationDatabase().researchCellChangeProposal.findMany({
         where: {
           documentId: proposal.documentId,
           reviewSessionId: proposal.reviewSessionId,
@@ -83,7 +83,7 @@ export async function runResearchCellChangeProposalAttempt(
     ? 'clean_document'
     : 'affected';
   const attemptId = ulid();
-  await getDatabase().researchCellChangeAttempt.create({
+  await getApplicationDatabase().researchCellChangeAttempt.create({
     data: {
       id: attemptId,
       documentId: proposal.documentId,
@@ -104,7 +104,7 @@ export async function runResearchCellChangeProposalAttempt(
       operations,
       scope,
     );
-    await getDatabase().researchCellChangeAttempt.update({
+    await getApplicationDatabase().researchCellChangeAttempt.update({
       where: { id: attemptId },
       data: { plannedCellIds: plan.cellIds },
     });
@@ -117,7 +117,7 @@ export async function runResearchCellChangeProposalAttempt(
     await finishCellChangeAttempt(attemptId, plan.cellIds.length);
   } catch (error) {
     const message = attemptErrorMessage(error);
-    await getDatabase().researchCellChangeAttempt.updateMany({
+    await getApplicationDatabase().researchCellChangeAttempt.updateMany({
       where: { id: attemptId, status: 'running' },
       data: {
         status: 'error',
@@ -203,7 +203,7 @@ async function cellChangeAttemptPlan(
  * Finalize a cell-change attempt and associate its immutable execution evidence.
  */
 async function finishCellChangeAttempt(attemptId: string, plannedCellCount: number): Promise<void> {
-  const executions = await getDatabase().researchCellExecution.findMany({
+  const executions = await getApplicationDatabase().researchCellExecution.findMany({
     where: { cellChangeAttemptId: attemptId },
     orderBy: { startedAt: 'asc' },
     select: { status: true, error: true },
@@ -217,7 +217,7 @@ async function finishCellChangeAttempt(attemptId: string, plannedCellCount: numb
       ? 'error'
       : 'success';
   const error = failed?.error ?? (incomplete ? 'upstream_cell_failed' : null);
-  await getDatabase().researchCellChangeAttempt.update({
+  await getApplicationDatabase().researchCellChangeAttempt.update({
     where: { id: attemptId },
     data: { status, error, finishedAt: new Date() },
   });

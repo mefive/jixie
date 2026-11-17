@@ -1,3 +1,4 @@
+import { boundMarketVersionId } from '#infra/database/market-database.js';
 import { factorAnalysisJobPayloadSchema } from './job-payload.js';
 import type { FactorAnalysisWorkerInput } from '../analysis/worker-input.js';
 import { factorAnalysisWorkerMessageSchema } from '../analysis/worker-protocol.js';
@@ -7,7 +8,7 @@ import { FactorWorkerError } from '../errors.js';
 import { runWorker } from '#jobs/worker.js';
 import { Worker } from 'node:worker_threads';
 import { pruneFactorReports } from './retention.js';
-import type { Job, Prisma } from '@prisma/client';
+import type { Job, Prisma } from '@jixie/app-db-client';
 
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../analysis/worker.boot.mjs', import.meta.url)
@@ -31,6 +32,7 @@ export const factorAnalysisLifecycle = {
         start: () =>
           new Worker(workerUrl, {
             workerData: {
+              marketVersionId: boundMarketVersionId(),
               reportId: input.reportId,
               factor: input.factor,
               source: input.source,

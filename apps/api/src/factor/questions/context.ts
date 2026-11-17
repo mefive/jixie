@@ -1,6 +1,6 @@
 import { factorReportState } from '#factor/evaluations/state.js';
 import type { FactorQuestionContextV1, Locale } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { FactorError } from '../errors.js';
 import { reportSummary } from '../evaluations/report-views.js';

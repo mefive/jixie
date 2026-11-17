@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 
 /**
  * 关联回测报告与任务状态，供运行和历史结果查询。

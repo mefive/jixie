@@ -2,7 +2,7 @@ import {
   MarketAccessBusyError,
   runOutsideMarketAccess,
 } from '#infra/coordination/market-access.js';
-import { getDatabase, withDatabase } from '#infra/database/prisma.js';
+import { getDatabase, getApplicationDatabase, withDatabase } from '#infra/database/prisma.js';
 import { JobService } from './job-service.js';
 
 /**
@@ -103,7 +103,7 @@ export class JobScheduler {
       const saturated = [...counts]
         .filter(([, count]) => count >= this.config.perUserConcurrency)
         .map(([userId]) => userId);
-      const candidate = await getDatabase().job.findFirst({
+      const candidate = await getApplicationDatabase().job.findFirst({
         where: { status: 'queued', userId: { notIn: saturated } },
         orderBy: [{ queuedAt: 'asc' }, { id: 'asc' }],
         select: { id: true, userId: true },

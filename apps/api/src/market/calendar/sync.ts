@@ -1,5 +1,6 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import { prepareCalendarPartition } from './sync-partition.js';
 import { writeCalendarPartition } from './write.js';
 
@@ -19,7 +20,7 @@ export async function syncTradeCal(
   if (prepared.status !== 'complete') {
     throw new Error([...prepared.errors, ...prepared.gaps].join('; '));
   }
-  await getDatabase().$transaction((transaction) =>
+  await getMarketDatabase().$transaction((transaction) =>
     writeCalendarPartition(transaction, prepared, partition),
   );
 

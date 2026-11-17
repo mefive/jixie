@@ -1,8 +1,8 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import type { PanelEvaluationObservation } from './contract.js';
 import type { PanelFactorSandbox } from '../sandbox/contract.js';
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
-import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 提供 Panel ETF 的逐日原始价格和复权字段。
@@ -52,7 +52,7 @@ export async function loadPanelEtfObservations(
       : targetEnd
     : targetEnd;
   const [bars, adjustments, calendar, metadata] = await Promise.all([
-    getDatabase().etfDaily.findMany({
+    getMarketDatabase().etfDaily.findMany({
       where: {
         tsCode: { in: assetIds },
         tradeDate: { gte: historyStart, lte: upperBound },
@@ -61,14 +61,14 @@ export async function loadPanelEtfObservations(
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     }),
-    getDatabase().etfAdjFactor.findMany({
+    getMarketDatabase().etfAdjFactor.findMany({
       where: {
         tsCode: { in: assetIds },
         tradeDate: { gte: historyStart, lte: upperBound },
       },
       select: { tsCode: true, tradeDate: true, adjFactor: true },
     }),
-    getDatabase().tradeCal.findMany({
+    getMarketDatabase().tradeCal.findMany({
       where: {
         exchange: 'SSE',
         isOpen: 1,
@@ -77,7 +77,7 @@ export async function loadPanelEtfObservations(
       select: { calDate: true },
       orderBy: { calDate: 'asc' },
     }),
-    getDatabase().etfBasic.findMany({
+    getMarketDatabase().etfBasic.findMany({
       where: { tsCode: { in: assetIds } },
       select: {
         tsCode: true,

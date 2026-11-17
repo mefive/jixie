@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { sha256 } from '../sources/fingerprint.js';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from './builtin-factors.js';
 import { TIME_SERIES_TEMPLATES } from './templates/time-series.js';
@@ -32,7 +32,7 @@ export async function seedBuiltinFactors(): Promise<void> {
   ];
 
   for (const definition of definitions) {
-    await getDatabase().factor.upsert({
+    await getApplicationDatabase().factor.upsert({
       where: { id: definition.key },
       update: {},
       create: {

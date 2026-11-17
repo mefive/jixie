@@ -1,3 +1,4 @@
+import { withWorkerMarket } from '#infra/database/market-database.js';
 import { strategyScanWorkerInputSchema } from './job-payload.js';
 import type { StrategyScanWorkerMessage } from './worker-protocol.js';
 import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
@@ -15,12 +16,14 @@ const send = (message: StrategyScanWorkerMessage) => port.postMessage(message);
 let locale: Locale = 'zh';
 await withDatabase(prisma, async () => {
   try {
-    const input = strategyScanWorkerInputSchema.parse(workerData);
-    locale = input.locale;
-    const payload = await runStrategyScan(input, (text) =>
-      send({ type: 'log', entry: { source: 'system', level: 'info', text } }),
-    );
-    send({ type: 'done', payload });
+    await withWorkerMarket(workerData?.marketVersionId, async () => {
+      const input = strategyScanWorkerInputSchema.parse(workerData);
+      locale = input.locale;
+      const payload = await runStrategyScan(input, (text) =>
+        send({ type: 'log', entry: { source: 'system', level: 'info', text } }),
+      );
+      send({ type: 'done', payload });
+    });
   } catch (error) {
     send({ type: 'error', message: errorMessage(error, locale) });
   } finally {

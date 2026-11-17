@@ -1,3 +1,5 @@
+import { getApplicationDatabase } from '#infra/database/prisma.js';
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { rm } from 'node:fs/promises';
@@ -14,6 +16,10 @@ vi.mock('#infra/database/prisma.js', async () => {
   fixture.directory = mkdtempSync('/tmp/jixie-job-contract-');
   const databasePath = `${fixture.directory}/jobs.db`;
   writeFileSync(databasePath, '');
+  const { default: application } = await import('@jixie/app-db-client');
+  const applicationDatabase = new application.PrismaClient({
+    datasourceUrl: `file:${databasePath}`,
+  });
   const mocked = {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${databasePath}` }),
   };
@@ -23,6 +29,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => applicationDatabase,
   };
 });
 const execution = vi.hoisted(() => ({
@@ -254,6 +261,7 @@ describe('durable job and business lifecycle transactions', () => {
     await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS reject_job_update');
   });
   afterAll(async () => {
+    await getApplicationDatabase().$disconnect();
     await prisma.$disconnect();
     vi.unstubAllEnvs();
     await rm(fixture.directory, { recursive: true, force: true });
@@ -598,3 +606,8 @@ async function executeFixtureJob(jobId: string): Promise<void> {
 
   await JobService.execute(jobId);
 }
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

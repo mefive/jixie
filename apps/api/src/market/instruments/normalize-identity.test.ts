@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { describe, expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
 import { acceptSource, seedSessions } from '../../../tests/market-contract-fixtures.js';
@@ -66,7 +67,9 @@ describe('stored stock identity reconciliation', () => {
         }),
       });
 
-      await database.$transaction((transaction) => normalizeStockIdentity(transaction, change));
+      await getMarketDatabase().$transaction((transaction) =>
+        normalizeStockIdentity(transaction, change),
+      );
       expect(await database.daily.findMany()).toMatchObject([
         { tsCode: change.newTsCode, close: 11, sourceTsCode: null },
       ]);
@@ -79,7 +82,7 @@ describe('stored stock identity reconciliation', () => {
       expect(await database.dividend.findMany()).toMatchObject([
         { cashDiv: 1, observedAt: new Date('2026-09-01T00:00:00Z') },
       ]);
-      const repeated = await database.$transaction((transaction) =>
+      const repeated = await getMarketDatabase().$transaction((transaction) =>
         normalizeStockIdentity(transaction, change),
       );
       expect(repeated.changed).toBe(false);
@@ -93,7 +96,9 @@ describe('stored stock identity reconciliation', () => {
           { tsCode: change.newTsCode, sourceTsCode: change.oldTsCode, tradeDate: date, close: 10 },
         ],
       });
-      await database.$transaction((transaction) => normalizeStockIdentity(transaction, change));
+      await getMarketDatabase().$transaction((transaction) =>
+        normalizeStockIdentity(transaction, change),
+      );
       expect(await database.daily.findMany()).toMatchObject([
         { tsCode: change.newTsCode, sourceTsCode: change.newTsCode, close: 11 },
       ]);
@@ -106,7 +111,9 @@ describe('stored stock identity reconciliation', () => {
         },
       });
       await expect(
-        database.$transaction((transaction) => normalizeStockIdentity(transaction, change)),
+        getMarketDatabase().$transaction((transaction) =>
+          normalizeStockIdentity(transaction, change),
+        ),
       ).rejects.toThrow('same-source');
       expect(await database.daily.count()).toBe(2);
     }));
@@ -171,7 +178,9 @@ describe('stored stock identity reconciliation', () => {
         ].sort((left, right) => left.id.localeCompare(right.id));
       const before = await readVersions();
 
-      await database.$transaction((transaction) => normalizeStockIdentity(transaction, change));
+      await getMarketDatabase().$transaction((transaction) =>
+        normalizeStockIdentity(transaction, change),
+      );
       expect(await readVersions()).toEqual(
         before.map((row) => ({ ...row, tsCode: change.newTsCode })),
       );

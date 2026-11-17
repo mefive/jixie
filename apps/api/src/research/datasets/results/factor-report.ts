@@ -1,7 +1,7 @@
 import { reportResearchSpec } from '#factor/evaluations/report-spec.js';
 import { factorReportState } from '#factor/evaluations/state.js';
 import type { FactorResearchSpecV1 } from '@jixie/shared';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 
 const MAX_FACTOR_REPORT_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
@@ -50,7 +50,7 @@ export async function loadResearchFactorReportResult(
   documentId: string,
   reportId: string,
 ): Promise<ResearchFactorReportResultV1> {
-  const document = await getDatabase().agentConversation.findFirst({
+  const document = await getApplicationDatabase().agentConversation.findFirst({
     where: { id: documentId, surface: 'research', archivedAt: null },
     select: { userId: true, researchDocument: { select: { id: true } } },
   });
@@ -58,7 +58,7 @@ export async function loadResearchFactorReportResult(
     throw new Error('Research document was not found.');
   }
 
-  const row = await getDatabase()
+  const row = await getApplicationDatabase()
     .factorReport.findFirst({
       where: { id: reportId, userId: document.userId },
       select: {

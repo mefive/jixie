@@ -1,5 +1,6 @@
+import { boundMarketVersionId } from '#infra/database/market-database.js';
 import { factorReportStatusWhere, factorReportState } from '#factor/evaluations/state.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import {
@@ -9,7 +10,7 @@ import {
   type RunFactorAnalysisResponse,
   factorRuntimeVersion,
 } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 import {
@@ -48,7 +49,7 @@ export async function startFactorAnalysis(options: {
   const reportColumns = reportCompatibilityColumns(researchSpec);
   const reportId = ulid();
   const jobId = ulid();
-  const created = await getDatabase().$transaction(async (transaction) => {
+  const created = await getApplicationDatabase().$transaction(async (transaction) => {
     const running = await transaction.factorReport
       .findFirst({
         where: {
@@ -67,6 +68,7 @@ export async function startFactorAnalysis(options: {
 
     await transaction.factorReport.create({
       data: {
+        marketVersionId: boundMarketVersionId(),
         id: reportId,
         userId: options.userId,
         factor: options.factor,
@@ -83,6 +85,7 @@ export async function startFactorAnalysis(options: {
         dataRevision,
         job: {
           create: {
+            marketVersionId: boundMarketVersionId(),
             id: jobId,
             userId: options.userId,
             kind: 'factor-analysis',

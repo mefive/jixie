@@ -1,3 +1,4 @@
+import { historicalOmit } from './historical-columns.js';
 import { legacyMarketTable } from './legacy-market-tables.js';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
@@ -13,7 +14,10 @@ it('drops weather history while preserving raw data, historical maintenance rows
   const databaseUrl = `file:${directory}/upgrade.db`;
   const schema = join(directory, 'schema.prisma');
   const migrations = join(directory, 'migrations');
-  const database = new prismaPackage.PrismaClient({ datasourceUrl: databaseUrl });
+  const database = new prismaPackage.PrismaClient({
+    datasourceUrl: databaseUrl,
+    omit: historicalOmit,
+  });
   const deploy = () =>
     execFileSync(
       process.execPath,

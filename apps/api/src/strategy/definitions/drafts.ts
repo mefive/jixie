@@ -1,7 +1,7 @@
 import { t } from '#i18n/index.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { Locale } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import { StrategyError } from '../errors.js';
 import type { CreateStrategyInput } from '@jixie/shared/api/strategy';
@@ -29,12 +29,12 @@ export async function createStrategy(userId: string, input: CreateStrategyInput,
   }
 
   const name = await uniqueStrategyName(
-    getDatabase(),
+    getApplicationDatabase(),
     userId,
     proposedName || t(locale, 'unnamedStrategy'),
   );
   const config = { ...candidate, name };
-  const row = await getDatabase().strategy.create({
+  const row = await getApplicationDatabase().strategy.create({
     data: {
       id: ulid(),
       userId,
@@ -54,7 +54,7 @@ export async function createStrategy(userId: string, input: CreateStrategyInput,
  * Delete an owned strategy and its dependent records.
  */
 export async function deleteStrategy(userId: string, strategyId: string) {
-  const r = await getDatabase().strategy.deleteMany({
+  const r = await getApplicationDatabase().strategy.deleteMany({
     where: { id: strategyId, userId },
   });
 

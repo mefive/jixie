@@ -4,7 +4,7 @@ import { startFactorAnalysis } from '#factor/evaluations/start.js';
 import { readFactorAnalysisResult } from '#factor/evaluations/read.js';
 import { createDefaultFactorAnalysisSpecV6 } from '#factor/analysis/spec.js';
 import { t } from '#i18n/index.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';
 
 const REPORT_WAIT_TIMEOUT_MS = 15 * 60_000;
@@ -71,7 +71,7 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
         throw new Error('start must be earlier than end.');
       }
 
-      const factor = await getDatabase().factor.findFirst({
+      const factor = await getApplicationDatabase().factor.findFirst({
         where: { id: context.factorId, userId: context.userId },
         select: { id: true, name: true },
       });

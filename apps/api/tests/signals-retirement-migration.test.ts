@@ -1,3 +1,4 @@
+import { historicalOmit } from './historical-columns.js';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -22,7 +23,10 @@ it('removes populated Signals tables while preserving users, research, backtests
   const schema = join(directory, 'schema.prisma');
   const migrations = join(directory, 'migrations');
   const databaseUrl = `file:${directory}/upgrade.db`;
-  const database = new prismaPackage.PrismaClient({ datasourceUrl: databaseUrl });
+  const database = new prismaPackage.PrismaClient({
+    datasourceUrl: databaseUrl,
+    omit: historicalOmit,
+  });
   const deploy = () =>
     execFileSync(
       process.execPath,

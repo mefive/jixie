@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 
 import { buildIndexValuationSeries } from './compute.js';
 
@@ -8,7 +8,7 @@ import { buildIndexValuationSeries } from './compute.js';
  * Load available index valuation identities and coverage for selection.
  */
 export async function loadIndexValuationCatalog() {
-  const coverage = await getDatabase().indexDailyBasic.groupBy({
+  const coverage = await getMarketDatabase().indexDailyBasic.groupBy({
     by: ['tsCode'],
     _min: { tradeDate: true },
     _max: { tradeDate: true },
@@ -39,7 +39,7 @@ export async function loadIndexValuationCatalog() {
  */
 export async function loadIndexValuation(tsCode: string) {
   const [basicRows, closeRows] = await Promise.all([
-    getDatabase().indexDailyBasic.findMany({
+    getMarketDatabase().indexDailyBasic.findMany({
       where: { tsCode },
       select: {
         tsCode: true,
@@ -51,7 +51,7 @@ export async function loadIndexValuation(tsCode: string) {
       },
       orderBy: { tradeDate: 'asc' },
     }),
-    getDatabase().indexDaily.findMany({
+    getMarketDatabase().indexDaily.findMany({
       where: { tsCode },
       select: { tradeDate: true, close: true },
       orderBy: { tradeDate: 'asc' },

@@ -1,3 +1,4 @@
+import { historicalOmit } from './historical-columns.js';
 import { legacyMarketTable } from './legacy-market-tables.js';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
@@ -15,7 +16,10 @@ it('drops nine futures tables while preserving retained schema, sources, user co
   process.env.DATABASE_URL = databaseUrl;
   const schema = join(directory, 'schema.prisma');
   const migrations = join(directory, 'migrations');
-  const database = new prismaPackage.PrismaClient({ datasourceUrl: databaseUrl });
+  const database = new prismaPackage.PrismaClient({
+    datasourceUrl: databaseUrl,
+    omit: historicalOmit,
+  });
   const deploy = () =>
     execFileSync(
       process.execPath,

@@ -1,4 +1,4 @@
-import type { Prisma } from '#infra/database/prisma.js';
+import type { MarketDatabase as Prisma } from '#infra/database/market-database.js';
 import { toNumber } from '../quality/format.js';
 import type { AuditFinding } from '../quality/report.js';
 

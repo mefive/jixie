@@ -1,3 +1,5 @@
+import { getApplicationDatabase } from '#infra/database/prisma.js';
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { seedBuiltinFactors } from '#factor/definitions/seed.js';
 import type { ResearchSandbox } from '../sandbox/research-sandbox.js';
 import type { ResearchCellRunResult, ResearchCellInput } from '../sandbox/contract.js';
@@ -31,6 +33,10 @@ vi.mock('#infra/database/prisma.js', async () => {
   fixture.directory = mkdtempSync('/tmp/jixie-embedded-lifecycle-');
   writeFileSync(`${fixture.directory}/test.db`, '');
   vi.stubEnv('DATABASE_URL', `file:${fixture.directory}/test.db`);
+  const { default: application } = await import('@jixie/app-db-client');
+  const applicationDatabase = new application.PrismaClient({
+    datasourceUrl: `file:${fixture.directory}/test.db`,
+  });
   const mocked = {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${fixture.directory}/test.db` }),
   };
@@ -40,6 +46,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => applicationDatabase,
   };
 });
 vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: vi.fn() } }));
@@ -181,6 +188,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     await prisma.user.deleteMany();
   });
   afterAll(async () => {
+    await getApplicationDatabase().$disconnect();
     await prisma.$disconnect();
     vi.unstubAllEnvs();
     await rm(fixture.directory, { recursive: true, force: true });
@@ -698,3 +706,8 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
 });
 
 registerJobLifecycles();
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

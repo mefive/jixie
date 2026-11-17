@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { sameValues } from '../synchronization/rows.js';
 import { mergeIndicatorSnapshot, selectIndicatorSnapshots } from './indicator-selection.js';
@@ -16,7 +16,7 @@ export interface IndicatorVersionsInput {
  * capture time.
  */
 export async function loadIndicatorVersions(input: IndicatorVersionsInput = {}) {
-  const rows = await getDatabase().finaIndicatorVersion.findMany({
+  const rows = await getMarketDatabase().finaIndicatorVersion.findMany({
     where: {
       availabilityQuality: { not: 'unknown' },
       ...(input.tsCode ? { tsCode: canonicalStockCode(input.tsCode) } : {}),

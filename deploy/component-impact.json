@@ -29,14 +29,18 @@
   },
   "allComponents": ["api", "web", "docs", "sandboxd"],
   "sharedPrefixes": ["packages/shared/"],
-  "fullDeployPrefixes": ["deploy/", "scripts/"],
+  "fullDeployPrefixes": ["deploy/", "scripts/", "apps/api/prisma/app/", "apps/api/prisma/market/"],
   "fullDeployFiles": [
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
     "tsconfig.base.json",
     ".dockerignore",
-    "apps/api/src/ingestion/reset.ts"
+    "apps/api/src/ingestion/reset.ts",
+    "apps/api/scripts/initialize-market-storage.mjs",
+    "apps/api/scripts/convert-market-storage.mjs",
+    "apps/api/scripts/version-backup.mjs",
+    "apps/api/scripts/restore-market-backup.mjs"
   ],
   "noRuntimePrefixes": [".github/", "docs/"],
   "noRuntimeFiles": [

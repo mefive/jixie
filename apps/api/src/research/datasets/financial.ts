@@ -1,9 +1,10 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import {
   RESEARCH_FINANCIAL_FIELDS_V1,
   RESEARCH_FINANCIAL_METRICS_V1,
   type ResearchFinancialMetricV1,
 } from '@jixie/shared';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@jixie/market-db-client';
 
 import {
   FINANCIAL_FORMULA_VERSION,
@@ -17,7 +18,7 @@ import {
   type ResolvedFinancialState,
   type ResolvedFinancialStatement,
 } from '#market/fundamentals/resolver.js';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import {
   loadResearchCrossSection,
   loadResearchPanel,
@@ -121,7 +122,7 @@ export interface ResearchFinancialMetricRowV1 {
  */
 export async function loadResearchFinancialStatements(
   request: ResearchFinancialStatementRequestV1,
-  database: PrismaClient = getDatabase(),
+  database: PrismaClient = getMarketDatabase(),
 ): Promise<ResearchFinancialStatementRowV1[]> {
   const selectedFields = normalizeFinancialFields(request.fields);
   validateFinancialReportRange(request.as_of);
@@ -156,7 +157,7 @@ export async function loadResearchFinancialStatements(
  */
 export async function loadResearchFinancialMetrics(
   request: ResearchSingleFinancialRequestV1,
-  database: PrismaClient = getDatabase(),
+  database: PrismaClient = getMarketDatabase(),
 ): Promise<ResearchFinancialMetricRowV1[]> {
   const [state, historicalName] = await Promise.all([
     resolveFinancialState({ tsCode: request.identifier, asOfDate: request.as_of }, database),
@@ -187,7 +188,7 @@ export async function loadResearchFinancialMetrics(
  */
 export async function loadResearchFinancialCrossSection(
   request: ResearchFinancialCrossSectionRequestV1,
-  database: PrismaClient = getDatabase(),
+  database: PrismaClient = getMarketDatabase(),
 ): Promise<ResearchFinancialMetricRowV1[]> {
   const metrics = normalizeSelectedMetrics(request.metrics);
   const dataset = await loadResearchCrossSection(request, database);
@@ -207,7 +208,7 @@ export async function loadResearchFinancialCrossSection(
  */
 export async function loadResearchFinancialPanel(
   request: ResearchFinancialPanelRequestV1,
-  database: PrismaClient = getDatabase(),
+  database: PrismaClient = getMarketDatabase(),
 ): Promise<ResearchFinancialMetricRowV1[]> {
   const metrics = normalizeSelectedMetrics(request.metrics);
   const dataset = await loadResearchPanel(request, database, {

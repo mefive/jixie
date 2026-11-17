@@ -1,9 +1,10 @@
+import { boundMarketVersionId } from '#infra/database/market-database.js';
 import type { BacktestJobPayload } from './job-payload.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type { BacktestConfig, Locale } from '@jixie/shared';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import { refreshStrategyName } from '../definitions/naming.js';
 import {
@@ -37,7 +38,7 @@ export async function submitStrategyBacktest(
     throw new StrategyError('start_after_end', { details: { field: 'start' } });
   }
 
-  const start = await getDatabase().$transaction(async (transaction) => {
+  const start = await getApplicationDatabase().$transaction(async (transaction) => {
     const strategy = await transaction.strategy.findFirst({
       where: { id: strategyId, userId },
       select: { id: true },
@@ -73,6 +74,7 @@ export async function submitStrategyBacktest(
 
     await transaction.backtestReport.create({
       data: {
+        marketVersionId: boundMarketVersionId(),
         id: reportId,
         userId,
         strategyId,
@@ -83,6 +85,7 @@ export async function submitStrategyBacktest(
         inputSignature: strategyInputSignature(committedConfig),
         job: {
           create: {
+            marketVersionId: boundMarketVersionId(),
             id: jobId,
             userId,
             kind: 'backtest',

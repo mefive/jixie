@@ -1,5 +1,5 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
@@ -17,7 +17,7 @@ export async function archiveResearchDocument(
   userId: string,
   documentId: string,
 ): Promise<boolean> {
-  const conversation = await getDatabase().agentConversation.findFirst({
+  const conversation = await getApplicationDatabase().agentConversation.findFirst({
     where: {
       id: documentId,
       userId,
@@ -30,7 +30,7 @@ export async function archiveResearchDocument(
     throw new ResearchError('document_not_found');
   }
   if (!conversation.archivedAt) {
-    await getDatabase().agentConversation.update({
+    await getApplicationDatabase().agentConversation.update({
       where: { id: conversation.id },
       data: { archivedAt: new Date() },
     });
@@ -48,7 +48,7 @@ export async function restoreResearchDocument(
   userId: string,
   documentId: string,
 ): Promise<boolean> {
-  const conversation = await getDatabase().agentConversation.findFirst({
+  const conversation = await getApplicationDatabase().agentConversation.findFirst({
     where: {
       id: documentId,
       userId,
@@ -61,7 +61,7 @@ export async function restoreResearchDocument(
     throw new ResearchError('document_not_found');
   }
   if (conversation.archivedAt) {
-    await getDatabase().agentConversation.update({
+    await getApplicationDatabase().agentConversation.update({
       where: { id: conversation.id },
       data: { archivedAt: null },
     });
@@ -72,7 +72,7 @@ export async function restoreResearchDocument(
 export async function createResearchDocument(userId: string): Promise<ResearchDocumentV1> {
   const id = ulid();
   const definition = blankDefinition();
-  await getDatabase().$transaction(async (transaction) => {
+  await getApplicationDatabase().$transaction(async (transaction) => {
     await transaction.agentConversation.create({
       data: { id, userId, surface: 'research', title: definition.title },
     });
@@ -91,7 +91,7 @@ export async function createResearchDocument(userId: string): Promise<ResearchDo
 }
 
 export async function renameResearchDocument(userId: string, documentId: string, title: string) {
-  const updated = await getDatabase().agentConversation.updateMany({
+  const updated = await getApplicationDatabase().agentConversation.updateMany({
     where: {
       id: documentId,
       userId,
@@ -113,7 +113,7 @@ export async function renameResearchDocument(userId: string, documentId: string,
  * Validate deletion eligibility and remove document resources safely around active runs.
  */
 export async function deleteResearchDocument(userId: string, documentId: string) {
-  const deleted = await getDatabase().agentConversation.deleteMany({
+  const deleted = await getApplicationDatabase().agentConversation.deleteMany({
     where: {
       id: documentId,
       userId,

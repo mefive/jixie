@@ -1,8 +1,8 @@
 import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { t } from '#i18n/messages.js';
 import type { Locale, ResearchDocumentV1 } from '@jixie/shared';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
 import { getResearchDocument } from './read.js';
@@ -17,7 +17,7 @@ export async function createResearchDocumentFromBacktestReport(
   reportId: string,
   locale: Locale,
 ): Promise<ResearchDocumentV1> {
-  const report = await getDatabase().backtestReport.findFirst({
+  const report = await getApplicationDatabase().backtestReport.findFirst({
     where: {
       id: reportId,
       userId,
@@ -43,7 +43,7 @@ export async function createResearchDocumentFromBacktestReport(
     },
   ] as const;
 
-  await getDatabase().$transaction(async (transaction) => {
+  await getApplicationDatabase().$transaction(async (transaction) => {
     await transaction.agentConversation.create({
       data: { id: documentId, userId, surface: 'research', title },
     });

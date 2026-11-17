@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { researchCapabilityCatalog } from './capabilities.js';
 import {
   researchConceptBindingSdkCall,
@@ -98,11 +98,11 @@ async function resolveInstrumentBinding(
   const { assetType, id } = source;
   if (assetType === 'stock') {
     const [metadata, aggregate] = await Promise.all([
-      getDatabase().stockBasic.findUnique({
+      getMarketDatabase().stockBasic.findUnique({
         where: { tsCode: id },
         select: { name: true },
       }),
-      getDatabase().daily.aggregate({
+      getMarketDatabase().daily.aggregate({
         where: { tsCode: id },
         _count: { _all: true },
         _min: { tradeDate: true },
@@ -122,11 +122,11 @@ async function resolveInstrumentBinding(
   }
   if (assetType === 'etf') {
     const [metadata, aggregate] = await Promise.all([
-      getDatabase().etfBasic.findUnique({
+      getMarketDatabase().etfBasic.findUnique({
         where: { tsCode: id },
         select: { name: true, fundType: true, indexName: true, exchange: true },
       }),
-      getDatabase().etfDaily.aggregate({
+      getMarketDatabase().etfDaily.aggregate({
         where: { tsCode: id },
         _count: { _all: true },
         _min: { tradeDate: true },
@@ -146,11 +146,11 @@ async function resolveInstrumentBinding(
   }
   if (assetType === 'index') {
     const [metadata, aggregate] = await Promise.all([
-      getDatabase().indexBenchmark.findUnique({
+      getMarketDatabase().indexBenchmark.findUnique({
         where: { tsCode: id },
         select: { name: true, fullName: true, indexType: true },
       }),
-      getDatabase().indexDaily.aggregate({
+      getMarketDatabase().indexDaily.aggregate({
         where: { tsCode: id },
         _count: { _all: true },
         _min: { tradeDate: true },

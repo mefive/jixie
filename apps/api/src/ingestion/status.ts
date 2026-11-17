@@ -1,4 +1,6 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { readMarketSnapshot } from '#infra/database/market-database.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+import { getDatabase, usesMarketVersions } from '#infra/database/prisma.js';
 import {
   isMaintenanceOwnerActive,
   MarketAccessBusyError,
@@ -37,6 +39,52 @@ export async function getIngestionStatus(): Promise<IngestionStatus> {
 
 async function readIngestionStatus(): Promise<IngestionAvailableStatus> {
   const database = getDatabase();
+  if (usesMarketVersions()) {
+    const publication = await database.marketPublication.findUniqueOrThrow({
+      where: { key: 'global' },
+    });
+    const candidate = await database.marketVersion.findUnique({ where: { activeSlot: 1 } });
+    const current = await database.marketVersion.findUnique({
+      where: { id: publication.currentVersionId ?? '' },
+    });
+    const market = getMarketDatabase();
+    const latest = current?.isBaseline
+      ? await market.ingestionRun.findFirst({
+          orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+          select: { id: true },
+        })
+      : null;
+    const { health, latestError } = await readMarketSnapshot(
+      (tx) => readIssueOverview(tx, latest?.id ?? current?.runId),
+      { timeout: 120_000 },
+    );
+    const running = await isMaintenanceOwnerActive();
+    return {
+      active: false,
+      running,
+      phase: running ? 'preparing' : health.latestRun ? 'idle' : 'uninitialized',
+      runId: health.latestRun?.id ?? null,
+      kind: health.latestRun ? 'ingestion' : null,
+      targetDate: health.latestRun?.targetDate ?? null,
+      stage: null,
+      startedAt: current?.createdAt.toISOString() ?? null,
+      heartbeatAt: null,
+      error: latestError,
+      retryAfterSeconds: 0,
+      revision: publication.sequence,
+      health,
+      ...(candidate
+        ? {
+            candidate: {
+              runId: candidate.runId,
+              targetDate: candidate.targetDate,
+              phase: candidate.phase,
+            },
+          }
+        : {}),
+    };
+  }
+
   const [running, revision, candidate] = await Promise.all([
     isMaintenanceOwnerActive(),
     marketRevision(),
@@ -80,7 +128,7 @@ async function readIngestionStatus(): Promise<IngestionAvailableStatus> {
           orderBy: { startedAt: 'desc' },
         })
       : null;
-  const { health, latestError } = await database.$transaction(
+  const { health, latestError } = await readMarketSnapshot(
     (transaction) => readIssueOverview(transaction, run?.id),
     { timeout: 120_000 },
   );

@@ -231,3 +231,5 @@ SDK 不反向导入 runtime，Engine 不参与 Research Cell 执行。完整职�
 三业务沙箱使用相同的 Adapter 装配规则：Runner 持有会话 Adapter，bind(input) 返回本次绑定的 SDK Capabilities。公共 SdkAdapter 接口／Protocol 归 infra/sandbox；SDK 只依赖自有能力声明。Strategy 两种语言的原始账户操作和命令编码均在 Adapter，TS 即时 host access 与 Python done 后回放保持。具体结构与验证见 [SDK 能力与适配器](design/sdk-capability-adapters.md)。
 
 旧聊天图表执行链已整体移除，Agent 不再生成 ChartSpec 或调用 JS 图表沙箱。历史消息只显示标题和停用提示，正常分析使用 Research 的持久化 Python 输出。ResearchChartKindV1 / ResearchChartSeriesV1 归 shared/research，旧图表重查契约已删除；toCommonJs 独立归 infra/sandbox/typescript/compile.ts。详见 [退役记录](design/legacy-chat-chart-retirement.md)。
+
+版本化存储的宿主通过 `getApplicationDatabase()` 取得应用库，通过 `getMarketDatabase()` 取得任务绑定的市场库。候选写入和发布封存的生命周期归 Ingestion，文件身份和跨进程读者锁归 infra。Worker 在宿主任务持锁期间使用传入的版本 ID。混合格式的旧主库及操作见[转换流程](deployment.md#切换到独立市场版本库)。

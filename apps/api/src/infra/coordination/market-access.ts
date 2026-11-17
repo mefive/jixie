@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { open, realpath, lstat, unlink, readdir } from 'node:fs/promises';
-import { constants, fstatSync, realpathSync } from 'node:fs';
+import { open, realpath, lstat, unlink, readdir, mkdir } from 'node:fs/promises';
+import { constants, fstatSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { databaseFilename, marketVersionFile } from '../database/filename.js';
+export { databaseFilename } from '../database/filename.js';
+import { getApplicationDatabase, usesMarketVersions } from '../database/prisma.js';
+import { withMarketDatabase } from '../database/market-database.js';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isMainThread } from 'node:worker_threads';
 import { BusinessError } from '../errors.js';
@@ -42,6 +45,7 @@ async function flockBinding(): Promise<typeof import('fs-ext')> {
 
 type LockName = 'maintenance' | 'market-publish-intent' | 'market-access' | `owner-${string}`;
 interface ReaderScope {
+  versionId?: string;
   active: boolean;
   references: number;
   lock: MarketLock;
@@ -51,33 +55,6 @@ export interface MarketReaderScope extends MarketLock {
 }
 const readers = new AsyncLocalStorage<ReaderScope>();
 const owners = new AsyncLocalStorage<MarketLock>();
-
-/**
- * 按源代码或编译布局解析 Prisma 相对路径，正式身份不随暂存库改变。
- *
- * Resolve Prisma-relative database paths in source and compiled layouts.
- */
-export function databaseFilename(url = process.env.DATABASE_URL): string {
-  if (!url?.startsWith('file:')) {
-    throw new Error('Market coordination requires an explicit SQLite DATABASE_URL');
-  }
-  const schemaDirectory = fileURLToPath(
-    new URL(
-      import.meta.url.includes('/dist/') ? '../../../../prisma/' : '../../../prisma/',
-      import.meta.url,
-    ),
-  );
-
-  const filename = resolve(schemaDirectory, url.slice(5).split('?')[0]);
-  try {
-    return realpathSync(filename);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      throw error;
-    }
-    return filename;
-  }
-}
 
 export async function marketLockDirectory(): Promise<string> {
   return realpath(dirname(databaseFilename(process.env.DATABASE_URL)));
@@ -97,8 +74,31 @@ export async function acquireMarketLock(
     throw new Error('Invalid coordination lock name');
   }
   const directory = await marketLockDirectory();
+  return acquireFileLock(resolve(directory, `${name}.lock`), name, shared, timeout);
+}
+
+/**
+ * 每个版本复用稳定的锁文件；GC 只回收数据目录。
+ *
+ * Version locks survive version directory reclamation.
+ */
+export async function acquireMarketVersionLock(id: string, shared: boolean, timeout = 0) {
+  if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(id)) {
+    throw new Error('Invalid market version ID');
+  }
+  const directory = resolve(await marketLockDirectory(), 'market', 'locks');
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+
+  return acquireFileLock(resolve(directory, `${id}.lock`), 'market-version', shared, timeout);
+}
+
+async function acquireFileLock(
+  filename: string,
+  name: LockName | 'market-version',
+  shared: boolean,
+  timeout: number,
+): Promise<MarketLock> {
   const fsExt = await flockBinding();
-  const filename = resolve(directory, `${name}.lock`);
   const ownerFile = name.startsWith('owner-');
   const deadline = performance.now() + timeout;
   let attempts = 0;
@@ -406,20 +406,66 @@ export async function isMarketPublicationActive(): Promise<boolean> {
   }
 }
 
+async function openReaderScope(requiredVersion?: string): Promise<ReaderScope> {
+  if (!usesMarketVersions()) {
+    if (requiredVersion) {
+      throw new Error('Versioned job requires a versioned database');
+    }
+    return { active: true, references: 0, lock: await acquireMarketReader() };
+  }
+
+  // 整个任务保留部署屏障。普通发布只锁定指针，旧版本任务不阻塞发布。
+  // Retain the deployment barrier for the task. Normal publication only locks the pointer.
+  const deployment = await acquireMarketLock('market-publish-intent', true);
+  try {
+    const admission = await acquireMarketLock('market-access', true, 120_000);
+    try {
+      const publication = await getApplicationDatabase().marketPublication.findUniqueOrThrow({
+        where: { key: 'global' },
+      });
+      const versionId = requiredVersion ?? publication.currentVersionId;
+      if (!versionId) {
+        throw new Error('No published market baseline');
+      }
+      const pin = await acquireMarketVersionLock(versionId, true);
+      return {
+        versionId,
+        active: true,
+        references: 0,
+        lock: {
+          assertHeld() {
+            deployment.assertHeld();
+            pin.assertHeld();
+          },
+          async release() {
+            try {
+              await pin.release();
+            } finally {
+              await deployment.release();
+            }
+          },
+        },
+      };
+    } finally {
+      await admission.release();
+    }
+  } catch (error) {
+    await deployment.release();
+    throw error;
+  }
+}
+
 /**
  * 后台任务保留独立引用，HTTP 返回不会提前释放它仍在使用的数据版本。
  *
  * Retain a reader reference so detached work survives its originating HTTP scope.
  */
-export async function acquireMarketScope(): Promise<MarketReaderScope> {
+export async function acquireMarketScope(requiredVersion?: string): Promise<MarketReaderScope> {
   const current = readers.getStore();
-  const scope: ReaderScope = current?.active
-    ? current
-    : {
-        active: true,
-        references: 0,
-        lock: await acquireMarketReader(),
-      };
+  if (current?.active && requiredVersion && current.versionId !== requiredVersion) {
+    throw new Error('Conflicting pinned market version');
+  }
+  const scope = current?.active ? current : await openReaderScope(requiredVersion);
   scope.references++;
   let retained = true;
 
@@ -432,6 +478,12 @@ export async function acquireMarketScope(): Promise<MarketReaderScope> {
     async run(operation) {
       if (!retained || !scope.active) {
         throw new Error('Market reader scope is closed');
+      }
+      const id = scope.versionId;
+      if (id) {
+        return readers.run(scope, () =>
+          withMarketDatabase(marketVersionFile(id), 'published', operation, id),
+        );
       }
       return readers.run(scope, operation);
     },

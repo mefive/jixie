@@ -1,6 +1,6 @@
 import type { ResearchCellKindV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 
 /**
  * 定义新建 Cell 的种类、源码和位置，供模板或提案创建。

@@ -1,3 +1,5 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -18,6 +20,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 
@@ -121,7 +124,7 @@ describe('factor report retention', () => {
     await report('other-factor', '2026-01-01', { factor: 'another' });
 
     expect(
-      await prisma.$transaction((transaction) =>
+      await getApplicationDatabase().$transaction((transaction) =>
         pruneFactorReports(transaction, { userId: 'owner', factor: 'factor' }),
       ),
     ).toBe(1);
@@ -157,7 +160,9 @@ describe('factor report retention', () => {
     });
     const definition = await prisma.factor.findUniqueOrThrow({ where: { id: 'factor' } });
 
-    expect(await prisma.$transaction((transaction) => pruneFactorReports(transaction))).toBe(1);
+    expect(
+      await getApplicationDatabase().$transaction((transaction) => pruneFactorReports(transaction)),
+    ).toBe(1);
     expect(await ids()).toEqual(['bound', 'latest']);
     expect(await prisma.factor.findUniqueOrThrow({ where: { id: 'factor' } })).toEqual(definition);
     expect((await readFactorReport('owner', 'bound')).factorCodeSnapshot).toBe(definition.code);
@@ -168,10 +173,14 @@ describe('factor report retention', () => {
     async (terminal) => {
       const older = await report('older-active', '2026-01-01', { jobStatus: 'running' });
       await report('newer-active', '2026-01-02', { jobStatus: 'queued' });
-      expect(await prisma.$transaction((transaction) => pruneFactorReports(transaction))).toBe(0);
+      expect(
+        await getApplicationDatabase().$transaction((transaction) =>
+          pruneFactorReports(transaction),
+        ),
+      ).toBe(0);
       expect(await ids()).toEqual(['newer-active', 'older-active']);
 
-      await prisma.$transaction(async (transaction) => {
+      await getApplicationDatabase().$transaction(async (transaction) => {
         const job = await transaction.job.update({
           where: { id: older.job!.id },
           data: { status: terminal },
@@ -218,8 +227,17 @@ describe('factor report retention', () => {
     await report('other-latest', '2026-01-02', { userId: 'other' });
     await report('other-old', '2026-01-01', { userId: 'other' });
 
-    expect(await prisma.$transaction((transaction) => pruneFactorReports(transaction))).toBe(260);
+    expect(
+      await getApplicationDatabase().$transaction((transaction) => pruneFactorReports(transaction)),
+    ).toBe(260);
     expect(await ids()).toEqual(['history-259', 'other-latest']);
-    expect(await prisma.$transaction((transaction) => pruneFactorReports(transaction))).toBe(0);
+    expect(
+      await getApplicationDatabase().$transaction((transaction) => pruneFactorReports(transaction)),
+    ).toBe(0);
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

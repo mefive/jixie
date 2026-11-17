@@ -1,15 +1,22 @@
-import { sourceExecution } from '#market/synchronization/execution.js';
+import {
+  collectMarketVersion,
+  repairMarketVersion,
+  recoverMarketVersion,
+} from './version-collection.js';
+import { discardMarketFile } from './version-files.js';
+import { acceptMarketVersion, inspectMarketVersion } from './version-lifecycle.js';
+import { reviewMarketVersion } from './version-review.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+import { readMarketTimings } from './version-review.js';
 import pkg, { type Prisma } from '@prisma/client';
 import type { IngestionExecutionSummary } from '@jixie/shared/api/ingestion';
 import { randomUUID } from 'node:crypto';
 import { ulid } from 'ulid';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getDatabase, usesMarketVersions } from '#infra/database/prisma.js';
 import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
 import { isObservationDate } from '#market/synchronization/date.js';
 import { fingerprint } from '#market/synchronization/rows.js';
 import { collectInReplica } from './ingest.js';
-import { readRunIssueState } from './issue-state.js';
-import { readIssueHandling } from './resolutions.js';
 import {
   installReplicaJournal,
   prepareMarketPublication,
@@ -73,33 +80,10 @@ async function finishOperation(
 }
 
 async function reviewCandidate(runId: string, { includeBatchTimings = false } = {}) {
-  const database = getDatabase();
-  return database.$transaction(async (transaction) => {
-    const state = await readRunIssueState(transaction, runId);
-    const market = await transaction.marketDataState.findUnique({ where: { key: 'global' } });
-    const decisions = [];
-    let pending = 0;
-    for (const issue of state.active) {
-      const handling = await readIssueHandling(transaction, issue);
-      if (handling.status === 'pending' || handling.status === 'review') {
-        pending++;
-      }
-      decisions.push({ id: issue.issue.id, handling, version: issue.resolution?.updatedAt });
-    }
-    const phase = ['completed', 'completed_with_issues'].includes(state.run.status)
-      ? pending
-        ? 'awaiting_repair'
-        : 'awaiting_publish'
-      : 'interrupted';
-    const timings = includeBatchTimings ? await readRunTimings(transaction, runId) : {};
-
-    return {
-      phase,
-      pending,
-      run: state.run,
-      candidateVersion: fingerprint({ runId, market, decisions, finishedAt: state.run.finishedAt }),
-      timings,
-    };
+  return getMarketDatabase().$transaction(async (transaction) => {
+    const review = await reviewMarketVersion(transaction, runId);
+    const timings = includeBatchTimings ? await readMarketTimings(transaction, runId) : {};
+    return { ...review, timings };
   }, transactionOptions);
 }
 
@@ -116,6 +100,10 @@ export async function ingestCandidate(
   if (!isObservationDate(input.targetDate)) {
     throw new IngestionError('invalid_target_date');
   }
+  if (usesMarketVersions()) {
+    return collectMarketVersion(input, explicitTarget, retryRunId);
+  }
+
   const main = getDatabase();
   let run = await main.ingestionRun.findUnique({ where: { activeReplica: 1 } });
   const upgradeStatements = Boolean(retryRunId && run?.replicaPhase === 'interrupted');
@@ -248,6 +236,10 @@ export async function ingestCandidate(
  * Explicitly retry the same candidate while retaining its frozen plan and successful batches.
  */
 export async function retryCandidate(runId: string, input: IngestionRetryInput) {
+  if (usesMarketVersions()) {
+    const version = await getDatabase().marketVersion.findUniqueOrThrow({ where: { runId } });
+    return collectMarketVersion({ ...input, targetDate: version.targetDate }, true, runId);
+  }
   const run = await getDatabase().ingestionRun.findUnique({ where: { id: runId } });
   if (!run?.activeReplica || !['awaiting_repair', 'interrupted'].includes(run.replicaPhase ?? '')) {
     throw new IngestionError('candidate_state_conflict');
@@ -256,43 +248,7 @@ export async function retryCandidate(runId: string, input: IngestionRetryInput) 
   return ingestCandidate({ ...input, targetDate: run.targetDate }, true, runId);
 }
 
-async function readRunTimings(database: Prisma.TransactionClient, runId: string) {
-  const { startedAt, finishedAt, batches } = await database.ingestionRun.findUniqueOrThrow({
-    where: { id: runId },
-    select: {
-      startedAt: true,
-      finishedAt: true,
-      batches: {
-        select: {
-          id: true,
-          request: true,
-          dataset: true,
-          scope: true,
-          period: true,
-          api: true,
-          rangeStart: true,
-          rangeEnd: true,
-          status: true,
-          startedAt: true,
-          finishedAt: true,
-        },
-        orderBy: [{ startedAt: 'asc' }, { id: 'asc' }],
-      },
-    },
-  });
-
-  return {
-    startedAt: startedAt.toISOString(),
-    finishedAt: finishedAt?.toISOString() ?? null,
-    batches: batches.map(({ request, ...batch }) => ({
-      ...batch,
-      execution: sourceExecution(request),
-      elapsedMs: batch.finishedAt ? batch.finishedAt.getTime() - batch.startedAt.getTime() : null,
-    })),
-  };
-}
-
-type CandidateInspection = Partial<Awaited<ReturnType<typeof readRunTimings>>> & {
+type CandidateInspection = Partial<Awaited<ReturnType<typeof readMarketTimings>>> & {
   runId: string;
   targetDate: string;
   phase: string | null;
@@ -310,6 +266,16 @@ export async function inspectCandidate(
   { includeBatchTimings = false } = {},
 ): Promise<CandidateInspection> {
   const database = getDatabase();
+  const version = usesMarketVersions()
+    ? await database.marketVersion.findUnique({ where: { runId } })
+    : null;
+  if (version) {
+    return inspectMarketVersion(version, includeBatchTimings);
+  }
+  if (usesMarketVersions()) {
+    throw new IngestionError('candidate_missing');
+  }
+
   const run = await database.ingestionRun.findUnique({ where: { id: runId } });
   if (!run) {
     throw new IngestionError('candidate_missing');
@@ -338,8 +304,8 @@ export async function inspectCandidate(
   let timings;
   if (includeBatchTimings) {
     timings = hasReadyReplica
-      ? await withCandidate(runId, (candidate) => readRunTimings(candidate, runId))
-      : await readRunTimings(database, runId);
+      ? await withCandidate(runId, () => readMarketTimings(getMarketDatabase(), runId))
+      : await readMarketTimings(getMarketDatabase(), runId);
   }
 
   return {
@@ -359,6 +325,10 @@ export async function repairCandidate<Result>(
   apply: boolean,
   operation: () => Promise<Result>,
 ) {
+  if (usesMarketVersions()) {
+    const version = await getDatabase().marketVersion.findUniqueOrThrow({ where: { runId } });
+    return repairMarketVersion(version, apply, operation);
+  }
   const run = await getDatabase().ingestionRun.findUniqueOrThrow({ where: { id: runId } });
   if (!run.activeReplica || !editable.includes(run.replicaPhase ?? '')) {
     throw new IngestionError('candidate_state_conflict');
@@ -378,7 +348,8 @@ export async function repairCandidate<Result>(
 
     return result.value;
   } catch (error) {
-    // 修复事务可能已经提交，重读副本后再释放执行权。 / Re-read candidate after a potentially committed repair.
+    // 修复事务可能已经提交，重读副本后再释放执行权。
+    // Re-read candidate after a potentially committed repair.
     const review = await withCandidate(runId, () => reviewCandidate(runId));
     await finishOperation(runId, token, { replicaPhase: review.phase });
     throw error;
@@ -404,6 +375,16 @@ export async function acceptCandidate(
   const main = getDatabase();
 
   return withMaintenanceLock(async () => {
+    const version = usesMarketVersions()
+      ? await main.marketVersion.findUnique({ where: { runId } })
+      : null;
+    if (version) {
+      return acceptMarketVersion(version, expectedVersion, signal);
+    }
+    if (usesMarketVersions()) {
+      throw new IngestionError('candidate_missing');
+    }
+
     const run = await main.ingestionRun.findUnique({ where: { id: runId } });
     if (!run) {
       throw new IngestionError('candidate_missing');
@@ -561,6 +542,27 @@ async function cleanupCandidateArtifacts(runId: string): Promise<boolean> {
 export async function rejectCandidate(runId: string, reason: string) {
   return withMaintenanceLock(async () => {
     const database = getDatabase();
+    if (usesMarketVersions()) {
+      const version = await database.marketVersion.findUniqueOrThrow({ where: { runId } });
+      if (
+        version.activeSlot !== 1 ||
+        version.operation ||
+        ![...editable, 'interrupted'].includes(version.phase)
+      ) {
+        throw new IngestionError('candidate_state_conflict');
+      }
+      await database.marketVersion.update({
+        where: { id: version.id, activeSlot: 1, operation: null },
+        data: {
+          phase: 'rejected',
+          activeSlot: null,
+          finishedAt: new Date(),
+          rejectionReason: reason,
+        },
+      });
+      await discardMarketFile(version.id);
+      return { mode: 'rejected', runId, cleaned: true };
+    }
     const { count } = await database.ingestionRun.updateMany({
       where: {
         id: runId,
@@ -593,6 +595,10 @@ export async function recoverCandidate(runId: string) {
 }
 
 async function recoverOwnedCandidate(runId: string) {
+  if (usesMarketVersions()) {
+    const version = await getDatabase().marketVersion.findUniqueOrThrow({ where: { runId } });
+    return recoverMarketVersion(version);
+  }
   const run = await getDatabase().ingestionRun.findUniqueOrThrow({ where: { id: runId } });
   if (run.publishedAt) {
     return { runId, phase: 'published', cleaned: await cleanupCandidateArtifacts(runId) };

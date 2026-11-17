@@ -1,7 +1,7 @@
 import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import type { ResearchEmbeddedContextV1, ResearchEmbeddedHostV1 } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ResearchError } from '../errors.js';
 import { researchPayloadHash } from '../outputs/fingerprints.js';
 

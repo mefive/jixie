@@ -1,3 +1,5 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { ResearchSandbox } from '../sandbox/research-sandbox.js';
 import type { ResearchCellRunResult } from '../sandbox/contract.js';
 import type { Prisma } from '@prisma/client';
@@ -24,6 +26,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 const sandbox = vi.hoisted(() => ({
@@ -116,7 +119,7 @@ async function saveProposal() {
       parts: [{ type: 'research_cell_change', proposal }] as unknown as Prisma.InputJsonValue,
     },
   });
-  await prisma.$transaction((transaction) =>
+  await getApplicationDatabase().$transaction((transaction) =>
     persistResearchCellChangePart(transaction, {
       conversationId: documentId,
       messageId: 'message',
@@ -136,7 +139,7 @@ async function saveProposal() {
  */
 async function seedLegacyOpenReview(proposalId: string) {
   const applied = await applyResearchCellChangeProposal(ownerId, proposalId);
-  const proposal = await prisma.$transaction(async (transaction) => {
+  const proposal = await getApplicationDatabase().$transaction(async (transaction) => {
     await transaction.researchCellChangeProposal.update({
       where: { id: proposalId },
       data: {
@@ -489,3 +492,8 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     }
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

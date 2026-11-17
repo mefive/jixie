@@ -1,7 +1,7 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 
 export async function loadIndexSeries(tsCode: string, start: string, end: string) {
-  const rows = await getDatabase().indexDaily.findMany({
+  const rows = await getMarketDatabase().indexDaily.findMany({
     where: { tsCode: tsCode, tradeDate: { gte: start, lte: end } },
     select: { tradeDate: true, close: true },
     orderBy: { tradeDate: 'asc' },

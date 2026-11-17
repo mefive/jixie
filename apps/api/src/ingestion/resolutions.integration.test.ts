@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { expect, it } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -121,7 +122,7 @@ it(
       expect(
         await database.ingestionIssueResolution.findUnique({ where: { issueId: 'historical' } }),
       ).toBeNull();
-      await database.$transaction((transaction) =>
+      await getMarketDatabase().$transaction((transaction) =>
         recordIssueResolution(transaction, {
           issueId: 'warning',
           status: 'accepted',
@@ -153,18 +154,20 @@ it(
         where: { id: 'old-run' },
         data: { status: 'running', finishedAt: null },
       });
-      const result = await database.$transaction((transaction) =>
+      const result = await getMarketDatabase().$transaction((transaction) =>
         ensureRunIssueResolutions(transaction, 'old-run'),
       );
       expect(result.skippedRunning).toBe(true);
-      const overview = await database.$transaction((transaction) =>
+      const overview = await getMarketDatabase().$transaction((transaction) =>
         readIssueOverview(transaction, 'old-run'),
       );
       expect(overview.health.handling.pending.warning).toBe(1);
       expect(overview.health.missingResolutionRecords).toBe(1);
       expect(await database.ingestionIssueResolution.count()).toBe(0);
       await expect(
-        database.$transaction((transaction) => recordIssueResolution(transaction, repair)),
+        getMarketDatabase().$transaction((transaction) =>
+          recordIssueResolution(transaction, repair),
+        ),
       ).rejects.toMatchObject({ reason: 'resolution_not_ready' });
     }),
   60_000,
@@ -185,7 +188,7 @@ it(
           scopeSnapshot: {},
         },
       });
-      const overview = await database.$transaction((transaction) =>
+      const overview = await getMarketDatabase().$transaction((transaction) =>
         readIssueOverview(transaction, 'new-clean-run'),
       );
       expect(overview.health.latestRun?.handling.pending.warning).toBe(0);
@@ -207,7 +210,7 @@ it(
       await reconcileIssueResolutions();
       const beforeRun = await database.ingestionRun.findUniqueOrThrow({ where: { id: 'old-run' } });
       const apply = async (fail: boolean) =>
-        database.$transaction(async (transaction) => {
+        getMarketDatabase().$transaction(async (transaction) => {
           await transaction.daily.update({
             where: { tsCode_tradeDate: { tsCode: '000003.SZ', tradeDate: '19920131' } },
             data: { low: 20.15 },
@@ -227,7 +230,7 @@ it(
       expect((await database.ingestionIssueResolution.findFirstOrThrow()).status).toBe('pending');
       await apply(false);
       await reconcileIssueResolutions();
-      const overview = await database.$transaction((transaction) =>
+      const overview = await getMarketDatabase().$transaction((transaction) =>
         readIssueOverview(transaction, 'old-run'),
       );
       expect(overview.health.handling.resolved.warning).toBe(1);
@@ -243,14 +246,14 @@ it(
       expect(bundle.items[0].resolution).toMatchObject({ status: 'resolved' });
       expect(bundle.items[0].resolution).not.toHaveProperty('after');
       await database.daily.updateMany({ data: { low: 20.81 } });
-      const changed = await database.$transaction((transaction) =>
+      const changed = await getMarketDatabase().$transaction((transaction) =>
         readIssueOverview(transaction, 'old-run', true),
       );
       expect(changed.health.handling.pending.warning).toBe(1);
       expect(changed.items[0].verification).toBe('changed');
       expect((await database.ingestionIssueResolution.findFirstOrThrow()).status).toBe('resolved');
       const previousResolution = await database.ingestionIssueResolution.findFirstOrThrow();
-      await database.$transaction(async (transaction) => {
+      await getMarketDatabase().$transaction(async (transaction) => {
         await transaction.daily.updateMany({ data: { low: 20.15 } });
         await transaction.marketDataState.update({
           where: { key: 'global' },
@@ -305,11 +308,15 @@ it(
     withSyncDatabase(async (database) => {
       await seed(database);
       await expect(
-        database.$transaction((transaction) => recordIssueResolution(transaction, repair)),
+        getMarketDatabase().$transaction((transaction) =>
+          recordIssueResolution(transaction, repair),
+        ),
       ).rejects.toMatchObject({ reason: 'resolution_verification_failed' });
       await database.marketDataState.update({ where: { key: 'global' }, data: { revision: 2 } });
       await expect(
-        database.$transaction((transaction) => recordIssueResolution(transaction, repair)),
+        getMarketDatabase().$transaction((transaction) =>
+          recordIssueResolution(transaction, repair),
+        ),
       ).rejects.toMatchObject({ reason: 'resolution_verification_failed' });
       expect(await database.ingestionIssueResolution.count()).toBe(0);
     }),
@@ -388,7 +395,9 @@ it(
       };
       await database.ingestionBatch.create({ data });
       const read = () =>
-        database.$transaction((transaction) => readIssueOverview(transaction, 'later-run', true));
+        getMarketDatabase().$transaction((transaction) =>
+          readIssueOverview(transaction, 'later-run', true),
+        );
       const unconfirmed = await read();
       expect(unconfirmed.health.handling.pending.warning).toBe(0);
       expect(unconfirmed.health.unknownValidity).toBe(1);

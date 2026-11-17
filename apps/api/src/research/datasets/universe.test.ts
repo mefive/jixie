@@ -1,4 +1,5 @@
-import { withDatabase, type Prisma } from '#infra/database/prisma.js';
+import { withMarketFixture } from '../../../tests/market-scope-fixture.js';
+import { type Prisma } from '#infra/database/prisma.js';
 import type { ResearchUniverseRowV1, UniverseSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import { applyUniverseSpec, executeUniverseSpec } from './universe.js';
@@ -22,7 +23,7 @@ describe('validated universe business rules', () => {
     { ...baseSpec, select: [...baseSpec.select, ...baseSpec.select] },
     { ...baseSpec, predicates: [{ ...baseSpec.predicates[0], value: '20' }] },
   ])('rejects invalid semantics even after structural parsing', async (input) => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const spec = universeSpecV1Schema.parse(input);
 
       await expect(executeUniverseSpec(spec)).rejects.toThrow('Invalid universe spec:');
@@ -32,7 +33,7 @@ describe('validated universe business rules', () => {
 
 describe('applyUniverseSpec', () => {
   it('excludes missing predicates, sorts deterministically, and reports pre-limit total', () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const rows: ResearchUniverseRowV1[] = [
         row('A', 12, 100),
         row('B', null, 500),
@@ -46,7 +47,7 @@ describe('applyUniverseSpec', () => {
   });
 
   it('supports equality and always places null sort values last', () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const spec: UniverseSpecV1 = {
         ...baseSpec,
         predicates: [{ measure: 'equity.pe_ttm', measureVersion: 1, op: '==', value: 12 }],

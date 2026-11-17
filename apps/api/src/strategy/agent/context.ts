@@ -1,8 +1,9 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { KNOWN_INDICES } from '../sandbox/typescript/codegen-prompt.js';
 
 export async function syncedIndexContext(): Promise<string> {
-  const present = await getDatabase().indexWeight.findMany({
+  const present = await getMarketDatabase().indexWeight.findMany({
     select: { indexCode: true },
     distinct: ['indexCode'],
   });
@@ -18,7 +19,7 @@ export async function syncedIndexContext(): Promise<string> {
  * Describe available published factors and their contracts for strategy authoring.
  */
 export async function publishedFactorContext(userId: string): Promise<string> {
-  const rows = await getDatabase().factor.findMany({
+  const rows = await getApplicationDatabase().factor.findMany({
     where: { userId, status: 'published' },
     select: { key: true, name: true, analysisKind: true, publishedAt: true },
     orderBy: { publishedAt: 'desc' },

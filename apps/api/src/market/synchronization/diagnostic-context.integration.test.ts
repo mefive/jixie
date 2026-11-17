@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
 import { loadMarketDiagnosticContext, DIAGNOSTIC_CONTEXT_LIMIT } from './diagnostic-context.js';
@@ -5,7 +6,7 @@ import { loadMarketDiagnosticContext, DIAGNOSTIC_CONTEXT_LIMIT } from './diagnos
 it(
   'retains schema and precise limitations for failed requests, malformed dates and unknown datasets',
   async () =>
-    withSyncDatabase(async (database) => {
+    withSyncDatabase(async () => {
       const request = {
         dataset: 'stock-prices',
         scope: 'SSE,SZSE',
@@ -15,21 +16,24 @@ it(
         payload: null,
         businessKey: null,
       };
-      const missing = await loadMarketDiagnosticContext(database, request);
+      const missing = await loadMarketDiagnosticContext(getMarketDatabase(), request);
       expect(missing).toMatchObject({
         contextComplete: false,
         tableNames: expect.arrayContaining(['Daily']),
         tables: [],
       });
       expect(missing.limitations).toContain('missing_security_or_trade_date');
-      const malformed = await loadMarketDiagnosticContext(database, {
+      const malformed = await loadMarketDiagnosticContext(getMarketDatabase(), {
         ...request,
         payload: { ts_code: '000003.SZ', trade_date: 'bad' },
       });
       expect(malformed.contextComplete).toBe(false);
       expect(malformed.limitations).toContain('invalid_source_trade_date');
       for (const dataset of ['unknown', '__proto__', 'toString']) {
-        const unknown = await loadMarketDiagnosticContext(database, { ...request, dataset });
+        const unknown = await loadMarketDiagnosticContext(getMarketDatabase(), {
+          ...request,
+          dataset,
+        });
         expect(unknown).toMatchObject({ contextComplete: false, tables: [] });
         expect(unknown.limitations).toContain('unsupported_dataset');
       }
@@ -47,7 +51,7 @@ it(
           { indexCode: '000300.SH', conCode: '600001.SH', tradeDate: '20181228', weight: 6 },
         ],
       });
-      const context = await loadMarketDiagnosticContext(database, {
+      const context = await loadMarketDiagnosticContext(getMarketDatabase(), {
         dataset: 'index-weights',
         scope: '000300.SH',
         period: '201812',
@@ -66,7 +70,7 @@ it(
         returnedCount: 2,
         complete: true,
       });
-      const selection = await loadMarketDiagnosticContext(database, {
+      const selection = await loadMarketDiagnosticContext(getMarketDatabase(), {
         dataset: 'etf-selection',
         scope: 'SSE,SZSE',
         period: '20181228',
@@ -91,7 +95,7 @@ it(
           cashDivTax: 0.15,
         })),
       });
-      const context = await loadMarketDiagnosticContext(database, {
+      const context = await loadMarketDiagnosticContext(getMarketDatabase(), {
         dataset: 'dividends',
         scope: '300587.SZ',
         period: 'all',
@@ -152,7 +156,7 @@ it(
         ].includes(dataset)
           ? { ...payload, ts_code: scope }
           : payload;
-        const context = await loadMarketDiagnosticContext(database, {
+        const context = await loadMarketDiagnosticContext(getMarketDatabase(), {
           ...request,
           dataset,
           scope,
@@ -167,7 +171,7 @@ it(
       await database.tradeCal.create({
         data: { exchange: 'SZSE', calDate: '20181228', isOpen: 1 },
       });
-      const calendar = await loadMarketDiagnosticContext(database, {
+      const calendar = await loadMarketDiagnosticContext(getMarketDatabase(), {
         ...request,
         dataset: 'calendar',
         scope: 'SZSE',

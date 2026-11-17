@@ -1,7 +1,7 @@
 import { readFactorAnalysisResult } from '#factor/evaluations/read.js';
 import { startFactorAnalysis } from '#factor/evaluations/start.js';
 import { t } from '#i18n/index.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import {
   timeSeriesAggregateMetrics,
   type FactorTimeSeriesReportV1,
@@ -90,7 +90,7 @@ export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchConte
         throw new Error('start must be earlier than end.');
       }
 
-      const factor = await getDatabase().factor.findFirst({
+      const factor = await getApplicationDatabase().factor.findFirst({
         where: {
           id: context.factorId,
           userId: context.userId,

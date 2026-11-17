@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { FactorError } from '../errors.js';
 import { BUILTIN_KEYS } from './builtin-factors.js';
 

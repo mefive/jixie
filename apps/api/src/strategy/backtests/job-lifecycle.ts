@@ -1,3 +1,4 @@
+import { boundMarketVersionId } from '#infra/database/market-database.js';
 import { backtestJobPayloadSchema, type BacktestWorkerInput } from './job-payload.js';
 import { backtestWorkerMessageSchema } from './worker-protocol.js';
 import { Worker } from 'node:worker_threads';
@@ -5,7 +6,7 @@ import type { BacktestSummary } from '@jixie/shared';
 import type { JobLifecycle } from '#jobs/lifecycle.js';
 import { runWorker } from '#jobs/worker.js';
 import { finishStrategyJob } from '../results/retention.js';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { t } from '#i18n/messages.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
@@ -33,6 +34,7 @@ export const strategyBacktestLifecycle = {
       start: () =>
         new Worker(workerUrl, {
           workerData: {
+            marketVersionId: boundMarketVersionId(),
             config: input.config,
             userId: input.userId,
             strategyId: input.strategyId,

@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { ResearchPythonAnalysis } from '../sandbox/host/analysis-types.js';
 import { jsonStringArray, researchCellDependencyIssues } from './cell-values.js';
 import {
@@ -6,7 +6,7 @@ import {
   type ResearchCellDependencyIssueV1,
 } from '@jixie/shared';
 import { researchDependencyCell, downstreamResearchCellIds } from './run-plan.js';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 
 /**
  * 保存修改前依赖状态，供变更后失效协调。
@@ -27,7 +27,7 @@ export async function reconcileResearchCellChanges(
   documentId: string,
   seeds: ResearchCellChangeDependencySeed[],
 ): Promise<void> {
-  const cells = await getDatabase().researchCell.findMany({
+  const cells = await getApplicationDatabase().researchCell.findMany({
     where: { documentId, kind: 'python' },
     orderBy: { position: 'asc' },
     select: { id: true, definitions: true, references: true },
@@ -90,7 +90,7 @@ export async function appendDeletedResearchCellDependencyIssues(
   if (missingDefinitionsByCellId.size === 0) {
     return;
   }
-  const cells = await getDatabase().researchCell.findMany({
+  const cells = await getApplicationDatabase().researchCell.findMany({
     where: { documentId, id: { in: [...missingDefinitionsByCellId.keys()] } },
     select: { id: true, dependencyIssues: true },
   });
@@ -106,7 +106,7 @@ export async function appendDeletedResearchCellDependencyIssues(
       { ...issue, missingDefinitions },
     ];
     return [
-      getDatabase().researchCell.update({
+      getApplicationDatabase().researchCell.update({
         where: { id: cell.id },
         data: {
           status: 'blocked',
@@ -116,7 +116,7 @@ export async function appendDeletedResearchCellDependencyIssues(
     ];
   });
   if (updates.length > 0) {
-    await getDatabase().$transaction(updates);
+    await getApplicationDatabase().$transaction(updates);
   }
 }
 
@@ -129,7 +129,7 @@ export async function reconcileResearchCellDependencyIssues(
   documentId: string,
   analyses: ResearchPythonAnalysis[],
 ): Promise<void> {
-  const cells = await getDatabase().researchCell.findMany({
+  const cells = await getApplicationDatabase().researchCell.findMany({
     where: { documentId },
     select: {
       id: true,
@@ -193,7 +193,7 @@ export async function reconcileResearchCellDependencyIssues(
       return [];
     }
     return [
-      getDatabase().researchCell.update({
+      getApplicationDatabase().researchCell.update({
         where: { id: cell.id },
         data: {
           status,
@@ -203,7 +203,7 @@ export async function reconcileResearchCellDependencyIssues(
     ];
   });
   if (updates.length > 0) {
-    await getDatabase().$transaction(updates);
+    await getApplicationDatabase().$transaction(updates);
   }
 }
 
@@ -217,7 +217,7 @@ export async function markDownstreamStale(
   if (stale.length === 0) {
     return;
   }
-  await getDatabase().researchCell.updateMany({
+  await getApplicationDatabase().researchCell.updateMany({
     where: {
       documentId,
       id: { in: stale },

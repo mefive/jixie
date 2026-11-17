@@ -1,5 +1,5 @@
 import type { BacktestConfig } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { createHash } from 'node:crypto';
 import { backtestSettingsSchema } from '@jixie/shared/api/strategy';
 export type StrategyDatabase = Pick<Prisma.TransactionClient, 'strategy'>;

@@ -1,7 +1,7 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { UserCodeError } from '#infra/errors.js';
 import { factorRuntimeVersion } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import { FactorError } from '../errors.js';
 import { validateFactorDefinition } from '../sandbox/validate-definition.js';
@@ -34,7 +34,7 @@ export async function createFactorDraft(userId: string, input: CreateFactorDraft
   const id = ulid();
 
   try {
-    await getDatabase().factor.create({
+    await getApplicationDatabase().factor.create({
       data: {
         id,
         userId,
@@ -82,7 +82,7 @@ export async function updateFactorDraft(userId: string, id: string, input: Updat
     throw new FactorError('preset_factor_readonly_edit');
   }
 
-  const existing = await getDatabase().factor.findFirst({
+  const existing = await getApplicationDatabase().factor.findFirst({
     where: { id, userId },
     select: {
       name: true,
@@ -135,7 +135,7 @@ export async function updateFactorDraft(userId: string, id: string, input: Updat
     data.name = name;
   }
 
-  const row = await getDatabase().factor.update({
+  const row = await getApplicationDatabase().factor.update({
     where: { id },
     data,
     select: { id: true, name: true },
@@ -154,7 +154,7 @@ export async function deleteFactorDraft(userId: string, id: string) {
     throw new FactorError('preset_factor_readonly_delete');
   }
 
-  const factor = await getDatabase().factor.findFirst({
+  const factor = await getApplicationDatabase().factor.findFirst({
     where: { id, userId },
     select: { status: true },
   });
@@ -167,7 +167,7 @@ export async function deleteFactorDraft(userId: string, id: string) {
     throw new FactorError('published_factor_cannot_delete');
   }
 
-  await getDatabase().factor.deleteMany({ where: { id, userId } });
+  await getApplicationDatabase().factor.deleteMany({ where: { id, userId } });
 
   return { ok: true };
 }
@@ -178,7 +178,7 @@ export async function deleteFactorDraft(userId: string, id: string) {
  * Create an independent factor draft from an accessible source with provenance.
  */
 export async function copyFactorDraft(userId: string, factorId: string) {
-  const source = await getDatabase().factor.findFirst({
+  const source = await getApplicationDatabase().factor.findFirst({
     where: {
       id: factorId,
       userId: { in: [userId, BUILTIN_USER_ID] },
@@ -201,12 +201,12 @@ export async function copyFactorDraft(userId: string, factorId: string) {
     throw new FactorError('factor_not_found');
   }
 
-  const { key, version } = await nextCopyKey(getDatabase(), userId, source.key);
+  const { key, version } = await nextCopyKey(getApplicationDatabase(), userId, source.key);
   const nameBase = source.name.replace(/\s+v\d+$/i, '');
   const name = `${nameBase} v${version}`.slice(0, 40);
   const id = ulid();
 
-  await getDatabase().factor.create({
+  await getApplicationDatabase().factor.create({
     data: {
       id,
       userId,

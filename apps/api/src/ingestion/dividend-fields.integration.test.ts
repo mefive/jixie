@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { emptySelections, ingestionSource, ingestionTime } from '../../tests/ingestion-source.js';
@@ -134,7 +135,7 @@ it.each(['股东大会通过', '股东提议'])(
           filteredCount: 2,
           rejectedCount: 0,
         });
-        const state = await candidate.$transaction((transaction) =>
+        const state = await getMarketDatabase().$transaction((transaction) =>
           readRunIssueState(transaction, first.runId),
         );
 

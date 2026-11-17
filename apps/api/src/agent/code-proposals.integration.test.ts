@@ -1,3 +1,5 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -28,6 +30,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: model.llm, chatJson: vi.fn() }));
@@ -211,7 +214,13 @@ describe('Durable code suggestions and explicit acceptance', () => {
     async (surface) => {
       const proposal = await generate(surface);
       expect(await currentCode(surface)).toBe(beforeCode);
-      const recovered = await readCodeProposalHistory(prisma, 'owner', surface, surface, []);
+      const recovered = await readCodeProposalHistory(
+        getApplicationDatabase(),
+        'owner',
+        surface,
+        surface,
+        [],
+      );
       expect(
         recovered.some((message) =>
           message.parts.some(
@@ -245,9 +254,9 @@ describe('Durable code suggestions and explicit acceptance', () => {
         { type: 'code_change', proposal: { status: 'accepted' } },
       ]);
       const staleMirror = [{ role: 'assistant', parts: [{ type: 'code_change', proposal }] }];
-      expect(await hydrateCodeProposals(prisma, 'owner', staleMirror)).toMatchObject([
-        { parts: [{ proposal: { status: 'accepted' } }] },
-      ]);
+      expect(
+        await hydrateCodeProposals(getApplicationDatabase(), 'owner', staleMirror),
+      ).toMatchObject([{ parts: [{ proposal: { status: 'accepted' } }] }]);
     },
   );
 
@@ -349,3 +358,8 @@ describe('Durable code suggestions and explicit acceptance', () => {
     expect(await currentCode('factor')).toBe(beforeCode);
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

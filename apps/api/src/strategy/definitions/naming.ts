@@ -1,8 +1,8 @@
 import { ulid } from 'ulid';
 import type { BacktestConfig, Locale } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { chatText } from '#infra/llm/deepseek.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { strategyRunKey, type StrategyDatabase } from './config.js';
 
 /**
@@ -96,7 +96,7 @@ export async function refreshStrategyName(input: {
     return false;
   }
 
-  return getDatabase().$transaction(async (transaction) => {
+  return getApplicationDatabase().$transaction(async (transaction) => {
     const current = await transaction.strategy.findFirst({
       where: { id: input.id, userId: input.userId },
       select: { config: true, name: true },

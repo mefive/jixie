@@ -35,9 +35,9 @@ test('deployment enables ingestion without launching a full history download', a
   assert.match(service, /JIXIE_INGESTION_TRIGGER=timer/);
 });
 
-for (const failure of ['migration', 'reset', 'none']) {
-  test(`keeps one-time rebuild retryable across ${failure}`, async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'jixie-ingestion-bootstrap-'));
+for (const scenario of ['fresh', 'migration-failed', 'rebuild-marker']) {
+  test(`initializes the split layout safely: ${scenario}`, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'jixie-bootstrap-layout-'));
     try {
       const result = spawnSync(
         'bash',
@@ -51,36 +51,35 @@ for (const failure of ['migration', 'reset', 'none']) {
         NODE_HEAP_OPTIONS=''
         INGESTION_REBUILD_MARKER="$TEST_DIRECTORY/rebuild"
         SCHEMA_DATA_READY=1
+        if [[ "$SCENARIO" == rebuild-marker ]]; then touch "$INGESTION_REBUILD_MARKER"; fi
         log() { :; }
-        sqlite3() { echo 1; }
-        pnpm() {
-          if [[ "$*" == *'migrate deploy'* && "$TEST_FAILURE" == migration ]]; then return 23; fi
-        }
+        die() { exit 1; }
+        pnpm() { :; }
         node() {
-          if [[ "$*" == *'reset --apply'* ]]; then
-            [[ -f "$INGESTION_REBUILD_MARKER" ]]
-            echo reset
-            if [[ "$TEST_FAILURE" == reset ]]; then return 24; fi
-          fi
+          [[ "$1" == /fixture/apps/api/scripts/initialize-market-storage.mjs && "$2" == "$DB_FILE" ]]
+          echo INITIALIZE
+          [[ "$SCENARIO" != migration-failed ]]
         }
-        trap 'status=$?; if [[ "$SCHEMA_DATA_READY" == 0 ]]; then echo API_STOPPED; fi; exit "$status"' EXIT
+        trap 'if [[ "$SCHEMA_DATA_READY" == 0 ]]; then echo API_STOPPED; fi' EXIT
         ${migration}
         echo READY
       `,
         ],
         {
           encoding: 'utf8',
-          env: { ...process.env, TEST_DIRECTORY: directory, TEST_FAILURE: failure },
+          env: { ...process.env, SCENARIO: scenario, TEST_DIRECTORY: directory },
         },
       );
-      if (failure === 'none') {
+      if (scenario === 'fresh') {
         assert.equal(result.status, 0, result.stderr);
-        assert.match(result.stdout, /reset\nREADY/);
+        assert.match(result.stdout, /INITIALIZE\nREADY/);
       } else {
-        assert.equal(result.status, failure === 'migration' ? 23 : 24, result.stderr);
+        assert.notEqual(result.status, 0);
         assert.match(result.stdout, /API_STOPPED/);
         assert.doesNotMatch(result.stdout, /READY/);
-        assert.ok(await readFile(join(directory, 'rebuild'), 'utf8').then(() => true));
+        if (scenario === 'rebuild-marker') {
+          assert.doesNotMatch(result.stdout, /INITIALIZE/);
+        }
       }
     } finally {
       await rm(directory, { recursive: true, force: true });

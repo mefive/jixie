@@ -1,6 +1,6 @@
 import { strategyResultSettings } from '#strategy/definitions/config.js';
 import { strategyScanReportState } from '#strategy/scans/state.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 
 const MAX_STRATEGY_SCAN_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
@@ -24,7 +24,7 @@ type ResearchJsonValue =
  */
 export async function loadResearchStrategyScanReportResult(documentId: string, reportId: string) {
   const userId = await researchDocumentUserId(documentId);
-  const row = await getDatabase()
+  const row = await getApplicationDatabase()
     .strategyScanReport.findFirst({
       where: { id: reportId, userId },
       select: {
@@ -71,7 +71,7 @@ export async function loadResearchStrategyScanReportResult(documentId: string, r
 }
 
 async function researchDocumentUserId(documentId: string): Promise<string> {
-  const document = await getDatabase().agentConversation.findFirst({
+  const document = await getApplicationDatabase().agentConversation.findFirst({
     where: { id: documentId, surface: 'research', archivedAt: null },
     select: { userId: true, researchDocument: { select: { id: true } } },
   });

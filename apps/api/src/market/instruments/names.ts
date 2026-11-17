@@ -1,4 +1,4 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 
 /**
  * 批量读取证券显示名称，供结果及目录展示。
@@ -7,11 +7,11 @@ import { getDatabase } from '#infra/database/prisma.js';
  */
 export async function loadInstrumentNames(codes: string[]) {
   const [stocks, etfs] = await Promise.all([
-    getDatabase().stockBasic.findMany({
+    getMarketDatabase().stockBasic.findMany({
       where: { tsCode: { in: codes } },
       select: { tsCode: true, name: true },
     }),
-    getDatabase().etfBasic.findMany({
+    getMarketDatabase().etfBasic.findMany({
       where: { tsCode: { in: codes } },
       select: { tsCode: true, name: true },
     }),

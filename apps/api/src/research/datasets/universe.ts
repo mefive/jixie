@@ -1,6 +1,7 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { assertDatasetInputReadiness } from '#market/synchronization/readiness.js';
 import { MarketError } from '#market/errors.js';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@jixie/market-db-client';
 import type {
   ResearchDiagnosticV1,
   ResearchUniverseRowV1,
@@ -8,7 +9,7 @@ import type {
   ResearchUniverseStageV1,
   UniverseSpecV1,
 } from '@jixie/shared';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import { researchUniverseMeasureById } from '../catalog/capabilities.js';
 import { validateUniverseSpec } from './spec.js';
 
@@ -32,7 +33,7 @@ export interface ExecuteUniverseSpecOptions {
  */
 export async function executeUniverseSpec(
   spec: UniverseSpecV1,
-  database: PrismaClient = getDatabase(),
+  database: PrismaClient = getMarketDatabase(),
   options: ExecuteUniverseSpecOptions = {},
 ): Promise<ResearchUniverseRunResultV1> {
   validateUniverseSpec(spec);

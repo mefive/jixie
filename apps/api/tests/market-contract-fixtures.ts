@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { createHash } from 'node:crypto';
 import type { Prisma } from '#infra/database/prisma.js';
 import { calendarDay } from '#market/synchronization/date.js';
@@ -77,7 +78,7 @@ export async function acceptSource(
   fetchedAt = capturedAt,
 ) {
   const prepared = await prepareMarketPartition({ source }, partition, fetchedAt);
-  const accepted = await database.$transaction((transaction) =>
+  const accepted = await getMarketDatabase().$transaction((transaction) =>
     writeMarketPartition(transaction, prepared, partition, fetchedAt),
   );
   return { prepared, accepted };

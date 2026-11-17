@@ -1,5 +1,7 @@
 # API 命令与脚本索引
 
+版本化布局的初始化、旧库转换、备份恢复、保留和回退命令见[部署说明](../../../docs/deployment.md#切换到独立市场版本库)。下表的 reset 清空仅适用于旧混合库。
+
 数据采集使用 `pnpm data ingest [--to YYYYMMDD]`，入口位于 [Ingestion](../src/ingestion/README.md)。无参数或 `--help` 显示帮助，非法参数在加载环境、数据库和来源之前拒绝。
 
 | 命令 | 用途 |

@@ -1,10 +1,10 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { MarketError } from '#market/errors.js';
 import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
 import {
   assertDatasetInputReadiness,
   assertPriceSeriesReadiness,
 } from '#market/synchronization/readiness.js';
-import { getDatabase } from '#infra/database/prisma.js';
 import type { BarsRows, EngineDataPort } from '../data/data-port.js';
 
 // Kept in its own module (not data-port.ts) so the Phase B2 engine bundle can alias THIS file
@@ -13,7 +13,7 @@ import type { BarsRows, EngineDataPort } from '../data/data-port.js';
  * a whole-universe, full-history findMany would overflow the query engine's result marshaling). */
 export const prismaDataPort: EngineDataPort = {
   async openDates(start, end) {
-    const rows = await getDatabase().tradeCal.findMany({
+    const rows = await getMarketDatabase().tradeCal.findMany({
       where: { exchange: 'SSE', isOpen: 1, calDate: { gte: start, lte: end } },
       select: { calDate: true },
       orderBy: { calDate: 'asc' },
@@ -22,7 +22,7 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async stockBasics() {
-    return getDatabase().stockBasic.findMany({
+    return getMarketDatabase().stockBasic.findMany({
       select: {
         tsCode: true,
         listDate: true,
@@ -33,14 +33,14 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async stockNameHistory() {
-    return getDatabase().stockNameHistory.findMany({
+    return getMarketDatabase().stockNameHistory.findMany({
       select: { tsCode: true, name: true, startDate: true, endDate: true },
       orderBy: [{ tsCode: 'asc' }, { startDate: 'asc' }],
     });
   },
 
   async etfBasics() {
-    return getDatabase().etfBasic.findMany({
+    return getMarketDatabase().etfBasic.findMany({
       select: {
         tsCode: true,
         listDate: true,
@@ -52,14 +52,14 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async indexDailyAll() {
-    return getDatabase().indexDaily.findMany({
+    return getMarketDatabase().indexDaily.findMany({
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     });
   },
 
   async indexDailyBasicAll() {
-    return getDatabase().indexDailyBasic.findMany({
+    return getMarketDatabase().indexDailyBasic.findMany({
       select: { tsCode: true, tradeDate: true, pe: true, peTtm: true, pb: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     });
@@ -82,7 +82,7 @@ export const prismaDataPort: EngineDataPort = {
     );
     const where = codes ? { tradeDate: date, tsCode: { in: codes } } : { tradeDate: date };
     const [price, adj, basic] = await Promise.all([
-      getDatabase().daily.findMany({
+      getMarketDatabase().daily.findMany({
         where,
         select: {
           tsCode: true,
@@ -94,8 +94,8 @@ export const prismaDataPort: EngineDataPort = {
           amount: true,
         },
       }),
-      getDatabase().adjFactor.findMany({ where, select: { tsCode: true, adjFactor: true } }),
-      getDatabase().dailyBasic.findMany({
+      getMarketDatabase().adjFactor.findMany({ where, select: { tsCode: true, adjFactor: true } }),
+      getMarketDatabase().dailyBasic.findMany({
         where,
         // Only the valuation columns BarRow exposes. Fetching the full row roughly doubled the
         // per-day cost — Prisma row deserialization dominates (measured 171ms→87ms full-market).
@@ -136,7 +136,7 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async indexWeights(indexCode) {
-    return getDatabase().indexWeight.findMany({
+    return getMarketDatabase().indexWeight.findMany({
       where: { indexCode },
       select: { conCode: true, tradeDate: true },
       orderBy: { tradeDate: 'asc' },
@@ -150,7 +150,7 @@ export const prismaDataPort: EngineDataPort = {
    * caches.
    */
   async barsRows(codes, start, end, options) {
-    const etfs = await getDatabase().etfBasic.findMany({
+    const etfs = await getMarketDatabase().etfBasic.findMany({
       where: { tsCode: { in: codes } },
       select: { tsCode: true, listDate: true, delistDate: true },
     });
@@ -176,7 +176,7 @@ export const prismaDataPort: EngineDataPort = {
       const batch = codes.slice(off, off + CHUNK);
       const range = { gte: start, lte: end };
       const [px, etfPx, adj, etfAdj, limits, turnoverRatesF] = await Promise.all([
-        getDatabase().daily.findMany({
+        getMarketDatabase().daily.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: {
             tsCode: true,
@@ -190,7 +190,7 @@ export const prismaDataPort: EngineDataPort = {
           },
           orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
         }),
-        getDatabase().etfDaily.findMany({
+        getMarketDatabase().etfDaily.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: {
             tsCode: true,
@@ -204,20 +204,20 @@ export const prismaDataPort: EngineDataPort = {
           },
           orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
         }),
-        getDatabase().adjFactor.findMany({
+        getMarketDatabase().adjFactor.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: { tsCode: true, tradeDate: true, adjFactor: true },
         }),
-        getDatabase().etfAdjFactor.findMany({
+        getMarketDatabase().etfAdjFactor.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: { tsCode: true, tradeDate: true, adjFactor: true },
         }),
-        getDatabase().stkLimit.findMany({
+        getMarketDatabase().stkLimit.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: { tsCode: true, tradeDate: true, upLimit: true, downLimit: true },
         }),
         options?.includeTurnoverRateF
-          ? getDatabase().dailyBasic.findMany({
+          ? getMarketDatabase().dailyBasic.findMany({
               where: { tsCode: { in: batch }, tradeDate: range },
               select: { tsCode: true, tradeDate: true, turnoverRateF: true },
             })

@@ -1,5 +1,6 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { sourceCaptureStartedAt } from '#market/synchronization/execution.js';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import {
   DIVIDEND_DATE_FIELDS,
   dividendReceiptMatchesRequests,
@@ -26,7 +27,7 @@ export async function planDividendUnits(
     return [];
   }
 
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const through = [targetDate, calendarDay(localDate(startedAt), -1)].sort()[0];
   const receipts = await database.ingestionBatch.findMany({
     where: {

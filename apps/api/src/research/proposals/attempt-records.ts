@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import type {
   ResearchCellChangeAttemptCellV1,
   ResearchCellChangeAttemptComparisonV1,
@@ -7,7 +7,7 @@ import type {
   ResearchCellChangeAttemptV1,
   ResearchCellKindV1,
 } from '@jixie/shared';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { researchPayloadHash } from '../outputs/fingerprints.js';
 
 export const researchCellChangeAttemptInclude = {
@@ -25,7 +25,7 @@ export async function listResearchCellChangeAttempts(
   userId: string,
   documentId: string,
 ): Promise<ResearchCellChangeAttemptV1[]> {
-  const attempts = await getDatabase().researchCellChangeAttempt.findMany({
+  const attempts = await getApplicationDatabase().researchCellChangeAttempt.findMany({
     where: { documentId, document: { userId, embeddedVersion: null } },
     orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
     take: 20,

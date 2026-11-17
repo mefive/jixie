@@ -1,5 +1,5 @@
 import { IngestionError } from './errors.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getDatabase, usesMarketVersions } from '#infra/database/prisma.js';
 import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
 
 export interface ResetBusinessDataInput {
@@ -47,6 +47,9 @@ export async function resetBusinessData(input: ResetBusinessDataInput) {
           'All market, ingestion, factor, strategy, report, research, conversation and job records',
       };
     }
+    if (usesMarketVersions()) {
+      throw new Error('Legacy reset cannot clear versioned storage');
+    }
     if (!input.backup) {
       throw new Error('A verified backup is required before rebuilding business data');
     }
@@ -81,6 +84,12 @@ export async function resetBusinessData(input: ResetBusinessDataInput) {
             if (await transaction.ingestionRun.findUnique({ where: { activeReplica: 1 } })) {
               throw new IngestionError('candidate_state_conflict');
             }
+            await clearTable('marketRollback', () => transaction.marketRollback.deleteMany());
+            await clearTable('marketSelectionEdit', () =>
+              transaction.marketSelectionEdit.deleteMany(),
+            );
+            await clearTable('marketPublication', () => transaction.marketPublication.deleteMany());
+            await clearTable('marketVersion', () => transaction.marketVersion.deleteMany());
             await clearTable('job', () => transaction.job.deleteMany());
             await clearTable('researchExecution', () => transaction.researchExecution.deleteMany());
             await clearTable('researchEmbeddedAnalysis', () =>

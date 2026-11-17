@@ -1,4 +1,4 @@
-import type { FactorReport as FactorReportRow } from '@prisma/client';
+import type { FactorReport as FactorReportRow } from '@jixie/app-db-client';
 import type {
   FactorReport as FactorAnalysisPayload,
   FactorReportStatus,

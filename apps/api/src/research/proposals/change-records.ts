@@ -1,7 +1,7 @@
 import {
   Prisma,
   type ResearchCellChangeProposal as ResearchCellChangeProposalRow,
-} from '@prisma/client';
+} from '@jixie/app-db-client';
 import type {
   MessagePart,
   ResearchCellChangeConflictV1,

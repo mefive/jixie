@@ -1,5 +1,5 @@
 import { t } from '#i18n/index.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { Locale } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { cellCreate } from '../documents/cell-seed.js';
@@ -16,7 +16,7 @@ export async function continueEmbeddedResearch(
   runId: string,
   locale: Locale,
 ) {
-  const documentId = await getDatabase().$transaction(async (transaction) => {
+  const documentId = await getApplicationDatabase().$transaction(async (transaction) => {
     const run = await transaction.researchExecution.findFirst({
       where: { id: runId, embeddedVersion: { analysisId, analysis: { userId } } },
       include: { embeddedVersion: { include: { analysis: true } } },

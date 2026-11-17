@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { seedBuiltinFactors } from '#factor/definitions/seed.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { AgentLlm, AgentLlmReply } from '#infra/llm/agent-llm.js';
@@ -24,6 +25,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: fixture.llm }));
@@ -493,3 +495,8 @@ describe('private durable Factor questions', () => {
     expect(fixture.llm).not.toHaveBeenCalled();
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

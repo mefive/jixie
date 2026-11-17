@@ -1,5 +1,5 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { z } from 'zod';
-import { getDatabase } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';
 
 const TABLE_LABELS = {
@@ -50,25 +50,25 @@ async function tableCoverage(table: TableKey): Promise<Coverage> {
   };
   switch (table) {
     case 'daily':
-      aggregate = await getDatabase().daily.aggregate(aggregateArgs);
+      aggregate = await getMarketDatabase().daily.aggregate(aggregateArgs);
       break;
     case 'adjFactor':
-      aggregate = await getDatabase().adjFactor.aggregate(aggregateArgs);
+      aggregate = await getMarketDatabase().adjFactor.aggregate(aggregateArgs);
       break;
     case 'etfDaily':
-      aggregate = await getDatabase().etfDaily.aggregate(aggregateArgs);
+      aggregate = await getMarketDatabase().etfDaily.aggregate(aggregateArgs);
       break;
     case 'etfAdjFactor':
-      aggregate = await getDatabase().etfAdjFactor.aggregate(aggregateArgs);
+      aggregate = await getMarketDatabase().etfAdjFactor.aggregate(aggregateArgs);
       break;
     case 'dailyBasic':
-      aggregate = await getDatabase().dailyBasic.aggregate(aggregateArgs);
+      aggregate = await getMarketDatabase().dailyBasic.aggregate(aggregateArgs);
       break;
     case 'stkLimit':
-      aggregate = await getDatabase().stkLimit.aggregate(aggregateArgs);
+      aggregate = await getMarketDatabase().stkLimit.aggregate(aggregateArgs);
       break;
     case 'indexDaily':
-      aggregate = await getDatabase().indexDaily.aggregate(aggregateArgs);
+      aggregate = await getMarketDatabase().indexDaily.aggregate(aggregateArgs);
       break;
   }
   return {

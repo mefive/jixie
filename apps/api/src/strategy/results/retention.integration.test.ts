@@ -2,9 +2,9 @@ import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import pkg from '@prisma/client';
+import pkg from '@jixie/app-db-client';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { withDatabase } from '#infra/database/prisma.js';
+import { withDatabase, createDatabase, closeDatabase } from '#infra/database/prisma.js';
 import { readStrategy } from '../definitions/read.js';
 import { strategyInputSignature, strategyResultSettings } from '../definitions/config.js';
 import { readStrategyBacktestReport } from '../backtests/reports.js';
@@ -20,6 +20,7 @@ const config = {
 };
 const settings = strategyResultSettings(config);
 let directory: string;
+let owner: ReturnType<typeof createDatabase>;
 let database: InstanceType<typeof pkg.PrismaClient>;
 
 describe('latest strategy result retention', () => {
@@ -28,6 +29,7 @@ describe('latest strategy result retention', () => {
     await writeFile(`${directory}/test.db`, '');
     const databaseUrl = `file:${directory}/test.db`;
     database = new pkg.PrismaClient({ datasourceUrl: databaseUrl });
+    owner = createDatabase(databaseUrl);
     execFileSync(
       process.execPath,
       [
@@ -63,6 +65,7 @@ describe('latest strategy result retention', () => {
   });
   afterAll(async () => {
     await database?.$disconnect();
+    await closeDatabase(owner);
     if (directory) {
       await rm(directory, { recursive: true, force: true });
     }
@@ -95,11 +98,11 @@ describe('latest strategy result retention', () => {
 
     expect(await database.backtestReport.count()).toBe(1);
     expect(await database.job.findUnique({ where: { id: 'job-active' } })).toBeNull();
-    const strategy = await withDatabase(database, () => readStrategy('owner', 'strategy'));
+    const strategy = await withDatabase(owner, () => readStrategy('owner', 'strategy'));
     expect(strategy.lastResult).toBeNull();
     expect(strategy.lastBacktest).toMatchObject({ id: 'latest', status: 'error' });
     await expect(
-      withDatabase(database, () => readStrategyBacktestReport('owner', 'old')),
+      withDatabase(owner, () => readStrategyBacktestReport('owner', 'old')),
     ).rejects.toMatchObject({ reason: 'backtest_report_not_found' });
   });
 
@@ -138,10 +141,10 @@ describe('latest strategy result retention', () => {
     ]);
     expect(await database.job.findUnique({ where: { id: 'job-scan-old' } })).toBeNull();
     await expect(
-      withDatabase(database, () => readStrategyScanReport('owner', 'scan-old')),
+      withDatabase(owner, () => readStrategyScanReport('owner', 'scan-old')),
     ).rejects.toMatchObject({ reason: 'strategy_scan_not_found' });
     await expect(
-      withDatabase(database, () => readStrategyBacktestReport('other', 'backtest')),
+      withDatabase(owner, () => readStrategyBacktestReport('other', 'backtest')),
     ).rejects.toMatchObject({ reason: 'backtest_report_not_found' });
   });
 
@@ -170,14 +173,14 @@ describe('latest strategy result retention', () => {
       (await database.strategyScanReport.findUniqueOrThrow({ where: { id: 'legacy-scan' } }))
         .updatedAt,
     ).toEqual(timestamp);
-    let detail = await withDatabase(database, () => readStrategyBacktestReport('owner', 'legacy'));
+    let detail = await withDatabase(owner, () => readStrategyBacktestReport('owner', 'legacy'));
     expect(detail.needsRerun).toBe(false);
     expect(detail.result).toMatchObject({ marker: 'legacy' });
     await database.strategy.update({
       where: { id: 'strategy' },
       data: { config: { ...config, code: 'new current source' } },
     });
-    detail = await withDatabase(database, () => readStrategyBacktestReport('owner', 'legacy'));
+    detail = await withDatabase(owner, () => readStrategyBacktestReport('owner', 'legacy'));
     expect(detail.needsRerun).toBe(true);
     expect(detail.settings).not.toHaveProperty('code');
     expect(detail.result).toMatchObject({ marker: 'legacy' });

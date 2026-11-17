@@ -1,10 +1,10 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { MarketError } from '#market/errors.js';
 import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
 import { assertDatasetInputReadiness } from '#market/synchronization/readiness.js';
 import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
 import type { EquityStyleControlExposureV1 } from '../contract.js';
 import { sameMonth, sameWeek } from '#date';
-import { getDatabase } from '#infra/database/prisma.js';
 import type { FactorAnalysisSpecV6, FactorFreq } from '@jixie/shared';
 
 // Rebalance days within [start,end]: the last open day of each month (or ISO week).
@@ -19,7 +19,7 @@ export async function getRebalanceDates(
   start: string,
   end: string,
 ): Promise<string[]> {
-  const cal = await getDatabase().tradeCal.findMany({
+  const cal = await getMarketDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gte: start, lte: end } },
     select: { calDate: true },
     orderBy: { calDate: 'asc' },
@@ -55,7 +55,7 @@ export async function loadSnapshots(
   if (purpose === 'forward') {
     const completed = await latestCompletedTradeDate();
     const latest = completed
-      ? await getDatabase().daily.findFirst({
+      ? await getMarketDatabase().daily.findFirst({
           where: { tradeDate: { lte: completed } },
           orderBy: { tradeDate: 'desc' },
           select: { tradeDate: true },
@@ -75,18 +75,18 @@ export async function loadSnapshots(
     );
   }
 
-  const px = await getDatabase().daily.findMany({
+  const px = await getMarketDatabase().daily.findMany({
     where: { tradeDate: { in: observable } },
     select: { tsCode: true, tradeDate: true, close: true, amount: true },
   });
-  const adj = await getDatabase().adjFactor.findMany({
+  const adj = await getMarketDatabase().adjFactor.findMany({
     where: { tradeDate: { in: observable } },
     select: { tsCode: true, tradeDate: true, adjFactor: true },
   });
   const adjMap = new Map(adj.map((a) => [`${a.tsCode}|${a.tradeDate}`, a.adjFactor]));
   let mvMap = new Map<string, number | null>();
   if (withMktcap) {
-    const basic = await getDatabase().dailyBasic.findMany({
+    const basic = await getMarketDatabase().dailyBasic.findMany({
       where: { tradeDate: { in: observable } },
       select: { tsCode: true, tradeDate: true, totalMv: true },
     });
@@ -210,7 +210,7 @@ export async function loadEquityStyleControls(
   finaIndex: FinaIndex,
 ): Promise<EquityStyleControlsByDate> {
   const calendar = (
-    await getDatabase().tradeCal.findMany({
+    await getMarketDatabase().tradeCal.findMany({
       where: { exchange: 'SSE', isOpen: 1, calDate: { lte: dates.at(-1) ?? spec.end } },
       select: { calDate: true },
       orderBy: { calDate: 'asc' },
@@ -233,7 +233,7 @@ export async function loadEquityStyleControls(
   }
   const [momentumSnaps, basicRows] = await Promise.all([
     loadSnapshots([...momentumDates]),
-    getDatabase().dailyBasic.findMany({
+    getMarketDatabase().dailyBasic.findMany({
       where: { tradeDate: { in: dates } },
       select: { tsCode: true, tradeDate: true, pb: true },
     }),

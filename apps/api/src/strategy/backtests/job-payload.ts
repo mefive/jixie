@@ -12,8 +12,10 @@ export const backtestJobPayloadSchema = z.object({
 
 export type BacktestJobPayload = z.infer<typeof backtestJobPayloadSchema>;
 
-export const backtestWorkerInputSchema = backtestJobPayloadSchema.omit({
-  task: true,
-  reportId: true,
-});
+export const backtestWorkerInputSchema = backtestJobPayloadSchema
+  .omit({
+    task: true,
+    reportId: true,
+  })
+  .extend({ marketVersionId: z.string().ulid().optional() });
 export type BacktestWorkerInput = z.infer<typeof backtestWorkerInputSchema>;

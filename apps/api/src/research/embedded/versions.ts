@@ -1,6 +1,6 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { ResearchEmbeddedDraftInputV1, ResearchEmbeddedHostV1 } from '@jixie/shared';
-import type { Prisma, ResearchEmbeddedAnalysis } from '@prisma/client';
+import type { Prisma, ResearchEmbeddedAnalysis } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
 import { captureEmbeddedContext } from './context.js';
@@ -19,7 +19,7 @@ import { analysisView, versionView } from './views.js';
  * Create embedded analysis and its initial version for an authorized host entity.
  */
 export async function createEmbeddedAnalysis(userId: string, input: ResearchEmbeddedCreateInput) {
-  return getDatabase().$transaction(async (transaction) => {
+  return getApplicationDatabase().$transaction(async (transaction) => {
     const analysis = await transaction.researchEmbeddedAnalysis.create({
       data: {
         id: ulid(),
@@ -44,7 +44,7 @@ export async function deriveEmbeddedVersion(
   analysisId: string,
   input: ResearchEmbeddedDeriveInput,
 ) {
-  return getDatabase().$transaction(async (transaction) => {
+  return getApplicationDatabase().$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
     const parent = await transaction.researchEmbeddedAnalysisVersion.findFirst({
       where: { id: input.parentVersionId, analysisId },
@@ -79,7 +79,7 @@ export async function updateEmbeddedVersion(
   versionId: string,
   input: ResearchEmbeddedUpdateInput,
 ) {
-  return getDatabase().$transaction(async (transaction) => {
+  return getApplicationDatabase().$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
     const version = await transaction.researchEmbeddedAnalysisVersion.findFirst({
       where: { id: versionId, analysisId },

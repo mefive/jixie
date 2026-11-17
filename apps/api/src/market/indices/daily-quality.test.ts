@@ -1,3 +1,4 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_INDEX_DOWNLOADS } from '../downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '../registry/index-presets.js';
@@ -35,6 +36,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 
@@ -72,3 +74,8 @@ describe('index date quality', () => {
     await expect(validateIndexWeightDate('20260918', 10)).rejects.toThrow('older than 10 days');
   });
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

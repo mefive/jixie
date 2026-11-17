@@ -24,7 +24,7 @@ export async function executeDataCommand(
   if (existsSync(envFile)) {
     loadEnvFile(envFile);
   }
-  const { prisma, createDatabase, withDatabase, closeDatabase } =
+  const { prisma, createDatabase, withDatabase, closeDatabase, usesMarketVersions } =
     await import('#infra/database/prisma.js');
   const { databaseFilename, MarketAccessBusyError } =
     await import('#infra/coordination/market-access.js');
@@ -43,29 +43,55 @@ export async function executeDataCommand(
   try {
     const result = await withDatabase(database, async () => {
       const { listDownloads, changeDownloadList } = await import('#market/downloads/lists.js');
+      const { getMarketDatabase } = await import('#infra/database/market-database.js');
+      const { marketVersionFile } = await import('#infra/database/filename.js');
+      const { withMarketAccess } = await import('#infra/coordination/market-access.js');
       const readRun = async <Result>(
         runId: string,
         read: (
-          connection: typeof database,
+          connection: ReturnType<typeof getMarketDatabase>,
           dataLocation: 'candidate' | 'published',
         ) => Promise<Result>,
       ) => {
+        if (usesMarketVersions()) {
+          const { withVersionEvidence } = await import('../version-lifecycle.js');
+          return withVersionEvidence(runId, (location) => read(getMarketDatabase(), location));
+        }
         const run = await database.ingestionRun.findUnique({ where: { id: runId } });
         if (run?.activeReplica) {
           const { withCandidate } = await import('../replica-files.js');
 
-          return withCandidate(runId, (candidate) => read(candidate, 'candidate'));
+          return withCandidate(runId, () => read(getMarketDatabase(), 'candidate'));
         }
 
-        return read(database, 'published');
+        return read(getMarketDatabase(), 'published');
       };
       switch (request.action) {
         case 'list':
-          return listDownloads(request.assetType);
+          return usesMarketVersions()
+            ? withMarketAccess(() => listDownloads(request.assetType))
+            : listDownloads(request.assetType);
         case 'add':
         case 'remove':
           return changeDownloadList(request.assetType, request.action, request.code);
         case 'runs': {
+          if (usesMarketVersions()) {
+            return database.marketVersion
+              .findMany({
+                where: { isBaseline: false },
+                select: { runId: true, phase: true, createdAt: true, finishedAt: true },
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+                take: request.limit,
+              })
+              .then((rows) =>
+                rows.map((row) => ({
+                  id: row.runId,
+                  status: row.phase,
+                  startedAt: row.createdAt,
+                  finishedAt: row.finishedAt,
+                })),
+              );
+          }
           const rows = await database.ingestionRun.findMany({
             select: {
               id: true,
@@ -83,6 +109,13 @@ export async function executeDataCommand(
             status: replicaPhase ?? row.status,
           }));
         }
+        case 'rollback-run':
+        case 'retain-run':
+        case 'release-run':
+          return (await import('../version-admin.js')).manageMarketVersion(
+            request.runId,
+            request.action,
+          );
         case 'inspect-run':
           return (await import('../replica.js')).inspectCandidate(request.runId, {
             includeBatchTimings: true,
@@ -100,6 +133,16 @@ export async function executeDataCommand(
         case 'reconcile-issues': {
           const { reconcileIssueResolutions } = await import('../resolutions.js');
 
+          if (usesMarketVersions()) {
+            const version = await database.marketVersion.findUnique({ where: { activeSlot: 1 } });
+            if (!version || (request.runId && version.runId !== request.runId)) {
+              return { runs: [], created: 0 };
+            }
+            const { repairMarketVersion } = await import('../version-collection.js');
+            return repairMarketVersion(version, true, () =>
+              reconcileIssueResolutions(version.runId),
+            );
+          }
           return reconcileIssueResolutions(request.runId);
         }
         case 'repair-issues': {
@@ -115,7 +158,10 @@ export async function executeDataCommand(
 
           const { repairCandidate } = await import('../replica.js');
           const { candidateFilename } = await import('../replica-files.js');
-          const path = candidateFilename(plan.runId);
+          const version = usesMarketVersions()
+            ? await database.marketVersion.findUniqueOrThrow({ where: { runId: plan.runId } })
+            : null;
+          const path = version ? marketVersionFile(version.id) : candidateFilename(plan.runId);
 
           return repairCandidate(plan.runId, Boolean(request.expectedHash), () =>
             repairIngestionIssues(plan, {

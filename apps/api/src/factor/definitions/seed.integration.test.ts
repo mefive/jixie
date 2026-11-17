@@ -1,3 +1,5 @@
+import { getDatabase as fixtureDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -18,6 +20,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     )),
     ...mocked,
     getDatabase: () => mocked.prisma,
+    getApplicationDatabase: () => mocked.prisma,
   };
 });
 
@@ -149,12 +152,19 @@ it('seeds missing presets and preserves saved versions across initialization and
       approvedReportId: stored.approvedReportId,
     });
     expect(
-      (await captureFactorQuestionContext(prisma, 'fixture-owner', definition.key, undefined, 'en'))
-        .factor.source,
+      (
+        await captureFactorQuestionContext(
+          getApplicationDatabase(),
+          'fixture-owner',
+          definition.key,
+          undefined,
+          'en',
+        )
+      ).factor.source,
     ).toBe(stored.code);
     expect(
       (
-        await captureEmbeddedContext(prisma, 'fixture-owner', {
+        await captureEmbeddedContext(getApplicationDatabase(), 'fixture-owner', {
           type: 'factor',
           id: definition.key,
         })
@@ -222,3 +232,8 @@ it('hides retired flow presets while preserving saved source and published repor
   ).toEqual(before);
   expect(await prisma.factorReport.findMany({ orderBy: { id: 'asc' } })).toEqual(reports);
 });
+
+vi.mock('#infra/database/market-database.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#infra/database/market-database.js')>()),
+  getMarketDatabase: () => fixtureDatabase(),
+}));

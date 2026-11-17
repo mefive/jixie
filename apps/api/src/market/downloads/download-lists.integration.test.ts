@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { ingest } from '#ingestion/ingest.js';
 import { planIngestion } from '#ingestion/plan.js';
 import { describe, expect, it } from 'vitest';
@@ -159,7 +160,7 @@ describe('administrator download lists', () => {
         },
       });
       expect(result.selectedCodes).toEqual(['510000.SH']);
-      await database.$transaction((transaction) =>
+      await getMarketDatabase().$transaction((transaction) =>
         mergeEtfSelection(transaction, result.selectedCodes),
       );
       expect(await readDownloadCodes('etf')).toEqual(['510000.SH', '510099.SH']);
@@ -168,7 +169,7 @@ describe('administrator download lists', () => {
         source: { call: async () => [] },
       });
       expect(empty.selectedCodes).toEqual([]);
-      await database.$transaction((transaction) =>
+      await getMarketDatabase().$transaction((transaction) =>
         mergeEtfSelection(transaction, empty.selectedCodes),
       );
       expect(await readDownloadCodes('etf')).toEqual(['510000.SH', '510099.SH']);

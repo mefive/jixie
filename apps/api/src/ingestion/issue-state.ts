@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/market-db-client';
 import { dividendReceiptHasCompleteFields } from '#market/fundamentals/dividend-identity.js';
 import { latestAttempts, unitKey } from './runs.js';
 import { parseRunPlan, runPlanSchema } from './schema.js';

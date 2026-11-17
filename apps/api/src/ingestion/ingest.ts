@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { SourceResponseCache } from '#market/synchronization/source-response-cache.js';
 import { BatchPrefetcher, type PrefetchedBatch } from './batch-prefetcher.js';
 import { withSourceMeasurements } from '#market/providers/source-fetch.js';
@@ -12,7 +13,7 @@ import {
 } from '#market/fundamentals/dividend-identity.js';
 import { financialStockCodes } from '#market/fundamentals/scope.js';
 import { IngestionError } from './errors.js';
-import { getDatabase } from '#infra/database/prisma.js';
+
 import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
 import { withSourceRequestBudget } from '#market/providers/source-fetch.js';
 import { isObservationDate, localDate } from '#market/synchronization/date.js';
@@ -44,7 +45,11 @@ export async function ingest(input: IngestionInput): Promise<IngestionResult> {
   return withMaintenanceLock(() => collect(input));
 }
 
-/** 绑定副本后只执行批次事务。 / Collect into a bound replica using batch transactions only. */
+/**
+ * 绑定副本后只执行批次事务。
+ *
+ * Collect into a bound replica using batch transactions only.
+ */
 export async function collectInReplica(
   input: IngestionInput,
   runId: string,
@@ -61,7 +66,7 @@ async function collect(
   if (!isObservationDate(input.targetDate)) {
     throw new IngestionError('invalid_target_date');
   }
-  const database = getDatabase();
+  const database = getMarketDatabase();
   const clock = input.clock ?? (() => new Date());
   const invokedAt = clock();
   const signal = input.signal ?? new AbortController().signal;
@@ -766,7 +771,7 @@ async function upgradeStatementPlan(
   targetDate: string,
   invokedAt: Date,
 ): Promise<NonNullable<IngestionRunPlan['plan']>> {
-  const attempts = await getDatabase().ingestionBatch.findMany({
+  const attempts = await getMarketDatabase().ingestionBatch.findMany({
     where: {
       runId,
       dataset: 'financial-statements',
@@ -801,7 +806,7 @@ async function upgradeStatementPlan(
  *
  * Keep serializable source diagnostics and remove credential-shaped fields.
  */
-export function jsonValue(value: unknown): import('@prisma/client').Prisma.InputJsonValue {
+export function jsonValue(value: unknown): import('@jixie/market-db-client').Prisma.InputJsonValue {
   return JSON.parse(
     JSON.stringify(value, (key, item) =>
       /token|password|authorization|secret/i.test(key) ? '[redacted]' : item,
@@ -810,7 +815,7 @@ export function jsonValue(value: unknown): import('@prisma/client').Prisma.Input
 }
 
 async function persistIssues(
-  database: Pick<ReturnType<typeof getDatabase>, 'ingestionIssue'>,
+  database: Pick<ReturnType<typeof getMarketDatabase>, 'ingestionIssue'>,
   runId: string,
   batchId: string | null,
   issues: ImportIssue[],

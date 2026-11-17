@@ -1,6 +1,6 @@
 import { backtestReportState } from '#strategy/backtests/state.js';
 import { strategyResultSettings } from '#strategy/definitions/config.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 
 const MAX_BACKTEST_REPORT_PAYLOAD_BYTES = 8 * 1024 * 1024;
 
@@ -43,7 +43,7 @@ export async function loadResearchBacktestReportResult(
   documentId: string,
   reportId: string,
 ): Promise<ResearchBacktestReportResultV1> {
-  const document = await getDatabase().agentConversation.findFirst({
+  const document = await getApplicationDatabase().agentConversation.findFirst({
     where: { id: documentId, surface: 'research', archivedAt: null },
     select: { userId: true, researchDocument: { select: { id: true } } },
   });
@@ -51,7 +51,7 @@ export async function loadResearchBacktestReportResult(
     throw new Error('Research document was not found.');
   }
 
-  const row = await getDatabase()
+  const row = await getApplicationDatabase()
     .backtestReport.findFirst({
       where: { id: reportId, userId: document.userId },
       select: {

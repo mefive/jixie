@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { recordImportIssue } from '../synchronization/diagnostics.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import {
@@ -7,7 +8,6 @@ import {
 } from '../instruments/market-range.js';
 import { selectStockLimitRows } from './limit-scope.js';
 import { canonicalStockCode, normalizeStockNameSpells } from '../instruments/stock-identity.js';
-import { getDatabase } from '#infra/database/prisma.js';
 import { isObservationDate } from '../synchronization/date.js';
 import type {
   MarketPartition,
@@ -67,7 +67,7 @@ export async function prepareStockPartition(
     throw new Error(`Unknown stock dataset ${partition.dataset}`);
   }
   const pages = await downloadStockPartition(source, partition);
-  const ranges = stockMarketRanges(await getDatabase().stockBasic.findMany());
+  const ranges = stockMarketRanges(await getMarketDatabase().stockBasic.findMany());
 
   // 标的目录是白名单，目录外代码只计正常过滤；目录内记录继续校验日期和业务字段。
   // The catalog is the allowlist: silently filter other codes, then validate admitted dates/values.
@@ -337,7 +337,11 @@ const STOCK_DEFINITIONS = {
   },
 };
 
-/** 只下载股票响应，不读取可变业务上下文。 / Download stock rows without mutable business context. */
+/**
+ * 只下载股票响应，不读取可变业务上下文。
+ *
+ * Download stock rows without mutable business context.
+ */
 export async function downloadStockPartition(source: SyncSource, partition: MarketPartition) {
   const definition = STOCK_DEFINITIONS[partition.dataset as keyof typeof STOCK_DEFINITIONS];
   if (!definition) {
@@ -365,7 +369,11 @@ const STOCK_NAME_COLUMNS = {
   changeReason: 'change_reason',
 };
 
-/** 名称下载与身份合并分开。 / Separate name-history downloads from identity merging. */
+/**
+ * 名称下载与身份合并分开。
+ *
+ * Separate name-history downloads from identity merging.
+ */
 export function downloadStockNames(source: SyncSource, partition: MarketPartition) {
   return fetchSourceRange(
     source,

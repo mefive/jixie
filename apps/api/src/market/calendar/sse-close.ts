@@ -1,9 +1,9 @@
-import { getDatabase } from '#infra/database/prisma.js';
+import { getMarketDatabase } from '#infra/database/market-database.js';
 
 export async function latestCompletedTradeDate(): Promise<string | null> {
   const { today, hour } = shanghaiClock();
   const upperBound = hour >= 16 ? today : previousCalendarDate(today);
-  const row = await getDatabase().tradeCal.findFirst({
+  const row = await getMarketDatabase().tradeCal.findFirst({
     where: { exchange: 'SSE', isOpen: 1, calDate: { lte: upperBound } },
     orderBy: { calDate: 'desc' },
     select: { calDate: true },

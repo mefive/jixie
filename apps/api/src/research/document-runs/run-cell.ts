@@ -1,8 +1,8 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { ResearchCellOutputBlockV1, ResearchDocumentV1 } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ulid } from 'ulid';
 import { assertResearchCellsRunnable } from '../dependencies/runnable.js';
 import {
@@ -84,7 +84,7 @@ export async function executeResearchCell(
 
     const executionId = ulid();
     const startedAt = new Date();
-    await getDatabase().$transaction(async (transaction) => {
+    await getApplicationDatabase().$transaction(async (transaction) => {
       const current = await transaction.researchCell.findUnique({
         where: { id: cell.id },
         select: { id: true, revision: true, source: true },
@@ -140,7 +140,7 @@ export async function executeResearchCell(
           result.references,
         );
       }
-      await getDatabase().$transaction(async (transaction) => {
+      await getApplicationDatabase().$transaction(async (transaction) => {
         for (const artifact of persisted.artifacts) {
           await transaction.researchArtifact.create({ data: artifact });
         }
@@ -182,8 +182,8 @@ export async function executeResearchCell(
         ...failure.outputs,
         { type: 'text', text: failure.message, level: 'error' },
       ];
-      await getDatabase().$transaction([
-        getDatabase().researchCell.updateMany({
+      await getApplicationDatabase().$transaction([
+        getApplicationDatabase().researchCell.updateMany({
           where: { id: cell.id, revision: cell.revision, source: cell.source },
           data: {
             status: 'error',
@@ -193,7 +193,7 @@ export async function executeResearchCell(
             lastExecutedAt: new Date(),
           },
         }),
-        getDatabase().researchCellExecution.update({
+        getApplicationDatabase().researchCellExecution.update({
           where: { id: executionId },
           data: {
             status: 'error',
@@ -204,7 +204,7 @@ export async function executeResearchCell(
             finishedAt: new Date(),
           },
         }),
-        getDatabase().researchDocument.update({
+        getApplicationDatabase().researchDocument.update({
           where: { id: cell.documentId },
           data: { updatedAt: new Date() },
         }),
@@ -223,12 +223,12 @@ async function persistInterruptedResearchCell(
   cell: ExecutableResearchCellRow,
   executionId: string,
 ): Promise<void> {
-  await getDatabase().$transaction([
-    getDatabase().researchCell.updateMany({
+  await getApplicationDatabase().$transaction([
+    getApplicationDatabase().researchCell.updateMany({
       where: { id: cell.id, revision: cell.revision, source: cell.source },
       data: { status: cell.lastExecutedRevision == null ? 'idle' : 'stale' },
     }),
-    getDatabase().researchCellExecution.update({
+    getApplicationDatabase().researchCellExecution.update({
       where: { id: executionId },
       data: {
         status: 'cancelled',
@@ -236,7 +236,7 @@ async function persistInterruptedResearchCell(
         finishedAt: new Date(),
       },
     }),
-    getDatabase().researchDocument.update({
+    getApplicationDatabase().researchDocument.update({
       where: { id: cell.documentId },
       data: { updatedAt: new Date() },
     }),

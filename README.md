@@ -79,7 +79,8 @@ packages/shared/                   # 共享类型(TsCode、TradeDate)
 ```bash
 pnpm install
 # 配置 apps/api/.env：DATABASE_URL 已默认，填 TUSHARE_TOKEN
-pnpm --filter api db:migrate
+pnpm --filter api db:generate          # 生成应用库和市场版本库的客户端
+pnpm --filter api db:initialize "$PWD/apps/api/prisma/dev.db" # 全新开发库；已有混合库先按设计文档离线转换
 pnpm data ingest                   # 固定目标，从自然起点补缺；中断后按批次恢复
 pnpm setup:sandbox               # 按需准备沙盒 SDK 声明、依赖清单与本地 Python 环境
 pnpm dev                         # 同时启动 sandboxd、API 和 Web

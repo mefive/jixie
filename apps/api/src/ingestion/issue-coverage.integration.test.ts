@@ -1,3 +1,4 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { exportIngestionIssues } from './issue-export.js';
@@ -70,7 +71,7 @@ it.each([
         runId: 'old',
         code: { commit: 'test', sourceDirty: false },
       });
-      const overview = await database.$transaction((transaction) =>
+      const overview = await getMarketDatabase().$transaction((transaction) =>
         readIssueOverview(transaction, 'old', true),
       );
 

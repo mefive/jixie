@@ -1,8 +1,10 @@
+import { historicalOmit } from './historical-columns.js';
+import prismaPackage from '@prisma/client';
+import { createDatabase, closeDatabase } from '#infra/database/prisma.js';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
-import prismaPackage from '@prisma/client';
 import { expect, it } from 'vitest';
 import { withDatabase } from '#infra/database/prisma.js';
 import { readFactorReport, listFactorReports } from '#factor/evaluations/read.js';
@@ -16,7 +18,11 @@ it('drops composites and correlation caches while preserving independent version
   const databaseUrl = `file:${directory}/upgrade.db`;
   const schema = join(directory, 'schema.prisma');
   const migrations = join(directory, 'migrations');
-  const database = new prismaPackage.PrismaClient({ datasourceUrl: databaseUrl });
+  const owner = createDatabase(databaseUrl);
+  const database = new prismaPackage.PrismaClient({
+    datasourceUrl: databaseUrl,
+    omit: historicalOmit,
+  });
   const deploy = () =>
     execFileSync(
       process.execPath,
@@ -151,7 +157,11 @@ it('drops composites and correlation caches while preserving independent version
       await database.$queryRaw`SELECT name FROM sqlite_master WHERE name LIKE 'FactorComposite%' OR name LIKE 'FactorCorrelation%'`,
     ).toEqual([]);
     expect(await database.$queryRaw`PRAGMA foreign_key_check`).toEqual([]);
-    await withDatabase(database, async () => {
+    // 历史迁移对比已完成，现行业务读取使用完整迁移后的夹具。
+    // After checking the historical transition, upgrade the fixture for current application reads.
+    await cp(resolve('prisma/migrations'), migrations, { recursive: true });
+    deploy();
+    await withDatabase(owner, async () => {
       for (const reportId of ['old-report', 'old-panel-report']) {
         await expect(readFactorReport('owner', reportId)).rejects.toMatchObject({
           reason: 'evaluation_not_found',
@@ -174,6 +184,7 @@ it('drops composites and correlation caches while preserving independent version
       status: 'published',
     });
   } finally {
+    await closeDatabase(owner);
     await database.$disconnect();
     await rm(directory, { recursive: true, force: true });
   }

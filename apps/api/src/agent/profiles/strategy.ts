@@ -1,10 +1,10 @@
+import { getMarketDatabase } from '#infra/database/market-database.js';
 import { inspectStrategyMetadata } from '#strategy/sandbox/inspect-definition.js';
 import { StrategySandbox } from '#strategy/sandbox/strategy-sandbox.js';
 import { buildCodegenPrompt, KNOWN_INDICES } from '#strategy/sandbox/typescript/codegen-prompt.js';
 
 import { buildPythonCodegenPrompt } from '#strategy/sandbox/python/codegen-prompt.js';
 
-import { getDatabase } from '#infra/database/prisma.js';
 import { buildAgentMode, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
 
@@ -33,16 +33,16 @@ async function assertKnownInstruments(code: string): Promise<void> {
   }
 
   const [stocks, etfs, indices] = await Promise.all([
-    getDatabase().stockBasic.findMany({
+    getMarketDatabase().stockBasic.findMany({
       where: { tsCode: { in: candidates } },
       select: { tsCode: true },
     }),
-    getDatabase().etfDaily.findMany({
+    getMarketDatabase().etfDaily.findMany({
       where: { tsCode: { in: candidates } },
       select: { tsCode: true },
       distinct: ['tsCode'],
     }),
-    getDatabase().indexDaily.findMany({
+    getMarketDatabase().indexDaily.findMany({
       where: { tsCode: { in: candidates } },
       select: { tsCode: true },
       distinct: ['tsCode'],

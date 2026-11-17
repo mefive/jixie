@@ -1,5 +1,5 @@
 import { normalizeChatMessage } from '@jixie/shared';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type {
   ChatMessage,
   ResearchCellKindV1,
@@ -9,7 +9,7 @@ import type {
   ResearchDocumentSummaryV1,
   ResearchDocumentV1,
 } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { jsonStringArray, researchCellDependencyIssues } from '../dependencies/cell-values.js';
 import { ResearchError } from '../errors.js';
 import { listResearchCellChangeAttempts } from '../proposals/attempt-records.js';
@@ -36,7 +36,7 @@ export async function listResearchDocuments(
   userId: string,
   state: ResearchDocumentListStateV1 = 'active',
 ): Promise<ResearchDocumentSummaryV1[]> {
-  const conversations = await getDatabase().agentConversation.findMany({
+  const conversations = await getApplicationDatabase().agentConversation.findMany({
     where: {
       userId,
       surface: 'research',
@@ -79,7 +79,7 @@ export async function getResearchDocument(
   userId: string,
   documentId: string,
 ): Promise<ResearchDocumentV1> {
-  const owner = await getDatabase().agentConversation.findFirst({
+  const owner = await getApplicationDatabase().agentConversation.findFirst({
     where: {
       id: documentId,
       userId,
@@ -94,7 +94,7 @@ export async function getResearchDocument(
   }
   if (!owner.researchDocument) {
     const definition = legacyDefinition(owner.title ?? '');
-    await getDatabase().researchDocument.create({
+    await getApplicationDatabase().researchDocument.create({
       data: {
         id: owner.id,
         userId,
@@ -117,7 +117,7 @@ async function loadDocumentRow(
   userId: string,
   documentId: string,
 ): Promise<ResearchDocumentRow | null> {
-  return getDatabase().researchDocument.findFirst({
+  return getApplicationDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     include: {
       conversation: {

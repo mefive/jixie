@@ -2,7 +2,7 @@ import type {
   Prisma,
   ResearchEmbeddedAnalysis,
   ResearchEmbeddedAnalysisVersion,
-} from '@prisma/client';
+} from '@jixie/app-db-client';
 import type {
   ResearchEmbeddedAnalysisV1,
   ResearchEmbeddedVersionV1,

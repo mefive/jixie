@@ -1,4 +1,5 @@
-import { withDatabase, type Prisma } from '#infra/database/prisma.js';
+import { withMarketFixture } from '../../../tests/market-scope-fixture.js';
+import { type Prisma } from '#infra/database/prisma.js';
 import { researchSandboxPool } from './research-sandbox-pool.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PythonSession } from '#infra/sandbox/python/python-session.js';
@@ -27,7 +28,7 @@ afterEach(() => {
 
 describe('Research pool and instance ownership', () => {
   it('does not connect when startup is already cancelled', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = fixture();
       const error = new Error('cancelled before startup');
 
@@ -40,7 +41,7 @@ describe('Research pool and instance ownership', () => {
   });
 
   it('aborts a connection acquired after startup cancellation without sending the handshake', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = fixture();
       const controller = new AbortController();
       let complete!: (session: PythonSession) => void;
@@ -64,7 +65,7 @@ describe('Research pool and instance ownership', () => {
   });
 
   it('rejects a cancelled handshake without publishing a ready instance', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = fixture();
       const controller = new AbortController();
       const error = new Error('cancelled during handshake');
@@ -88,7 +89,7 @@ describe('Research pool and instance ownership', () => {
   });
 
   it('does not create a runtime when resetting an unused document', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = fixture();
       await researchSandboxPool.reset(documentId);
       expect(PythonSession.connect).not.toHaveBeenCalled();
@@ -97,7 +98,7 @@ describe('Research pool and instance ownership', () => {
   });
 
   it('retains the instance for Python errors but replaces it for protocol errors', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = fixture();
       session.readValidated.mockResolvedValueOnce({
         type: 'research_error',
@@ -125,7 +126,7 @@ describe('Research pool and instance ownership', () => {
   });
 
   it('does not reuse an instance closed by the log transfer limit', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = fixture();
       session.readValidated.mockResolvedValueOnce({
         type: 'log',
@@ -147,7 +148,7 @@ describe('Research pool and instance ownership', () => {
   });
 
   it('queues operations behind the active cell without adding a second runtime queue', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = fixture();
       let complete!: (value: typeof executed) => void;
       let entered!: () => void;
@@ -182,7 +183,7 @@ describe('Research pool and instance ownership', () => {
   });
 
   it('cancels queued work, drains pending operations and permits a fresh instance', async () => {
-    return withDatabase(testDatabase, async () => {
+    return withMarketFixture(testDatabase, async () => {
       const session = fixture();
       let entered!: () => void;
       let rejectRead!: (error: Error) => void;

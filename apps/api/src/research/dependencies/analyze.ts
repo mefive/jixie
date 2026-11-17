@@ -1,7 +1,7 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { getDatabase } from '#infra/database/prisma.js';
+import { getApplicationDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentAnalysisV1 } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@jixie/app-db-client';
 import { ResearchError } from '../errors.js';
 
 import type { ResearchPythonAnalysis } from '../sandbox/host/analysis-types.js';
@@ -12,7 +12,7 @@ export async function analyzeResearchDocument(
   userId: string,
   documentId: string,
 ): Promise<ResearchDocumentAnalysisV1> {
-  const owner = await getDatabase().researchDocument.findFirst({
+  const owner = await getApplicationDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
@@ -29,15 +29,15 @@ export async function analyzeResearchDocument(
  * Analyze all document cells, persist definitions and references and reconcile dependencies.
  */
 export async function analyzeAndPersist(documentId: string): Promise<ResearchPythonAnalysis[]> {
-  const cells = await getDatabase().researchCell.findMany({
+  const cells = await getApplicationDatabase().researchCell.findMany({
     where: { documentId },
     select: { id: true, kind: true, source: true },
     orderBy: { position: 'asc' },
   });
   const analyses = await analyzeResearchCellSources(documentId, cells);
-  await getDatabase().$transaction(
+  await getApplicationDatabase().$transaction(
     analyses.map((analysis) =>
-      getDatabase().researchCell.update({
+      getApplicationDatabase().researchCell.update({
         where: { id: analysis.cellId },
         data: {
           definitions: analysis.definitions as unknown as Prisma.InputJsonValue,
