@@ -1,3 +1,4 @@
+import { GROUP_OR_OTHER_PERMISSIONS, OWNER_READ_WRITE } from '#infra/file-permissions.js';
 import { createHash } from 'node:crypto';
 import { open, readdir, lstat, unlink, type FileHandle } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -40,14 +41,14 @@ export class PublicationPlan {
     }
     const directory = dirname(candidateFilename(identity.runId));
     const info = await lstat(directory);
-    if (!info.isDirectory() || (info.mode & 0o077) !== 0) {
+    if (!info.isDirectory() || (info.mode & GROUP_OR_OTHER_PERMISSIONS) !== 0) {
       throw new PublicationPlanError('Publication directory must be private');
     }
     const plan = new PublicationPlan(
       identity,
       join(directory, `publication-${identity.operation}.plan`),
     );
-    plan.writer = await open(plan.filename, 'wx', 0o600);
+    plan.writer = await open(plan.filename, 'wx', OWNER_READ_WRITE);
     try {
       await plan.append({ identity });
     } catch (error) {
@@ -177,7 +178,7 @@ export async function cleanupPublicationPlans(runId: string, operation?: string)
   const directory = dirname(candidateFilename(runId));
   try {
     const info = await lstat(directory);
-    if (!info.isDirectory() || (info.mode & 0o077) !== 0) {
+    if (!info.isDirectory() || (info.mode & GROUP_OR_OTHER_PERMISSIONS) !== 0) {
       return false;
     }
     for (const entry of await readdir(directory, { withFileTypes: true })) {

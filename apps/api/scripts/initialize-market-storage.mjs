@@ -1,5 +1,6 @@
 // 部署或本地初始化入口；已有混合库只能通过显式的隔离迁移转换。
 // Initialize local or deployed versioned storage. Convert existing mixed databases offline.
+import { OWNER_READ_ONLY, OWNER_READ_WRITE, OWNER_ONLY_DIRECTORY } from './file-permissions.mjs';
 import { existsSync, openSync, closeSync } from 'node:fs';
 import { mkdir, chmod, open } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
@@ -44,7 +45,7 @@ const migrate = (kind, path) => {
   // 首次迁移前独占创建空文件；已有数据库继续使用原文件。
   // Reserve a missing SQLite file exclusively before invoking the migration engine.
   if (!existsSync(path)) {
-    closeSync(openSync(path, 'wx', 0o600));
+    closeSync(openSync(path, 'wx', OWNER_READ_WRITE));
   }
 
   const schema = fileURLToPath(new URL('../prisma/' + kind + '/schema.prisma', import.meta.url));
@@ -58,7 +59,7 @@ const migrate = (kind, path) => {
     },
   );
 };
-await mkdir(root, { recursive: true, mode: 0o700 });
+await mkdir(root, { recursive: true, mode: OWNER_ONLY_DIRECTORY });
 migrate('app', file);
 const app = new DatabaseSync(file);
 try {
@@ -79,7 +80,7 @@ try {
     }
     const id = ulid();
     const directory = join(root, 'market', 'versions', id);
-    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await mkdir(directory, { recursive: true, mode: OWNER_ONLY_DIRECTORY });
     const market = join(directory, 'market.db');
     migrate('market', market);
     const database = new DatabaseSync(market);
@@ -88,7 +89,7 @@ try {
     } finally {
       database.close();
     }
-    await chmod(market, 0o400);
+    await chmod(market, OWNER_READ_ONLY);
     for (const entry of [
       market,
       directory,

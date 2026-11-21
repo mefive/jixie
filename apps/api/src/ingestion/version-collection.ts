@@ -1,3 +1,4 @@
+import { OWNER_READ_WRITE } from '#infra/file-permissions.js';
 import { readMarketSnapshot } from '#infra/database/market-database.js';
 import { DEFAULT_INDEX_DOWNLOADS } from '#market/downloads/lists.js';
 import { configuredSelection } from '#market/downloads/version-selection.js';
@@ -200,7 +201,7 @@ export async function repairMarketVersion<Result>(
     try {
       // 发布前失败的文件可能已封存；只有持执行权的未发布候选能够重新开放。
       // Only an exclusively claimed unpublished candidate may reopen after a failed publication.
-      await chmod(filename, 0o600);
+      await chmod(filename, OWNER_READ_WRITE);
       return await withMarketDatabase(filename, 'candidate', repair);
     } finally {
       await finalize(current, operation);

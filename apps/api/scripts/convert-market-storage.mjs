@@ -1,5 +1,6 @@
 // 输入为停写后取得的同一组 SQLite 一致备份。转换只在新目录构造输出。
 // Convert a coherent, quiesced set of backups into a new directory without modifying its inputs.
+import { OWNER_READ_ONLY, OWNER_READ_WRITE, OWNER_ONLY_DIRECTORY } from './file-permissions.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdir, chmod, realpath, statfs, stat, writeFile, open, rename } from 'node:fs/promises';
 import { dirname, join, basename, isAbsolute } from 'node:path';
@@ -86,7 +87,7 @@ if (!apply) {
     throw new Error('Insufficient free space for isolated conversion');
   }
   const staging = destination + '.creating-' + ulid();
-  await mkdir(staging, { mode: 0o700 });
+  await mkdir(staging, { mode: OWNER_ONLY_DIRECTORY });
   const targetMarket = (id) => {
     if (!/^[0-9A-HJKMNP-TV-Z]{26}$/.test(id)) {
       throw new Error('Invalid version ID');
@@ -108,7 +109,7 @@ if (!apply) {
   } finally {
     base.close();
   }
-  await chmod(baseFile, 0o400);
+  await chmod(baseFile, OWNER_READ_ONLY);
   if (active) {
     const db = await convertFile(candidateFile, targetMarket(active.id), 'market');
     try {
@@ -178,11 +179,11 @@ if (!apply) {
   };
   await writeFile(join(staging, 'conversion.json'), JSON.stringify(proof, null, 2), {
     flag: 'wx',
-    mode: 0o600,
+    mode: OWNER_READ_WRITE,
   });
   // 目标必须由本次操作独占；绝不替换旧库或已转换的工作目录。
   // Reserve an empty destination exclusively and never replace an existing deployment.
-  await mkdir(destination, { mode: 0o700 });
+  await mkdir(destination, { mode: OWNER_ONLY_DIRECTORY });
   await rename(staging, destination);
   const parent = await open(dirname(destination), 'r');
   try {
@@ -217,8 +218,8 @@ async function verifyLegacyBaseline() {
 }
 
 async function convertFile(input, output, kind) {
-  await mkdir(dirname(output), { recursive: true, mode: 0o700 });
-  const empty = await open(output, 'wx', 0o600);
+  await mkdir(dirname(output), { recursive: true, mode: OWNER_ONLY_DIRECTORY });
+  const empty = await open(output, 'wx', OWNER_READ_WRITE);
   await empty.close();
 
   const envKey = kind === 'market' ? 'MARKET_DATABASE_URL' : 'DATABASE_URL';

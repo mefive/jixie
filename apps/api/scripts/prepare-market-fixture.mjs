@@ -1,5 +1,6 @@
 // 从 SQLite 一致快照创建独立的市场压力测试库，默认只展示输入和输出。
 // Prepare an isolated market load fixture from a SQLite snapshot; preview by default.
+import { OWNER_READ_WRITE, OWNER_ONLY_DIRECTORY } from './file-permissions.mjs';
 import { DatabaseSync } from 'node:sqlite';
 import { chmod, mkdir, readFile, realpath, stat } from 'node:fs/promises';
 import { resolve, isAbsolute, join } from 'node:path';
@@ -29,7 +30,7 @@ if (!flag) {
 } else {
   // 只在新目录内建库。失败保留现场，下次须提供新路径。
   // Create only in a fresh directory; preserve failed output for inspection.
-  await mkdir(destination, { mode: 0o700 });
+  await mkdir(destination, { mode: OWNER_ONLY_DIRECTORY });
   const schema = await readFile(
     new URL(
       '../prisma/market/migrations/20261116000000_market_baseline/migration.sql',
@@ -80,6 +81,6 @@ if (!flag) {
     console.log(JSON.stringify({ mode: 'fixture', source, filename, counts }, null, 2));
   } finally {
     database.close();
-    await chmod(filename, 0o600);
+    await chmod(filename, OWNER_READ_WRITE);
   }
 }

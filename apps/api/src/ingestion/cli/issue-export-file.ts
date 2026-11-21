@@ -1,3 +1,4 @@
+import { OWNER_READ_WRITE } from '#infra/file-permissions.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { link, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
@@ -75,7 +76,10 @@ export async function writeIssueExportFile(
   const directory = await mkdtemp(join(dirname(output), '.ingestion-export-'));
   const temporary = join(directory, 'diagnostics.json');
   try {
-    await writeFile(temporary, JSON.stringify(bundle, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+    await writeFile(temporary, JSON.stringify(bundle, null, 2) + '\n', {
+      flag: 'wx',
+      mode: OWNER_READ_WRITE,
+    });
     await link(temporary, output);
 
     return output;

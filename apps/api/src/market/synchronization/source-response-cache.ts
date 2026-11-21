@@ -1,3 +1,4 @@
+import { GROUP_OR_OTHER_PERMISSIONS, OWNER_READ_WRITE } from '#infra/file-permissions.js';
 import { mkdtemp, writeFile, readFile, unlink, rmdir, readdir, lstat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -54,7 +55,7 @@ export class SourceResponseCache {
       const info = await lstat(directory);
       const files = await readdir(directory, { withFileTypes: true });
       if (
-        (info.mode & 0o077) !== 0 ||
+        (info.mode & GROUP_OR_OTHER_PERMISSIONS) !== 0 ||
         files.some((file) => !file.isFile() || !/^\d+\.json$/.test(file.name))
       ) {
         continue;
@@ -98,7 +99,7 @@ export class SourceResponseCache {
               join(tmpdir(), `jixie-source-${this.identity.replace(/[^a-zA-Z0-9]/g, '')}-`),
             );
             const file = join(this.directory, `${this.entries.length}.json`);
-            await writeFile(file, text, { mode: 0o600 });
+            await writeFile(file, text, { mode: OWNER_READ_WRITE });
             this.entries.push({ key, bytes: 0, file });
           } catch (error) {
             this.storageFailure = error;

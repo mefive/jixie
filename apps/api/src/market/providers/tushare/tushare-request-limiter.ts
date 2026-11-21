@@ -1,3 +1,8 @@
+import {
+  GROUP_OR_OTHER_PERMISSIONS,
+  OWNER_READ_WRITE,
+  OWNER_ONLY_DIRECTORY,
+} from '#infra/file-permissions.js';
 import { createHash } from 'node:crypto';
 import { open, mkdir, lstat, rename, type FileHandle } from 'node:fs/promises';
 import { constants } from 'node:fs';
@@ -72,16 +77,16 @@ export class TushareRequestLimiter {
       return;
     }
     const directory = this.options.quotaDirectory;
-    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await mkdir(directory, { recursive: true, mode: OWNER_ONLY_DIRECTORY });
     const info = await lstat(directory);
-    if (!info.isDirectory() || (info.mode & 0o077) !== 0) {
+    if (!info.isDirectory() || (info.mode & GROUP_OR_OTHER_PERMISSIONS) !== 0) {
       throw new Error('Tushare quota directory must be private');
     }
     const identity = createHash('sha256').update(this.options.token).digest('hex');
     this.owner = await open(
       join(directory, `${identity}.lock`),
       constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW,
-      0o600,
+      OWNER_READ_WRITE,
     );
     try {
       const binding = (await import('fs-ext')).default;
@@ -90,7 +95,7 @@ export class TushareRequestLimiter {
       this.ledger = await open(
         this.ledgerPath,
         constants.O_CREAT | constants.O_RDWR | constants.O_APPEND | constants.O_NOFOLLOW,
-        0o600,
+        OWNER_READ_WRITE,
       );
       const text = await this.ledger.readFile('utf8');
       const end = text.lastIndexOf('\n') + 1;
@@ -135,7 +140,7 @@ export class TushareRequestLimiter {
     const file = await open(
       staging,
       constants.O_CREAT | constants.O_TRUNC | constants.O_WRONLY | constants.O_NOFOLLOW,
-      0o600,
+      OWNER_READ_WRITE,
     );
     try {
       const lines = this.reservations.map((entry) => JSON.stringify(entry));

@@ -1,5 +1,6 @@
 // 备份清单与应用快照、各版本文件一起交付。仅依赖 Node 和 sqlite3。
 // Ship the application snapshot and all referenced files in one backup directory.
+import { OWNER_READ_ONLY, OWNER_READ_WRITE, OWNER_ONLY_DIRECTORY } from './file-permissions.mjs';
 import { execFileSync } from 'node:child_process';
 import {
   chmodSync,
@@ -53,11 +54,11 @@ export function backupMarketStorage(source, root, keep, prefix, stamp) {
       }
       const relative = join('market', 'versions', row.id, 'market.db');
       const target = join(staging, relative);
-      mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
+      mkdirSync(dirname(target), { recursive: true, mode: OWNER_ONLY_DIRECTORY });
       copy(join(dirname(source), relative), target);
       if (row.publishedAt) {
         execFileSync('sqlite3', [target, 'PRAGMA journal_mode=DELETE']);
-        chmodSync(target, 0o400);
+        chmodSync(target, OWNER_READ_ONLY);
       }
       versions.push(relative);
     }
@@ -71,7 +72,7 @@ export function backupMarketStorage(source, root, keep, prefix, stamp) {
     writeFileSync(
       join(staging, 'manifest.json'),
       JSON.stringify({ application: basename(source), pointer, versions }, null, 2),
-      { flag: 'wx', mode: 0o600 },
+      { flag: 'wx', mode: OWNER_READ_WRITE },
     );
     const name = prefix + '-' + stamp + '.bundle';
     if (existsSync(join(root, name))) {

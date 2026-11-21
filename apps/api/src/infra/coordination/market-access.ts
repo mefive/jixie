@@ -1,3 +1,4 @@
+import { OWNER_READ_WRITE, OWNER_ONLY_DIRECTORY } from '../file-permissions.js';
 import { createHash } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { open, realpath, lstat, unlink, readdir, mkdir } from 'node:fs/promises';
@@ -87,7 +88,7 @@ export async function acquireMarketVersionLock(id: string, shared: boolean, time
     throw new Error('Invalid market version ID');
   }
   const directory = resolve(await marketLockDirectory(), 'market', 'locks');
-  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await mkdir(directory, { recursive: true, mode: OWNER_ONLY_DIRECTORY });
 
   return acquireFileLock(resolve(directory, `${id}.lock`), 'market-version', shared, timeout);
 }
@@ -106,7 +107,7 @@ async function acquireFileLock(
     const handle = await open(
       filename,
       constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW,
-      0o600,
+      OWNER_READ_WRITE,
     );
     let active = false;
     try {
@@ -315,7 +316,11 @@ async function acquireInheritedOwner(name: LockName, variable: string): Promise<
     throw new Error('Invalid inherited maintenance descriptor');
   }
   const fsExt = await flockBinding();
-  const expected = await open(resolve(await marketLockDirectory(), `${name}.lock`), 'a+', 0o600);
+  const expected = await open(
+    resolve(await marketLockDirectory(), `${name}.lock`),
+    'a+',
+    OWNER_READ_WRITE,
+  );
   try {
     const actual = fstatSync(descriptor);
     const wanted = await expected.stat();

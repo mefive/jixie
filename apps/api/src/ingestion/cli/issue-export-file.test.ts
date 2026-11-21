@@ -1,3 +1,4 @@
+import { OWNER_READ_WRITE, PERMISSION_BITS } from '#infra/file-permissions.js';
 import { expect, it } from 'vitest';
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -30,7 +31,7 @@ it('publishes private JSON exclusively and cleans its temporary directory', asyn
     const output = join(directory, 'diagnostics.json');
     expect(await writeIssueExportFile(output, bundle)).toBe(output);
     expect(JSON.parse(await readFile(output, 'utf8'))).toEqual(bundle);
-    expect((await stat(output)).mode & 0o777).toBe(0o600);
+    expect((await stat(output)).mode & PERMISSION_BITS).toBe(OWNER_READ_WRITE);
     expect(await readdir(directory)).toEqual(['diagnostics.json']);
     await expect(writeIssueExportFile(output, bundle)).rejects.toMatchObject({
       reason: 'export_file_exists',

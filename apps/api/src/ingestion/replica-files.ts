@@ -1,3 +1,8 @@
+import {
+  GROUP_OR_OTHER_PERMISSIONS,
+  OWNER_READ_WRITE,
+  OWNER_ONLY_DIRECTORY,
+} from '#infra/file-permissions.js';
 import { execFile } from 'node:child_process';
 import { chmod, lstat, mkdir, rename, unlink } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -19,13 +24,13 @@ export function candidateFilename(runId: string): string {
 }
 
 async function privateDirectory(path: string) {
-  await mkdir(path, { mode: 0o700 }).catch((error: NodeJS.ErrnoException) => {
+  await mkdir(path, { mode: OWNER_ONLY_DIRECTORY }).catch((error: NodeJS.ErrnoException) => {
     if (error.code !== 'EEXIST') {
       throw error;
     }
   });
   const info = await lstat(path);
-  if (!info.isDirectory() || (info.mode & 0o077) !== 0) {
+  if (!info.isDirectory() || (info.mode & GROUP_OR_OTHER_PERMISSIONS) !== 0) {
     throw new Error('Candidate directory must be private and cannot be a symbolic link');
   }
 }
@@ -61,7 +66,7 @@ export async function createCandidateFile(path: string, signal?: AbortSignal) {
     ['-readonly', databaseFilename(), '.timeout 5000', `.backup "${destination}"`],
     { signal },
   );
-  await chmod(staging, 0o600);
+  await chmod(staging, OWNER_READ_WRITE);
   await rename(staging, path);
 }
 

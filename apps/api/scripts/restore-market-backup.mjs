@@ -1,5 +1,6 @@
 // 在独立目录核验并恢复完整备份，不覆盖运行库。
 // Restore and verify a complete bundle in a new directory without replacing live storage.
+import { OWNER_READ_ONLY, OWNER_READ_WRITE, OWNER_ONLY_DIRECTORY } from './file-permissions.mjs';
 import { constants } from 'node:fs';
 import { chmod, copyFile, lstat, mkdir, readFile, realpath, rename } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
@@ -75,14 +76,14 @@ if (!flag) {
   );
 } else {
   const staging = output + '.restoring-' + randomUUID();
-  await mkdir(staging, { mode: 0o700 });
+  await mkdir(staging, { mode: OWNER_ONLY_DIRECTORY });
   for (const [file, sealed] of [[manifest.application, false], ...copy]) {
     const source = join(bundle, file);
     if (!(await lstat(source)).isFile() || (await realpath(source)) !== source) {
       throw new Error('Invalid backup file');
     }
     const target = join(staging, file);
-    await mkdir(dirname(target), { recursive: true, mode: 0o700 });
+    await mkdir(dirname(target), { recursive: true, mode: OWNER_ONLY_DIRECTORY });
     await copyFile(source, target, constants.COPYFILE_EXCL);
     const db = new DatabaseSync(target, { readOnly: true });
     try {
@@ -95,9 +96,9 @@ if (!flag) {
     } finally {
       db.close();
     }
-    await chmod(target, sealed ? 0o400 : 0o600);
+    await chmod(target, sealed ? OWNER_READ_ONLY : OWNER_READ_WRITE);
   }
-  await mkdir(output, { mode: 0o700 });
+  await mkdir(output, { mode: OWNER_ONLY_DIRECTORY });
   await rename(staging, output);
   console.log(
     JSON.stringify({

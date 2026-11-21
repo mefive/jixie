@@ -1,3 +1,4 @@
+import { ANY_WRITE_BIT } from '../file-permissions.js';
 import pkg, { type Prisma } from '@jixie/market-db-client';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { constants } from 'node:fs';
@@ -96,7 +97,7 @@ export async function withMarketDatabase<Result>(
       // A one-connection pool applies query_only throughout; a sealed file must have no write bits.
       const handle = await open(filename, constants.O_RDONLY | constants.O_NOFOLLOW);
       try {
-        if (access === 'published' && ((await handle.stat()).mode & 0o222) !== 0) {
+        if (access === 'published' && ((await handle.stat()).mode & ANY_WRITE_BIT) !== 0) {
           throw new Error('Published market database is not sealed');
         }
       } finally {
@@ -104,7 +105,7 @@ export async function withMarketDatabase<Result>(
       }
       await database.$executeRawUnsafe('PRAGMA query_only=ON');
     } else {
-      if (((await lstat(filename)).mode & 0o222) === 0) {
+      if (((await lstat(filename)).mode & ANY_WRITE_BIT) === 0) {
         throw new Error('Cannot write a sealed market file');
       }
       await database.$queryRawUnsafe('PRAGMA journal_mode=WAL');

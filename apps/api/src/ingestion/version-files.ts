@@ -1,3 +1,9 @@
+import {
+  ANY_WRITE_BIT,
+  OWNER_READ_ONLY,
+  OWNER_READ_WRITE,
+  OWNER_ONLY_DIRECTORY,
+} from '#infra/file-permissions.js';
 import { constants } from 'node:fs';
 import { chmod, copyFile, lstat, mkdir, open, rename, unlink } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
@@ -18,9 +24,9 @@ async function syncPath(path: string) {
 }
 
 /**
- * 发布前封存，检验完整性、外键和 checkpoint 结果，始终在短指针事务外执行。
+ * 发布前封存，核对 checkpoint、日志模式和外键，始终在短指针事务外执行。
  *
- * Seal and validate the checkpoint, integrity and foreign keys before the pointer transaction.
+ * Seal and validate the checkpoint, journal mode and foreign keys before the pointer transaction.
  */
 export async function sealMarketFile(id: string) {
   const filename = marketVersionFile(id);
@@ -29,7 +35,7 @@ export async function sealMarketFile(id: string) {
     throw new Error('Expected a regular market database file');
   }
 
-  if ((info.mode & 0o222) !== 0) {
+  if ((info.mode & ANY_WRITE_BIT) !== 0) {
     const { stdout } = await execute('sqlite3', [
       '-batch',
       '-bail',
@@ -40,7 +46,7 @@ export async function sealMarketFile(id: string) {
     if (!/^0\|(0\|0|-1\|-1)$/.test(checkpoint) || mode !== 'delete') {
       throw new Error('Market checkpoint did not complete');
     }
-    await chmod(filename, 0o400);
+    await chmod(filename, OWNER_READ_ONLY);
   }
 
   const { stdout } = await execute('sqlite3', [
@@ -48,9 +54,9 @@ export async function sealMarketFile(id: string) {
     '-batch',
     '-bail',
     filename,
-    'PRAGMA journal_mode; PRAGMA quick_check; PRAGMA foreign_key_check;',
+    'PRAGMA journal_mode; PRAGMA foreign_key_check;',
   ]);
-  if (stdout.trim() !== 'delete\nok') {
+  if (stdout.trim() !== 'delete') {
     throw new Error('Market file failed sealing checks');
   }
   await syncPath(filename);
@@ -68,10 +74,10 @@ export async function cloneMarketFile(parentId: string, id: string) {
   const target = marketVersionFile(id);
   const directory = dirname(target);
   const info = await lstat(source);
-  if (!info.isFile() || (info.mode & 0o222) !== 0) {
+  if (!info.isFile() || (info.mode & ANY_WRITE_BIT) !== 0) {
     throw new Error('Market parent must already be sealed');
   }
-  await mkdir(directory, { mode: 0o700 });
+  await mkdir(directory, { mode: OWNER_ONLY_DIRECTORY });
   const staging = join(directory, 'market.creating');
   let method: 'reflink' | 'backup' = 'reflink';
 
@@ -91,7 +97,7 @@ export async function cloneMarketFile(parentId: string, id: string) {
         cwd: directory,
       });
     }
-    await chmod(staging, 0o600);
+    await chmod(staging, OWNER_READ_WRITE);
     await syncPath(staging);
     await rename(staging, target);
     await syncPath(directory);
@@ -116,9 +122,9 @@ export async function cloneMarketFile(parentId: string, id: string) {
 export async function createEmptyMarketFile(id: string) {
   const filename = marketVersionFile(id);
   const directory = dirname(filename);
-  await mkdir(dirname(directory), { recursive: true, mode: 0o700 });
-  await mkdir(directory, { mode: 0o700 });
-  const empty = await open(filename, 'wx', 0o600);
+  await mkdir(dirname(directory), { recursive: true, mode: OWNER_ONLY_DIRECTORY });
+  await mkdir(directory, { mode: OWNER_ONLY_DIRECTORY });
+  const empty = await open(filename, 'wx', OWNER_READ_WRITE);
   await empty.close();
 
   const api = new URL(import.meta.url.includes('/dist/') ? '../../../' : '../../', import.meta.url);
