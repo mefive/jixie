@@ -145,8 +145,9 @@ it('retains quarterly receipts but requires announcement evidence and rechecks d
       ),
     ).toBeDefined();
     const histories = updated.filter(({ fullHistory }) => fullHistory);
-    expect(histories).toEqual([]);
-    expect(updated).toHaveLength(9);
+    expect(histories).toHaveLength(8);
+    expect(histories.every((unit) => unit.scope.endsWith('|600001.SH'))).toBe(true);
+    expect(updated).toHaveLength(17);
     expect(updated.every(({ endDate }) => endDate <= '19910105')).toBe(true);
     await recordPlan(database, updated, '19910105', nextCapture, 'bulk-replay', [
       code,
@@ -171,7 +172,11 @@ it('replays a narrow catalog window when it replaces more per-security history b
     const narrow = initial.find(
       ({ scope, period }) => scope === 'income|1' && period === 'ann_range/19880101/19910104',
     )!;
-    await recordPlan(database, [narrow], '19910104');
+    await recordPlan(
+      database,
+      [{ ...narrow, startDate: '19910104', period: 'ann_range/19910104/19910104' }],
+      '19910104',
+    );
 
     const updated = await planStatementUnits(
       [code, '600001.SH', '600002.SH'],
@@ -185,4 +190,28 @@ it('replays a narrow catalog window when it replaces more per-security history b
       startDate: '19880101',
       endDate: '19910105',
     });
+  }));
+
+it('reuses a stock history through its proven days and still checks later actual disclosures', async () =>
+  withSyncDatabase(async (database) => {
+    const initial = await planStatementUnits([code], '19910104', capturedAt);
+    await recordPlan(database, initial, '19910104');
+
+    const codes = [code, '600001.SH'];
+    const next = await planStatementUnits(codes, '19910105', nextCapture);
+    expect(next.filter((unit) => unit.fullHistory)).toHaveLength(9);
+    expect(next.filter((unit) => unit.announcementRange).map((unit) => unit.startDate)).toEqual(
+      Array(9).fill('19910105'),
+    );
+    await recordPlan(database, next, '19910105', nextCapture, 'backfill', codes);
+
+    const later = await planStatementUnits(codes, '19910107', nextCapture);
+    expect(later.filter((unit) => unit.fullHistory)).toEqual([]);
+    expect(later.filter((unit) => unit.announcementRange)).toHaveLength(9);
+    expect(later.every((unit) => unit.startDate >= '19910106')).toBe(true);
+    const actual = later.filter((unit) => unit.announcementField === 'f_ann_date');
+    expect(actual).toHaveLength(18);
+    expect(new Set(actual.map((unit) => unit.startDate))).toEqual(
+      new Set(['19910106', '19910107']),
+    );
   }));

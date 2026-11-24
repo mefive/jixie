@@ -47,6 +47,63 @@ describe('statement maintenance through the formal entry', () => {
       }),
   );
 
+  it('admits a later revision on its actual disclosure date after a security backfill', async () =>
+    withSyncDatabase(async (database) => {
+      await seedSessions(database, '20260901', '20260903');
+      const fields = Object.fromEntries(
+        FINANCIAL_STATEMENT_FIELDS.filter((field) => field.statementKind === 'income').map(
+          (field) => [field.sourceField, null],
+        ),
+      );
+      const original = {
+        ...fields,
+        ts_code: '920309.BJ',
+        ann_date: '20260831',
+        f_ann_date: '20260831',
+        end_date: period,
+        report_type: '1',
+        comp_type: '1',
+        update_flag: '0',
+        revenue: 10,
+      };
+      const revision = { ...original, f_ann_date: '20260902', revenue: 11, update_flag: '1' };
+      await acceptSource(
+        database,
+        { call: async () => [original, revision] },
+        {
+          dataset: 'financial-statements',
+          scope: 'income|1|920309.BJ',
+          startDate: '19880101',
+          endDate: '20260901',
+          fullHistory: true,
+        },
+      );
+      expect(
+        await database.financialIncomeStatement.findMany({ select: { revenue: true } }),
+      ).toEqual([{ revenue: 10 }]);
+
+      await acceptSource(
+        database,
+        { call: async () => [revision] },
+        {
+          dataset: 'financial-statements',
+          scope: 'income|1',
+          announcementField: 'f_ann_date',
+          startDate: '20260902',
+          endDate: '20260902',
+        },
+      );
+      expect(
+        await database.financialIncomeStatement.findMany({
+          orderBy: { fAnnDate: 'asc' },
+          select: { revenue: true, fAnnDate: true },
+        }),
+      ).toEqual([
+        { revenue: 10, fAnnDate: '20260831' },
+        { revenue: 11, fAnnDate: '20260902' },
+      ]);
+    }));
+
   it.each(['9', null, undefined])('rejects unknown or missing company types: %s', async (type) =>
     withSyncDatabase(async (database) => {
       const row: TushareRow = { ts_code: '600000.SH', end_date: period, report_type: '1' };

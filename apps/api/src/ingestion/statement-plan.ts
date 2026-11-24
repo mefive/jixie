@@ -145,7 +145,7 @@ export async function planStatementUnits(
   const requestedCodes = new Set(codes);
   const announcements = new Map<string, DisclosureReceipt[]>();
   const actualDays = new Map<string, DisclosureReceipt[]>();
-  const histories = new Map<string, string>();
+  const historyEnds = new Map<string, string>();
   for (const batch of batches) {
     const [kind, reportType, security] = batch.scope.split('|');
     const scope = `${kind}|${reportType}`;
@@ -155,19 +155,30 @@ export async function planStatementUnits(
       continue;
     }
     if (security) {
-      const coversReportHorizon =
-        batch.period === STATEMENT_HISTORY_SNAPSHOT
-          ? Boolean(batch.rangeEnd || (unit?.catalogThrough && unit.catalogThrough >= through))
-          : Boolean(batch.rangeEnd && batch.rangeEnd >= through);
+      // 有延后报告期的旧收据只在原截止范围内使用。
+      // Reuse a legacy receipt with deferred periods only within its original horizon.
+      let horizon = batch.rangeEnd;
       if (
+        !horizon &&
+        batch.period === STATEMENT_HISTORY_SNAPSHOT &&
+        unit?.catalogThrough &&
+        unit.catalogThrough >= through
+      ) {
+        horizon = unit.catalogThrough;
+      }
+
+      if (
+        horizon &&
         requestedCodes.has(security) &&
-        !histories.has(batch.scope) &&
         (!batch.rangeStart || batch.rangeStart <= FINANCIAL_HISTORY_START) &&
-        coversReportHorizon &&
         statementReceiptMatchesBatch(batch) &&
         (await isSettledReceipt(batch))
       ) {
-        histories.set(batch.scope, localDate(sourceCaptureStartedAt(batch)));
+        const captured = localDate(sourceCaptureStartedAt(batch));
+        const end = [horizon, calendarDay(captured, -1)].sort()[0];
+        if (end > (historyEnds.get(batch.scope) ?? '')) {
+          historyEnds.set(batch.scope, end);
+        }
       }
       continue;
     }
@@ -197,7 +208,7 @@ export async function planStatementUnits(
   for (const [kind, api] of Object.entries(FINANCIAL_STATEMENT_APIS)) {
     for (const reportType of FINANCIAL_REPORT_TYPES) {
       const scope = `${kind}|${reportType}`;
-      let coverage = new Map<string, DisclosureReceipt>();
+      const coverage = new Map<string, DisclosureReceipt>();
       for (const receipt of announcements.get(scope) ?? []) {
         for (let date = receipt.startDate; date <= receipt.endDate; date = calendarDay(date, 1)) {
           if (!coverage.has(date)) {
@@ -206,51 +217,76 @@ export async function planStatementUnits(
         }
       }
 
-      let windows = announcementUnits(scope, api, days, coverage, through);
-      const coveredUniverses = [...new Set([...coverage.values()].map((receipt) => receipt.codes))];
-      const codesWithoutHistory = codes.filter(
-        (code) =>
-          !histories.has(`${scope}|${code}`) &&
-          coveredUniverses.some((universe) => !universe.has(code)),
-      );
-      if (codesWithoutHistory.length) {
-        // 新证券沿用有目标边界的区间查询，避免逐股历史请求顺带读取未来公告。
-        // Replay bounded windows for new securities instead of fetching unbounded security histories.
-        const replayReceipts = new Set(
-          [...new Set(coverage.values())].filter((receipt) =>
-            codesWithoutHistory.some((code) => !receipt.codes.has(code)),
-          ),
-        );
-        const remainingCoverage = new Map(
-          [...coverage].filter(([, receipt]) => !replayReceipts.has(receipt)),
-        );
-        const replayWindows = announcementUnits(scope, api, days, remainingCoverage, through);
-        coverage = remainingCoverage;
-        windows = replayWindows;
+      // 每份名单只比较一次。逐股收据补足其截止日以前的缺口，不证明其他股票或日期。
+      // Compare each universe once. A security receipt covers only that stock through its horizon.
+      const latestByUniverse = new Map<ReadonlySet<string>, string>();
+      for (const [date, receipt] of coverage) {
+        if (date > (latestByUniverse.get(receipt.codes) ?? '')) {
+          latestByUniverse.set(receipt.codes, date);
+        }
       }
-      units.push(...windows);
+
+      const missingCodes = new Set<string>();
+      const coveredThrough = new Map<ReadonlySet<string>, string>();
+      const firstActualByCode = new Map<string, string>();
+      for (const [universe, lastDate] of latestByUniverse) {
+        for (const code of codes) {
+          if (universe.has(code)) {
+            continue;
+          }
+          const end = historyEnds.get(`${scope}|${code}`) ?? '';
+          if (end < lastDate) {
+            missingCodes.add(code);
+            const earliest = coveredThrough.get(universe);
+            if (earliest === undefined || end < earliest) {
+              coveredThrough.set(universe, end);
+            }
+          }
+          if (end) {
+            firstActualByCode.set(code, calendarDay(end, 1));
+          }
+        }
+      }
+
+      const replayDays = [...coverage].filter(([date, receipt]) => {
+        const end = coveredThrough.get(receipt.codes);
+        return end !== undefined && date > end;
+      });
+      if (replayDays.length && replayDays.length <= missingCodes.size) {
+        for (const [date] of replayDays) {
+          coverage.delete(date);
+        }
+      } else {
+        for (const code of missingCodes) {
+          units.push({
+            dataset: 'financial-statements',
+            scope: `${scope}|${code}`,
+            api,
+            period: STATEMENT_HISTORY_SNAPSHOT,
+            startDate: FINANCIAL_HISTORY_START,
+            endDate: through,
+            catalogThrough: through,
+            fullHistory: true,
+            refresh: true,
+          });
+          firstActualByCode.set(code, calendarDay(through, 1));
+        }
+      }
+      units.push(...announcementUnits(scope, api, days, coverage, through));
 
       const reused = new Set(coverage.values());
-      const universes = [...new Set([...reused].map((receipt) => receipt.codes))];
-      const codeCaptures = new Map<string, string>();
-      for (const code of codes.filter((code) =>
-        universes.some((universe) => !universe.has(code)),
-      )) {
-        const historyScope = `${scope}|${code}`;
-        const existing = histories.get(historyScope);
-        codeCaptures.set(code, existing ?? observedDate);
-      }
-
       const firstActualDate = [
         observedDate,
-        ...codeCaptures.values(),
+        ...firstActualByCode.values(),
         ...[...reused].map(({ capturedDate }) => capturedDate),
       ].sort()[0];
       for (let date = firstActualDate; date <= through; date = calendarDay(date, 1)) {
         const covered = actualDays
           .get(`${scope}/${date}`)
           ?.some((receipt) =>
-            codes.every((code) => receipt.codes.has(code) || (codeCaptures.get(code) ?? '') > date),
+            codes.every(
+              (code) => receipt.codes.has(code) || (firstActualByCode.get(code) ?? '') > date,
+            ),
           );
         if (covered) {
           continue;

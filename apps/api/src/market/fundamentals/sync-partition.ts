@@ -150,7 +150,17 @@ async function prepareStatementPartition(
 
   const mapped: { records: SourceRecord[]; errors: string[] } = { records: [], errors: [] };
   let calendarIncomplete = false;
-  const candidates = scopedRows.filter(
+  // 单证券历史可能带回截止日以后才披露的修订，留给后续双日期增量。
+  // Leave security-history revisions disclosed after the cutoff for later date increments.
+  const disclosedRows = historyCode
+    ? scopedRows.filter(
+        (row) =>
+          ![row.ann_date, row.f_ann_date].some(
+            (date) => isObservationDate(date) && date > partition.endDate,
+          ),
+      )
+    : scopedRows;
+  const candidates = disclosedRows.filter(
     (row) =>
       row.comp_type === '1' &&
       !rejected.includes(row) &&
@@ -192,7 +202,7 @@ async function prepareStatementPartition(
   });
   result.hasDeferredRecords = Boolean(
     (announcementField || historyCode) &&
-    scopedRows.some(
+    disclosedRows.some(
       (row) =>
         row.comp_type === '1' &&
         !rejected.includes(row) &&
