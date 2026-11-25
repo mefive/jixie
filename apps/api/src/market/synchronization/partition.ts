@@ -29,6 +29,8 @@ export interface MarketPartition {
    * Listing cutoff for bulk financial queries, separate from the report-period boundary.
    */
   catalogThrough?: string;
+  /** 当日采集的 ETF 白名单。 / Frozen ETF membership for a daily request. */
+  etfCodes?: readonly string[];
   exchanges?: readonly string[];
   dataset: string;
   scope: string;

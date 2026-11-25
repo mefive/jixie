@@ -58,6 +58,18 @@ const source: SyncSource = {
           .map((f) => ({ ts_code: f.code, trade_date: date, total_size: 1 }));
       case 'fund_adj':
       case 'fund_daily': {
+        if (params.trade_date) {
+          return funds
+            .filter((fund) => fund.listing <= date)
+            .map((fund) => ({
+              ts_code: fund.code,
+              trade_date: date,
+              ...(api === 'fund_adj'
+                ? { adj_factor: 1 }
+                : { open: 10, high: 11, low: 9, close: 10 }),
+            }));
+        }
+
         const fund = funds.find((f) => f.code === params.ts_code)!;
         return dates
           .filter(

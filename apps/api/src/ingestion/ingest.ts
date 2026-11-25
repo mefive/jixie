@@ -210,12 +210,27 @@ async function collect(
 
       return batchId;
     };
-    const envelope = (diagnostics: ImportDiagnostics, execution: SourceExecution) =>
-      jsonValue({ version: 2, requests: diagnostics.requests, execution });
+    const envelope = (
+      unit: IngestionUnit,
+      diagnostics: ImportDiagnostics,
+      execution: SourceExecution,
+    ) =>
+      jsonValue({
+        version: 2,
+        requests: diagnostics.requests,
+        execution,
+        ...(unit.etfCodes ? { etfCodes: unit.etfCodes } : {}),
+      });
     const canSkip = (unit: IngestionUnit): boolean => {
       const current = currentAttempts.get(unitKey(unit));
       if (current && reusable(current)) {
         return true;
+      }
+
+      // 日期批次已由 ETF 规划器按完整收据和成员名单去重。
+      // The ETF planner has already checked complete daily receipts and their frozen membership.
+      if (unit.etfCodes) {
+        return false;
       }
 
       const previous = receipts.get(unitKey(unit))?.[0];
@@ -370,7 +385,7 @@ async function collect(
                       status: 'split',
                       responseComplete: false,
                       receivedCount: error.receivedCount,
-                      request: envelope(diagnostics, execution),
+                      request: envelope(unit, diagnostics, execution),
                       finishedAt: clock(),
                     },
                   });
@@ -384,7 +399,7 @@ async function collect(
               await serializeWrite(() =>
                 database.ingestionBatch.update({
                   where: { id: batchId },
-                  data: { request: envelope(diagnostics, execution) },
+                  data: { request: envelope(unit, diagnostics, execution) },
                 }),
               );
               runPlan = next;
@@ -507,7 +522,7 @@ async function collect(
                       responseComplete,
                       sourceStart: prepared?.sourceStartDate ?? null,
                       ...(prepared?.hasDeferredRecords ? { rangeEnd: null } : {}),
-                      request: envelope(diagnostics, execution),
+                      request: envelope(unit, diagnostics, execution),
                       receivedCount: received,
                       acceptedCount,
                       filteredCount: filtered,
@@ -538,7 +553,7 @@ async function collect(
           await serializeWrite(() =>
             database.ingestionBatch.update({
               where: { id: batchId },
-              data: { request: envelope(diagnostics, execution) },
+              data: { request: envelope(unit, diagnostics, execution) },
             }),
           );
           succeeded = committed.status === 'succeeded';
@@ -624,22 +639,22 @@ async function collect(
         concurrency: input.concurrency ?? 1,
         bufferBytes: input.bufferBytes ?? 64 * 1024 * 1024,
         start: startBatch,
-        ready: async (_unit, result) => {
+        ready: async (unit, result) => {
           await serializeWrite(() =>
             database.ingestionBatch.updateMany({
               where: { id: result.id, status: 'running' },
-              data: { request: envelope(result.diagnostics, result.execution) },
+              data: { request: envelope(unit, result.diagnostics, result.execution) },
             }),
           );
         },
-        discard: async (_unit, result) => {
+        discard: async (unit, result) => {
           await serializeWrite(() =>
             database.ingestionBatch.updateMany({
               where: { id: result.id, status: 'running' },
               data: {
                 status: 'interrupted',
                 finishedAt: clock(),
-                request: envelope(result.diagnostics, result.execution),
+                request: envelope(unit, result.diagnostics, result.execution),
               },
             }),
           );

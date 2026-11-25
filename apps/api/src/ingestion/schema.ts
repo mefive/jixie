@@ -45,6 +45,7 @@ const unitSchema = z.object({
   adaptiveRange: z.literal(true).optional(),
   announcementField: z.enum(['ann_date', 'f_ann_date']).optional(),
   announcementRange: z.literal(true).optional(),
+  etfCodes: z.array(z.string()).readonly().optional(),
   exchanges: z.array(z.string()).readonly().optional(),
   catalogThrough: z.string().optional(),
 });

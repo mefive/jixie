@@ -29,17 +29,32 @@ export async function prepareEtfPartition(
     throw new Error(`Unknown ETF dataset ${partition.dataset}`);
   }
   const pages = await downloadEtfSeries(source, partition);
-  const inScope = pages.rows.filter(
-    (row) =>
-      row.ts_code !== partition.scope ||
-      !isObservationDate(row.trade_date) ||
-      (row.trade_date >= partition.startDate && row.trade_date <= partition.endDate),
-  );
+  const members = partition.etfCodes && new Set(partition.etfCodes);
+  if (members && pages.rows.some((row) => row.trade_date !== partition.startDate)) {
+    throw new Error('ETF daily response contains an unexpected trade date');
+  }
+  if (members && pages.pages > 1) {
+    const identities = new Set(pages.rows.map((row) => row.ts_code));
+    if (identities.size !== pages.rows.length) {
+      throw new Error('ETF daily response contains overlapping pages');
+    }
+  }
+
+  const inScope = members
+    ? pages.rows.filter(
+        (row) => !row.ts_code || typeof row.ts_code !== 'string' || members.has(row.ts_code),
+      )
+    : pages.rows.filter(
+        (row) =>
+          row.ts_code !== partition.scope ||
+          !isObservationDate(row.trade_date) ||
+          (row.trade_date >= partition.startDate && row.trade_date <= partition.endDate),
+      );
   const mapped = mapSourceRecords(inScope, (row) => {
     const date = sourceString(row, 'trade_date');
     if (
       !isObservationDate(date) ||
-      row.ts_code !== partition.scope ||
+      (members ? !members.has(sourceString(row, 'ts_code')) : row.ts_code !== partition.scope) ||
       date < partition.startDate ||
       date > partition.endDate
     ) {
@@ -165,6 +180,7 @@ async function prepareEtfCatalog(
 const ETF_DEFINITIONS = {
   'etf-prices': {
     api: 'fund_daily',
+    pageSize: 5000,
     table: 'EtfDaily',
     columns: {
       tsCode: 'ts_code',
@@ -181,6 +197,7 @@ const ETF_DEFINITIONS = {
   },
   'etf-adjustments': {
     api: 'fund_adj',
+    pageSize: 2000,
     table: 'EtfAdjFactor',
     columns: { tsCode: 'ts_code', tradeDate: 'trade_date', adjFactor: 'adj_factor' },
   },
@@ -191,6 +208,16 @@ export function downloadEtfSeries(source: SyncSource, partition: MarketPartition
   const definition = ETF_DEFINITIONS[partition.dataset as keyof typeof ETF_DEFINITIONS];
   if (!definition) {
     throw new Error(`Unknown ETF dataset ${partition.dataset}`);
+  }
+
+  if (partition.etfCodes) {
+    return fetchSourcePages(
+      source,
+      definition.api,
+      { trade_date: partition.startDate },
+      Object.values(definition.columns).join(','),
+      definition.pageSize,
+    );
   }
 
   return fetchSourceRange(

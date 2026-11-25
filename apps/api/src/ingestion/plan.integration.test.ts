@@ -1,3 +1,4 @@
+import { planEtfSeries } from './etf-plan.js';
 import { expect, it } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { emptySelections } from '../../tests/ingestion-source.js';
@@ -233,3 +234,90 @@ it('respects partial-quarter and fixed-origin boundaries without planning earlie
   const beforeQuarterEnd = financialIndicatorUnits('20181231', new Date('2018-12-31T10:00:00Z'));
   expect(beforeQuarterEnd.some((unit) => unit.period === '20181231')).toBe(false);
 });
+
+it('plans two ETF batches per new session and reuses only the membership covered by a complete receipt', async () =>
+  withSyncDatabase(async (database) => {
+    const existing = ['510001.SH', '510002.SH'];
+    const newcomer = '510003.SH';
+    const dates = Array.from(
+      { length: 20 },
+      (_, index) => '202001' + String(index + 2).padStart(2, '0'),
+    );
+    await database.ingestionSelection.create({
+      data: { assetType: 'etf', codes: [...existing, newcomer] },
+    });
+    await database.etfBasic.createMany({
+      data: [...existing, newcomer].map((tsCode) => ({
+        tsCode,
+        name: tsCode,
+        exchange: 'SH',
+        listDate: '20180101',
+        listStatus: 'L',
+        sameDayTurnover: false,
+      })),
+    });
+    await database.tradeCal.createMany({
+      data: dates.map((calDate) => ({ exchange: 'SSE', calDate, isOpen: 1 })),
+    });
+    await database.ingestionRun.create({
+      data: {
+        id: 'prior',
+        targetDate: '20200101',
+        status: 'completed',
+        trigger: 'manual',
+        scopeSnapshot: {},
+      },
+    });
+    const receipt = {
+      runId: 'prior',
+      status: 'succeeded',
+      responseComplete: true,
+      request: {},
+      rangeStart: '20180101',
+      rangeEnd: '20200101',
+      period: 'legacy',
+    };
+    for (const [dataset, api] of [
+      ['etf-prices', 'fund_daily'],
+      ['etf-adjustments', 'fund_adj'],
+    ]) {
+      await database.ingestionBatch.createMany({
+        data: existing.map((scope) => ({ ...receipt, id: dataset + scope, dataset, api, scope })),
+      });
+    }
+
+    const end = dates[19];
+    const { units } = await planEtfSeries(end);
+    const daily = units.filter((unit) => unit.etfCodes);
+    expect(daily).toHaveLength(40);
+    expect(daily.every((unit) => JSON.stringify(unit.etfCodes) === JSON.stringify(existing))).toBe(
+      true,
+    );
+    expect(units.filter((unit) => unit.scope === newcomer)).toMatchObject([
+      { dataset: 'etf-prices', startDate: '20180101', endDate: end },
+      { dataset: 'etf-adjustments', startDate: '20180101', endDate: end },
+    ]);
+
+    const first = daily[0];
+    await database.ingestionBatch.create({
+      data: {
+        ...receipt,
+        id: 'day',
+        dataset: first.dataset,
+        scope: first.scope,
+        period: first.period,
+        rangeStart: first.startDate,
+        rangeEnd: first.endDate,
+        api: first.api,
+        request: { etfCodes: existing },
+      },
+    });
+    await database.ingestionBatch.create({
+      data: { ...receipt, id: 'added', dataset: first.dataset, api: first.api, scope: newcomer },
+    });
+    const next = await planEtfSeries(end);
+
+    expect(
+      next.units.filter((unit) => unit.dataset === first.dataset && unit.period === first.period),
+    ).toMatchObject([{ etfCodes: [newcomer] }]);
+  }));

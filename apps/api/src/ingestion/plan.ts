@@ -12,7 +12,7 @@ import {
   confirmedMarketStart,
 } from '#market/instruments/market-range.js';
 import { canonicalStockCode } from '#market/instruments/stock-identity.js';
-import { etfDownloadRange } from '#market/etfs/download-range.js';
+import { ETF_CALENDARS, planEtfSeries } from './etf-plan.js';
 import { readDownloadCodes } from '#market/downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '#market/registry/index-presets.js';
 import { quarterlyReportPeriods } from '#market/fundamentals/reference-periods.js';
@@ -30,7 +30,6 @@ import type { IngestionUnit } from './schema.js';
  * Use available exchange-calendar history without fabricating dates for missing history.
  */
 export const CALENDAR_ORIGINS = { SSE: '19901219', SZSE: '19910703', BSE: '20211115' } as const;
-const ETF_CALENDARS: Readonly<Record<string, string>> = { SH: 'SSE', SZ: 'SZSE' };
 export { FINANCIAL_HISTORY_START };
 
 export interface IngestionPlan {
@@ -227,35 +226,10 @@ export async function planIngestion(
       ),
     );
   }
-  const etfs = await readDownloadCodes('etf');
-  for (const code of etfs) {
-    const row = await database.etfBasic.findUnique({ where: { tsCode: code } });
-    if (isObservationDate(row?.listDate) && row.listDate > end) {
-      continue;
-    }
-    const range = etfDownloadRange(row ?? undefined, CALENDAR_ORIGINS.SSE);
-    if (range.blockedReason) {
-      blocked.push({ dataset: 'etf-prices', scope: code, message: range.blockedReason });
-      continue;
-    }
-    const through = [end, range.endDate ?? end].sort()[0];
-    for (const [dataset, api] of Object.entries({
-      'etf-prices': 'fund_daily',
-      'etf-adjustments': 'fund_adj',
-    })) {
-      streams.push(
-        alternate(
-          continuousRanges(range.startDate, through).map((dates) => ({
-            dataset,
-            scope: code,
-            ...dates,
-            api,
-            refresh: false,
-          })),
-        ),
-      );
-    }
-  }
+  const etfs = await planEtfSeries(end, runId);
+  streams.push(etfs.units);
+  blocked.push(...etfs.blocked);
+
   for (const code of await readDownloadCodes('index')) {
     const datasets = [{ dataset: 'index-prices', api: 'index_daily' }];
     if (INDEX_VALUATION_SUPPORTED_CODES.includes(code)) {

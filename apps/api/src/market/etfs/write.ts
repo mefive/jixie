@@ -120,7 +120,7 @@ async function writeEtfDaily(
 ) {
   const existing = await transaction.etfDaily.findMany({
     where: {
-      tsCode: partition.scope,
+      tsCode: partition.etfCodes ? { in: [...partition.etfCodes] } : partition.scope,
       tradeDate: { gte: partition.startDate, lte: partition.endDate },
     },
   });
@@ -167,7 +167,7 @@ async function writeEtfAdjFactor(
 ) {
   const existing = await transaction.etfAdjFactor.findMany({
     where: {
-      tsCode: partition.scope,
+      tsCode: partition.etfCodes ? { in: [...partition.etfCodes] } : partition.scope,
       tradeDate: { gte: partition.startDate, lte: partition.endDate },
     },
   });

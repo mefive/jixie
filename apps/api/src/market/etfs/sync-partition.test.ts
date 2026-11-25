@@ -1,3 +1,4 @@
+import { prepareEtfPartition } from './sync-partition.js';
 import { describe, expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../tests/sync-database.js';
 import { acceptSource, seedSessions } from '../../../tests/market-contract-fixtures.js';
@@ -88,4 +89,80 @@ describe('ETF formal maintenance validation', () => {
       expect(repeated.accepted.changed).toBe(false);
       expect(await database.etfDaily.count()).toBe(2);
     }));
+});
+
+it('admits only selected daily ETF rows, updates prices and preserves absent members', async () =>
+  withSyncDatabase(async (database) => {
+    const daily = {
+      ...partition,
+      scope: 'daily-selection',
+      endDate: partition.startDate,
+      etfCodes: [partition.scope, '510001.SH'],
+    };
+    await database.etfDaily.createMany({
+      data: daily.etfCodes.map((tsCode) => ({
+        tsCode,
+        tradeDate: daily.startDate,
+        close: 9,
+      })),
+    });
+
+    const result = await acceptSource(
+      database,
+      {
+        call: async (api, params) => {
+          expect(api).toBe('fund_daily');
+          expect(params).toEqual({ trade_date: daily.startDate, limit: 5000, offset: 0 });
+          return [bar, { ...bar, ts_code: '510999.SH', close: -1 }];
+        },
+      },
+      daily,
+    );
+
+    expect(result.prepared.checks.excludedRows).toBe(1);
+    expect(result.accepted.updated).toBe(1);
+    expect(result.accepted.rejected).toBe(0);
+    expect(
+      await database.etfDaily.findMany({
+        orderBy: { tsCode: 'asc' },
+        select: { tsCode: true, close: true },
+      }),
+    ).toEqual([
+      { tsCode: '510001.SH', close: 9 },
+      { tsCode: partition.scope, close: 2 },
+    ]);
+  }));
+
+it('rejects incomplete or overlapping pages for a full-market adjustment date', async () => {
+  const daily = {
+    ...partition,
+    dataset: 'etf-adjustments',
+    scope: 'daily-selection',
+    endDate: partition.startDate,
+    etfCodes: [partition.scope],
+  };
+  const page = Array.from({ length: 2000 }, (_, index) => ({
+    ts_code: `${510000 + index}.SH`,
+    trade_date: daily.startDate,
+    adj_factor: 1,
+  }));
+  const incomplete = await prepareEtfPartition(
+    {
+      call: async (_api, params) => {
+        if (params?.offset) {
+          throw new Error('page unavailable');
+        }
+        return page;
+      },
+    },
+    daily,
+  );
+  expect(incomplete.checks.terminalPage).toBe(false);
+  expect(incomplete.checks.sourceFailed).toBe(true);
+  await expect(
+    prepareEtfPartition(
+      { call: async (_api, params) => (params?.offset ? [page[0]] : page) },
+      daily,
+    ),
+  ).rejects.toThrow('overlapping pages');
 });
