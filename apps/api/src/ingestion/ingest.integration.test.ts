@@ -92,7 +92,7 @@ it(
           if (offset) {
             throw new Error('Controlled second-page failure');
           }
-          return Array.from({ length: 6000 }, () => ({
+          return Array.from({ length: 5000 }, () => ({
             ts_code: '600000.SH',
             trade_date: date,
             open: 10,

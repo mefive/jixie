@@ -11,7 +11,6 @@ import type {
 import {
   completeResponse,
   fetchSourcePages,
-  fetchSourceRange,
   mapSourceRecords,
   sourceString,
   sourceValues,
@@ -251,7 +250,7 @@ export async function downloadIndexPartition(source: SyncSource, partition: Mark
     throw new Error(`Unknown index dataset ${partition.dataset}`);
   }
 
-  return fetchSourceRange(
+  return fetchSourcePages(
     source,
     definition.api,
     {
@@ -260,6 +259,5 @@ export async function downloadIndexPartition(source: SyncSource, partition: Mark
       end_date: partition.endDate,
     },
     Object.values(definition.columns).join(','),
-    partition.adaptiveRange,
   );
 }

@@ -11,9 +11,9 @@ export type MarketRow = Record<string, MarketValue>;
 export interface MarketPartition {
   fullHistory?: boolean;
   /**
-   * 按来源上限拆分连续区间。
+   * 按已有收据缩小到未覆盖的连续区间。
    *
-   * Split continuous ranges only when source limits require it.
+   * Narrow continuous ranges to gaps left by prior receipts.
    */
   adaptiveRange?: true;
   /**

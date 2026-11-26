@@ -6,10 +6,10 @@ import { fetchMarketSource, withSourceRequestBudget } from '../providers/source-
 
 describe('bounded source evidence', () => {
   it.each([
-    ['daily', 6000],
-    ['adj_factor', 6000],
-    ['daily_basic', 6000],
-    ['stk_limit', 5800],
+    ['daily', 5000],
+    ['adj_factor', 5000],
+    ['daily_basic', 5000],
+    ['stk_limit', 5000],
   ] as const)(
     'uses the %s page size and fetches a terminal page after a full response',
     async (api, size) => {
@@ -35,22 +35,45 @@ describe('bounded source evidence', () => {
     },
   );
 
-  it('bounds an override to the declared provider page size', async () => {
+  it('uses the centralized index valuation limit', async () => {
     const pages = await fetchSourcePages(
       {
         call: async (_api, params) => {
-          expect(params?.limit).toBe(5800);
+          expect(params?.limit).toBe(3000);
 
           return [];
         },
       },
-      'stk_limit',
+      'index_dailybasic',
       {},
       'ts_code',
-      10000,
     );
     expect(pages.complete).toBe(true);
   });
+
+  it.each(['stock_basic', 'etf_basic', 'fund_basic', 'trade_cal'])(
+    'reads a catalog or calendar snapshot via offset, including its final short page: %s',
+    async (api) => {
+      const offsets: unknown[] = [];
+      const result = await fetchSourcePages(
+        {
+          call: async (_api, params = {}) => {
+            expect(params.limit).toBe(5000);
+            offsets.push(params.offset);
+            return params.offset === 0
+              ? Array.from({ length: 5000 }, (_, index) => ({ code: String(index) }))
+              : [{ code: 'last' }];
+          },
+        },
+        api,
+        {},
+        'code',
+      );
+      expect(offsets).toEqual([0, 5000]);
+      expect(result.complete).toBe(true);
+      expect(result.rows).toHaveLength(5001);
+    },
+  );
 
   it('A05 preserves received pages after a later transport failure', async () => {
     let calls = 0;
@@ -58,7 +81,7 @@ describe('bounded source evidence', () => {
       {
         call: async () => {
           if (calls++ === 0) {
-            return [{ ts_code: '600000.SH' }, { ts_code: '000001.SZ' }];
+            return Array.from({ length: 5000 }, (_, i) => ({ ts_code: String(i) }));
           }
           throw new Error('provider unavailable');
         },
@@ -66,24 +89,21 @@ describe('bounded source evidence', () => {
       'daily',
       {},
       'ts_code',
-      2,
     );
-    expect(pages.rows).toHaveLength(2);
+    expect(pages.rows).toHaveLength(5000);
     expect(pages.complete).toBe(false);
-    expect(pages.errors).toEqual(['provider unavailable']);
+    expect(pages.errors).toEqual(['daily offset=5000: provider unavailable']);
   });
 
   it('A05 never accepts repeated full pages as completion', async () => {
     const pages = await fetchSourcePages(
-      { call: async () => [{ ts_code: '600000.SH' }] },
+      { call: async () => Array.from({ length: 5000 }, (_, i) => ({ ts_code: String(i) })) },
       'daily',
       {},
       'ts_code',
-      1,
-      3,
     );
     expect(pages.complete).toBe(false);
-    expect(pages.rows).toHaveLength(1);
+    expect(pages.rows).toHaveLength(5000);
     expect(pages.errors[0]).toContain('repeated');
   });
 

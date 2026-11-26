@@ -57,7 +57,6 @@ export async function fetchEtfSizes(source: SyncSource, date: string): Promise<E
     'etf_share_size',
     { trade_date: date },
     'ts_code,trade_date,total_size',
-    5000,
   );
   if (!pages.complete || pages.errors.length) {
     throw new MarketSourcePendingError(`Incomplete ETF size snapshot: ${pages.errors.join('; ')}`);

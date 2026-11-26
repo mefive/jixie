@@ -66,7 +66,7 @@ it(
       expect(calls).toEqual([
         {
           api: 'index_weight',
-          params: { index_code: '000300.SH', trade_date: targetDate, limit: 1000, offset: 0 },
+          params: { index_code: '000300.SH', trade_date: targetDate, limit: 5000, offset: 0 },
         },
       ]);
       await withCandidate(first.runId, async (candidate) => {

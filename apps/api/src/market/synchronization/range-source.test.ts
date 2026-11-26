@@ -1,13 +1,12 @@
 import { expect, it, vi } from 'vitest';
-import { MarketSourceRangeLimitError } from '../errors.js';
-import { fetchSourceRange } from './source.js';
+import { fetchSourcePages } from './source.js';
 import { withImportDiagnostics, type ImportDiagnostics } from './diagnostics.js';
 
 it('uses the ETF endpoint limit and returns one complete wide response', async () => {
   const source = {
     call: vi.fn().mockResolvedValue([{ ts_code: '510000.SH', trade_date: '20221001' }]),
   };
-  const response = await fetchSourceRange(
+  const response = await fetchSourcePages(
     source,
     'fund_daily',
     {
@@ -16,7 +15,6 @@ it('uses the ETF endpoint limit and returns one complete wide response', async (
       end_date: '20221001',
     },
     'ts_code,trade_date',
-    true,
   );
 
   expect(response).toMatchObject({ complete: true, pages: 1 });
@@ -34,26 +32,27 @@ it('uses the ETF endpoint limit and returns one complete wide response', async (
   );
 });
 
-it('returns a saturated probe for planning without admitting rows or recording a source failure', async () => {
-  const source = { call: vi.fn().mockResolvedValue(Array.from({ length: 2000 }, () => ({}))) };
+it('pages a full adjustment window without changing its logical receipt', async () => {
+  const source = {
+    call: vi
+      .fn()
+      .mockResolvedValueOnce(Array.from({ length: 2000 }, (_, i) => ({ ts_code: String(i) })))
+      .mockResolvedValueOnce([]),
+  };
   const diagnostics: ImportDiagnostics = { requests: [], issues: [] };
-
-  await withImportDiagnostics(diagnostics, async () => {
-    await expect(
-      fetchSourceRange(
-        source,
-        'fund_adj',
-        {
-          ts_code: '510000.SH',
-          start_date: '20100101',
-          end_date: '20221001',
-        },
-        'ts_code,trade_date,adj_factor',
-        true,
-      ),
-    ).rejects.toBeInstanceOf(MarketSourceRangeLimitError);
-  });
-  expect(diagnostics.requests).toHaveLength(1);
+  const params = { ts_code: '510000.SH', start_date: '20000101', end_date: '20250101' };
+  const fields = 'ts_code,trade_date,adj_factor';
+  const result = await withImportDiagnostics(diagnostics, () =>
+    fetchSourcePages(source, 'fund_adj', params, fields),
+  );
+  expect(result).toMatchObject({ complete: true, pages: 2 });
+  expect(source.call).toHaveBeenNthCalledWith(
+    2,
+    'fund_adj',
+    { ...params, limit: 2000, offset: 2000 },
+    fields,
+  );
+  expect(diagnostics.requests).toEqual([{ api: 'fund_adj', params, fields }]);
   expect(diagnostics.issues).toEqual([]);
 });
 
@@ -61,7 +60,7 @@ it('keeps transport failures distinct from saturated responses', async () => {
   const error = new Error('Network offline');
   const source = { call: vi.fn().mockRejectedValue(error) };
 
-  const response = await fetchSourceRange(
+  const response = await fetchSourcePages(
     source,
     'fund_adj',
     {
@@ -70,8 +69,10 @@ it('keeps transport failures distinct from saturated responses', async () => {
       end_date: '20221001',
     },
     'ts_code',
-    true,
   );
 
-  expect(response).toMatchObject({ complete: false, errors: [error.message] });
+  expect(response).toMatchObject({
+    complete: false,
+    errors: ['fund_adj offset=0: Network offline'],
+  });
 });

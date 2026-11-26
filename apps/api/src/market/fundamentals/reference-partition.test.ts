@@ -302,7 +302,7 @@ describe('financial reference maintenance', () => {
       };
       const source = {
         call: async (_api: string, params?: Record<string, unknown>) => {
-          expect(params).toEqual({ ts_code: '600000.SH' });
+          expect(params).toEqual({ ts_code: '600000.SH', limit: 2000, offset: 0 });
           return [
             {
               ts_code: '600000.SH',

@@ -14,12 +14,12 @@
 
 [返回 Market 总览](../../README.md)
 
-维护入口使用 [request-contract.ts](request-contract.ts) 的允许参数及单响应／分页声明。快照接口不伪造 limit/offset；到达保守安全上限时拒绝宣称完整。分红按证券取完整响应，在领域内按报告期筛选，不能发送文档没有定义的 start_date/end_date。列式解码严格检查状态、fields/items、唯一字段、行宽、标量类型及请求字段；损坏的响应不能变成允许覆盖旧值的空集。业务单位保持来源定义：行情价格元、成交量手、成交额千元；股票／指数市值万元；报表金额元、total_share 股；分红 cash_div 税后、cash_div_tax 税前。
+维护入口使用 [request-contract.ts](request-contract.ts) 的允许参数及分页配置。目录快照和时间序列均由 [TusharePaginator](tushare-paginator.ts) 使用固定 limit 和递增 offset 读取。分红按证券取完整响应，在领域内按报告期筛选，不能发送文档没有定义的 start_date/end_date。列式解码严格检查状态、fields/items、唯一字段、行宽、标量类型及请求字段；损坏的响应不能变成允许覆盖旧值的空集。业务单位保持来源定义：行情价格元、成交量手、成交额千元；股票／指数市值万元；报表金额元、total_share 股；分红 cash_div 税后、cash_div_tax 税前。
 
 结构合法的 `fields: [], items: []` 可进入领域空响应规则；缺少数组或有行却缺请求字段仍拒绝。此区分兼容[官方 Python 客户端](https://github.com/waditu/tushare/blob/master/tushare/pro/client.py)的列式解码方式，不将空响应解释为所有业务均已完成。
 
 
-股票日数据与 VIP 财务数据的分页大小由 request-contract.ts 分别声明；允许更小的测试／专用分页，但不超过声明大小。满页继续请求，重复页与有限分页截断仍不能视为完整。页面重复检测保存摘要，不保存所有页面的原始文本；该传输摘要不改变业务指纹或来源版本 hash。财报按公告日期连续区间采集，指标仍按季度 period；满页和分页边界由正式来源下载入口处理。
+每个业务查询的默认页长为 5000。ETF 复权和分红用 2000，指数估值用 3000。满页继续取下一页，短页或空页结束；整页重复、超量或请求失败均不能证明完整。页摘要只用于检查传输，业务指纹仍由各领域计算。
 
 
 并发设计与恢复边界见 [采集并发设计](../../../../../../docs/design/ingestion-concurrency.md)。实际传输时段与限流等待通过独立异步上下文按批次记录，缓存回放不重复计费。数据接纳、版本选择与发布仍归领域及 Ingestion。

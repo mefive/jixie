@@ -17,7 +17,6 @@ import type {
 import {
   completeResponse,
   fetchSourcePages,
-  fetchSourceRange,
   mapSourceRecords,
   sourceString,
   sourceValues,
@@ -375,11 +374,10 @@ const STOCK_NAME_COLUMNS = {
  * Separate name-history downloads from identity merging.
  */
 export function downloadStockNames(source: SyncSource, partition: MarketPartition) {
-  return fetchSourceRange(
+  return fetchSourcePages(
     source,
     'namechange',
     { start_date: partition.startDate, end_date: partition.endDate },
     Object.values(STOCK_NAME_COLUMNS).join(','),
-    partition.adaptiveRange,
   );
 }

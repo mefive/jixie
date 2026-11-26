@@ -3,7 +3,6 @@ import type { MarketPartition, PreparedMarketPartition } from '../synchronizatio
 import {
   completeResponse,
   fetchSourcePages,
-  fetchSourceRange,
   mapSourceRecords,
   sourceString,
   sourceValues,
@@ -115,7 +114,6 @@ async function prepareEtfCatalog(
     'etf_basic',
     {},
     `${Object.values(columns).join(',')},csname,extname`,
-    5000,
   );
   const funds = await fetchSourcePages(
     source,
@@ -180,7 +178,6 @@ async function prepareEtfCatalog(
 const ETF_DEFINITIONS = {
   'etf-prices': {
     api: 'fund_daily',
-    pageSize: 5000,
     table: 'EtfDaily',
     columns: {
       tsCode: 'ts_code',
@@ -197,7 +194,6 @@ const ETF_DEFINITIONS = {
   },
   'etf-adjustments': {
     api: 'fund_adj',
-    pageSize: 2000,
     table: 'EtfAdjFactor',
     columns: { tsCode: 'ts_code', tradeDate: 'trade_date', adjFactor: 'adj_factor' },
   },
@@ -216,15 +212,13 @@ export function downloadEtfSeries(source: SyncSource, partition: MarketPartition
       definition.api,
       { trade_date: partition.startDate },
       Object.values(definition.columns).join(','),
-      definition.pageSize,
     );
   }
 
-  return fetchSourceRange(
+  return fetchSourcePages(
     source,
     definition.api,
     { ts_code: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
     Object.values(definition.columns).join(','),
-    partition.adaptiveRange,
   );
 }

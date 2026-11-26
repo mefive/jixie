@@ -106,7 +106,7 @@ it('queries the latest verified session within a partial month and preserves pre
           expect(params).toEqual({
             index_code: partition.scope,
             trade_date: '20190118',
-            limit: 1000,
+            limit: 5000,
             offset: 0,
           });
 
@@ -143,7 +143,7 @@ it('requires calendar evidence and keeps a failed second page from replacing a s
             throw new Error('Controlled weight page failure');
           }
 
-          return Array.from({ length: 1000 }, (_, index) => ({
+          return Array.from({ length: 5000 }, (_, index) => ({
             index_code: partition.scope,
             con_code: `${600000 + index}.SH`,
             trade_date: partition.endDate,

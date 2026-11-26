@@ -43,7 +43,7 @@ it('spills a response without changing its request or reissuing HTTP during repl
 });
 
 it('downloads pagination without retaining accumulated rows and reconstructs the complete batch later', async () => {
-  const rows = Array.from({ length: 1000 }, (_, index) => ({ name: `Name ${index}` }));
+  const rows = Array.from({ length: 5000 }, (_, index) => ({ name: `Name ${index}` }));
   const source = { call: vi.fn(async (_api, params) => (Number(params.offset ?? 0) ? [] : rows)) };
   const budget = new SourceResponseBudget(1024 * 1024);
   const cache = new SourceResponseCache(budget);

@@ -5,7 +5,7 @@ import { withSourceMeasurements } from '#market/providers/source-fetch.js';
 import type { SourceExecution } from '#market/synchronization/execution.js';
 import { ulid } from 'ulid';
 import { statementReceiptMatchesBatch } from '#market/fundamentals/statement-requests.js';
-import { MarketSourceRangeLimitError, MarketSourceStorageError } from '#market/errors.js';
+import { MarketSourceStorageError } from '#market/errors.js';
 import {
   DIVIDEND_DATE_FIELDS,
   dividendReceiptHasCompleteFields,
@@ -34,7 +34,7 @@ import { latestAttempts, openIngestionRun, summarizeIngestionRun, unitKey } from
 import { parseRunPlan, type IngestionRunPlan } from './schema.js';
 import type { IngestionInput, IngestionResult, IngestionUnit } from './schema.js';
 import { STATEMENT_STRATEGY, planStatementUnits } from './statement-plan.js';
-import { replaceRangeUnit, splitRangeUnit, uncoveredRangeUnits } from './ranges.js';
+import { replaceRangeUnit, uncoveredRangeUnits } from './ranges.js';
 
 /**
  * 固定目标、整批下载和短事务接纳；成功批次即恢复依据。
@@ -156,7 +156,6 @@ async function collect(
       byScope.set(key, saved);
     }
     const attempted = new Set<string>();
-    const splitUnits = new Map<string, IngestionUnit[]>();
     const reusable = (batch: (typeof history)[number]) => {
       if (batch.dataset === 'financial-statements') {
         return (
@@ -369,48 +368,6 @@ async function collect(
             if (error instanceof MarketSourceStorageError) {
               throw error;
             }
-            if (error instanceof MarketSourceRangeLimitError && unit.adaptiveRange) {
-              const children = splitRangeUnit(unit);
-              const next = replaceRangeUnit(runPlan, unit, children);
-              execution.prepareMs = Math.max(
-                0,
-                performance.now() - prepareStartedAt - (downloaded ? 0 : execution.downloadMs),
-              );
-              const writeStartedAt = performance.now();
-              await serializeWrite(() =>
-                database.$transaction(async (transaction) => {
-                  await transaction.ingestionBatch.update({
-                    where: { id: batchId },
-                    data: {
-                      status: 'split',
-                      responseComplete: false,
-                      receivedCount: error.receivedCount,
-                      request: envelope(unit, diagnostics, execution),
-                      finishedAt: clock(),
-                    },
-                  });
-                  await transaction.ingestionRun.update({
-                    where: { id: runId },
-                    data: { scopeSnapshot: jsonValue(next) },
-                  });
-                }),
-              );
-              execution.writeMs = Math.max(0, performance.now() - writeStartedAt);
-              await serializeWrite(() =>
-                database.ingestionBatch.update({
-                  where: { id: batchId },
-                  data: { request: envelope(unit, diagnostics, execution) },
-                }),
-              );
-              runPlan = next;
-              required.delete(unitKey(unit));
-              splitUnits.set(unitKey(unit), children);
-              log(
-                `[ingestion] ${logScope}: response limit reached; split into ${children.length} ranges`,
-              );
-
-              return;
-            }
             if (!signal.aborted) {
               diagnostics.issues.push({
                 category: 'internal',
@@ -594,17 +551,7 @@ async function collect(
         return succeeded;
       }
 
-      const succeeded = await attempt(unit);
-      const children = splitUnits.get(key);
-      if (!children) {
-        return succeeded;
-      }
-      let childrenSucceeded = true;
-      for (const child of children) {
-        childrenSucceeded = (await executeUnit(child)) && childrenSucceeded;
-      }
-
-      return childrenSucceeded;
+      return attempt(unit);
     };
     const runUnits = async (units: readonly IngestionUnit[]) => {
       const work: IngestionUnit[] = [];

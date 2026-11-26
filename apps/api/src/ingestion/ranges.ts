@@ -1,6 +1,5 @@
 import { sourceCaptureStartedAt } from '#market/synchronization/execution.js';
 import { calendarDay, localDate } from '#market/synchronization/date.js';
-import { splitStatementAnnouncementWindow } from '#market/fundamentals/statement-requests.js';
 import type { IngestionUnit, IngestionRunPlan } from './schema.js';
 import { unitKey } from './runs.js';
 
@@ -13,15 +12,6 @@ export function rangeUnit(unit: IngestionUnit, startDate: string, endDate: strin
     fullHistory: false,
     period: `${unit.announcementRange ? 'ann_range' : 'range'}/${startDate}/${endDate}`,
   };
-}
-
-export function splitRangeUnit(unit: IngestionUnit): IngestionUnit[] {
-  if (unit.startDate >= unit.endDate) {
-    throw new Error('Cannot split a single-date ingestion range');
-  }
-  const { leftEnd, rightStart } = splitStatementAnnouncementWindow(unit.startDate, unit.endDate);
-
-  return [rangeUnit(unit, unit.startDate, leftEnd), rangeUnit(unit, rightStart, unit.endDate)];
 }
 
 /**
@@ -101,7 +91,11 @@ export function uncoveredRangeUnits(
     : missing;
 }
 
-/** 快照替换与执行中收据可在同一事务保存。 / Persist replacement plans atomically with probe receipts. */
+/**
+ * 将已冻结的区间收窄至收据尚未覆盖的缺口。
+ *
+ * Narrow a frozen range to gaps left by completed receipts.
+ */
 export function replaceRangeUnit(
   plan: IngestionRunPlan,
   unit: IngestionUnit,

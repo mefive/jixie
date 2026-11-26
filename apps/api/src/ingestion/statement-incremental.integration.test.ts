@@ -10,7 +10,7 @@ import { jsonValue } from './ingest.js';
 import { runPlanSchema } from './schema.js';
 
 it(
-  'resumes a split window after a child failure and publishes one PIT version from both filters',
+  'resumes a paginated window after a final-page failure and publishes one PIT version from both filters',
   async () =>
     withSyncDatabase(async (main) => {
       await emptySelections(main);
@@ -29,7 +29,7 @@ it(
       const original = await main.financialIncomeStatement.findFirstOrThrow();
 
       const abort = new AbortController();
-      let failChild = true;
+      let failPage = true;
       const calls: Array<{ api: string; params: Record<string, unknown> }> = [];
       const fallback = ingestionSource({
         incomeAvailable: () => true,
@@ -44,14 +44,22 @@ it(
           call: async (api: string, params: Record<string, unknown> = {}, fields?: string) => {
             calls.push({ api, params });
             if (api === 'income_vip' && params.report_type === '1') {
-              if (params.start_date === '19910106' && failChild) {
+              if (params.start_date === '19910105' && params.offset === 5000 && failPage) {
                 abort.abort();
-                throw new Error('Controlled statement child-window failure');
+                throw new Error('Controlled last-page failure');
               }
               if (params.start_date === '19910105' && params.end_date === '19910106') {
+                if (params.offset) {
+                  return [];
+                }
                 const rows = await fallback.call(api, params, fields);
 
-                return Array.from({ length: 5000 }, () => rows[0]);
+                const otherStocks = Array.from({ length: 4999 }, (_, index) => ({
+                  ...rows[0],
+                  ts_code: `${700000 + index}.SH`,
+                }));
+
+                return [...rows, ...otherStocks];
               }
             }
 
@@ -68,10 +76,10 @@ it(
       expect(interrupted.phase).toBe('interrupted');
       expect(await main.financialIncomeStatement.count()).toBe(1);
       await withCandidate(interrupted.runId, async (candidate) => {
-        expect(await candidate.financialIncomeStatement.count()).toBe(2);
+        expect(await candidate.financialIncomeStatement.count()).toBe(1);
       });
 
-      failChild = false;
+      failPage = false;
       calls.length = 0;
       const resumed = await ingestCandidate(input, true);
       expect(resumed).toMatchObject({ runId: interrupted.runId, phase: 'awaiting_publish' });
@@ -85,33 +93,29 @@ it(
           where: {
             runId: interrupted.runId,
             scope: 'income|1',
-            period: 'ann_range/19910105/19910105',
+            period: 'ann_range/19910105/19910106',
             status: 'succeeded',
           },
         });
         expect(statementReceiptMatchesBatch(receipt)).toBe(true);
         expect(sourceRequests(receipt.request)).toMatchObject([
-          { params: { start_date: '19910105', end_date: '19910105' } },
-        ]);
-        const probe = await candidate.ingestionBatch.findFirstOrThrow({
-          where: { runId: interrupted.runId, scope: 'income|1', status: 'split' },
-        });
-        expect(probe).toMatchObject({
-          responseComplete: false,
-          receivedCount: 5000,
-          acceptedCount: 0,
-        });
-        expect(sourceRequests(probe.request)).toMatchObject([
           { params: { start_date: '19910105', end_date: '19910106' } },
         ]);
         expect(
-          calls.some(
-            ({ api, params }) =>
-              api === 'income_vip' &&
-              params.report_type === '1' &&
-              params.start_date === '19910105',
-          ),
-        ).toBe(false);
+          await candidate.ingestionBatch.count({
+            where: { runId: interrupted.runId, status: 'split' },
+          }),
+        ).toBe(0);
+        expect(
+          calls
+            .filter(
+              ({ api, params }) =>
+                api === 'income_vip' &&
+                params.report_type === '1' &&
+                params.start_date === '19910105',
+            )
+            .map(({ params }) => params.offset),
+        ).toEqual([0, 5000]);
         const rows = await candidate.financialIncomeStatement.findMany();
         expect(rows).toHaveLength(3);
         expect(

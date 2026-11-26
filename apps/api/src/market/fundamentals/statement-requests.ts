@@ -27,8 +27,12 @@ export function statementAnnouncementWindow(period: string) {
   return { startDate, endDate };
 }
 
-/** 满页窗口按自然日二分，子区间无重叠。 / Bisect saturated windows into disjoint calendar ranges. */
-export function splitStatementAnnouncementWindow(startDate: string, endDate: string) {
+/**
+ * 仅用于核验旧版二分收据。
+ *
+ * Reconstruct bisection only to verify legacy receipts.
+ */
+function splitStatementAnnouncementWindow(startDate: string, endDate: string) {
   const dayTime = (date: string) =>
     Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6)));
   const midpoint = Math.floor((dayTime(endDate) - dayTime(startDate)) / (2 * 86_400_000));

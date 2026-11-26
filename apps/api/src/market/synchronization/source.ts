@@ -1,13 +1,7 @@
 import { recordImportIssue, recordImportRequest } from './diagnostics.js';
-import { createHash } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { INGESTION_SOURCE_REQUESTS } from '../providers/tushare/request-contract.js';
-import {
-  MarketSourceRangeLimitError,
-  MarketSourceStorageError,
-  MarketSyncBudgetError,
-  TushareError,
-} from '../errors.js';
+import { TusharePaginator } from '../providers/tushare/tushare-paginator.js';
+import { MarketSourceStorageError, MarketSyncBudgetError, TushareError } from '../errors.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import type { MarketRow, PreparedMarketPartition, SourceRecord } from './partition.js';
 
@@ -30,166 +24,47 @@ export function withoutSourceRowAccumulation<Result>(operation: () => Promise<Re
   return discarding.run(true, operation);
 }
 
-function validateSourceParameters(api: string, params: Record<string, unknown>) {
-  const contract = INGESTION_SOURCE_REQUESTS[api];
-  if (
-    !contract ||
-    Object.keys(params).some((parameter) => !contract.parameters.includes(parameter))
-  ) {
-    throw new Error(`${api}: undeclared ingestion request parameter`);
-  }
-
-  return contract;
-}
-
-/** 单页探测保留实际请求，调用方负责处理满页。 / Record the single-page probe; callers handle saturation. */
-export function fetchSourceFirstPage(
-  source: SyncSource,
-  api: string,
-  params: Record<string, unknown>,
-  fields: string,
-  pageSize: number,
-): Promise<TushareRow[]> {
-  validateSourceParameters(api, params);
-  recordImportRequest(api, params, fields);
-
-  return source.call(api, { ...params, limit: pageSize, offset: 0 }, fields);
-}
-
 /**
- * 连续区间先查一次，满页交回编排层拆分；旧计划继续使用原有分页。
+ * 记录逻辑请求；原始分页由公共分页器执行，收据标识与传输页数无关。
  *
- * Query a continuous range once and let orchestration split saturated windows; preserve legacy paging.
- */
-export async function fetchSourceRange(
-  source: SyncSource,
-  api: string,
-  params: Record<string, unknown>,
-  fields: string,
-  adaptive = false,
-): Promise<SourcePages> {
-  if (!adaptive) {
-    return fetchSourcePages(source, api, params, fields);
-  }
-
-  const contract = validateSourceParameters(api, params);
-  const limit = contract.rangeLimit ?? contract.snapshotLimit;
-  if (!limit) {
-    return fetchSourcePages(source, api, params, fields, undefined, Infinity, true);
-  }
-  let rows: TushareRow[];
-  try {
-    rows = await fetchSourceFirstPage(source, api, params, fields, limit);
-  } catch (error) {
-    if (error instanceof MarketSourceStorageError) {
-      throw error;
-    }
-    if (error instanceof MarketSyncBudgetError) {
-      return { rows: [], complete: false, pages: 0, errors: [], deferred: true };
-    }
-    const message = error instanceof Error ? error.message : String(error);
-    recordImportIssue({
-      category: 'request',
-      reasonCode:
-        error instanceof TushareError ? 'source_rejected_request' : 'source_request_failed',
-      message,
-    });
-
-    return { rows: [], complete: false, pages: 0, errors: [message] };
-  }
-  if (rows.length >= limit) {
-    if (params.start_date !== params.end_date) {
-      throw new MarketSourceRangeLimitError(rows.length);
-    }
-
-    return fetchSourcePages(source, api, params, fields);
-  }
-
-  return { rows, complete: true, pages: 1, errors: [] };
-}
-
-/**
- * 分页完整性独立报告；调度器只提交整批下载完成的数据。
- *
- * Report pagination completeness separately; the orchestrator commits only complete downloads.
+ * Record one logical request while the shared paginator manages transport pages.
  */
 export async function fetchSourcePages(
   source: SyncSource,
   api: string,
   params: Record<string, unknown>,
   fields: string,
-  requestedPageSize?: number,
-  maximumPages = 20,
-  adaptiveRange = false,
 ): Promise<SourcePages> {
-  const contract = validateSourceParameters(api, params);
   recordImportRequest(api, params, fields);
-
-  const pageSize = Math.min(
-    requestedPageSize ?? contract.pageSize ?? 1000,
-    contract.pageSize ?? Infinity,
-  );
-  const snapshotLimit =
-    !contract.snapshotParameter || Object.hasOwn(params, contract.snapshotParameter)
-      ? contract.snapshotLimit
-      : undefined;
   const result: SourcePages = { rows: [], complete: false, pages: 0, errors: [] };
-  const signatures = new Set<string>();
-  for (let pageNumber = 0; pageNumber < maximumPages; pageNumber++) {
-    try {
-      const page = await source.call(
-        api,
-        snapshotLimit ? params : { ...params, limit: pageSize, offset: pageNumber * pageSize },
-        fields,
-      );
+  let offset = 0;
+  try {
+    const paginator = new TusharePaginator(source);
+    for await (const page of paginator.pages(api, params, fields)) {
       result.pages++;
-      const signature = createHash('sha256').update(JSON.stringify(page)).digest('hex');
-      if (page.length && signatures.has(signature)) {
-        if (adaptiveRange && params.start_date !== params.end_date) {
-          throw new MarketSourceRangeLimitError(result.rows.length + page.length);
-        }
-        throw new Error(`${api}: provider repeated an offset page`);
-      }
-      signatures.add(signature);
+      offset += page.length;
       if (!discarding.getStore()) {
         result.rows.push(...page);
       }
-      if (snapshotLimit && page.length >= snapshotLimit) {
-        throw new Error(`${api}: response reached its safety limit; narrow the request`);
-      }
-      if (snapshotLimit || page.length < pageSize) {
-        result.complete = true;
-        break;
-      }
-    } catch (error) {
-      if (error instanceof MarketSourceStorageError) {
-        throw error;
-      }
-      if (error instanceof MarketSourceRangeLimitError) {
-        throw error;
-      }
-      if (error instanceof MarketSyncBudgetError) {
-        result.deferred = true;
-        break;
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      result.errors.push(message);
-      recordImportIssue({
-        category: 'request',
-        reasonCode:
-          error instanceof TushareError ? 'source_rejected_request' : 'source_request_failed',
-        message,
-      });
-      break;
     }
-  }
-  if (!result.complete && !result.deferred && !result.errors.length) {
-    if (adaptiveRange && params.start_date !== params.end_date) {
-      throw new MarketSourceRangeLimitError(result.rows.length);
+    result.complete = true;
+  } catch (error) {
+    if (error instanceof MarketSourceStorageError) {
+      throw error;
     }
-    const message = `${api}: finite pagination limit reached`;
+    if (error instanceof MarketSyncBudgetError) {
+      result.deferred = true;
+      return result;
+    }
+
+    const message = `${api} offset=${offset}: ${error instanceof Error ? error.message : String(error)}`;
     result.errors.push(message);
-    recordImportIssue({ category: 'request', reasonCode: 'incomplete_pagination', message });
+    recordImportIssue({
+      category: 'request',
+      reasonCode:
+        error instanceof TushareError ? 'source_rejected_request' : 'source_request_failed',
+      message,
+    });
   }
 
   return result;

@@ -61,13 +61,20 @@ function announcementUnits(
 ): IngestionUnit[] {
   const units: IngestionUnit[] = [];
   let start: string | undefined;
+  let anniversary = '';
   for (const [index, date] of days.entries()) {
     if (coverage.has(date)) {
       continue;
     }
-    start ??= date;
+    // 冻结最多一年的公告窗口，避免全历史查询超出来源偏移上限。
+    // Freeze at most a year per disclosure window to avoid exhausting provider offsets on bootstrap.
+    if (!start) {
+      start = date;
+      anniversary = String(Number(date.slice(0, 4)) + 1) + date.slice(4);
+    }
+
     const next = days[index + 1];
-    if (next && !coverage.has(next)) {
+    if (next && next < anniversary && !coverage.has(next)) {
       continue;
     }
 

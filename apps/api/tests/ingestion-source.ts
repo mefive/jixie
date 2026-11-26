@@ -70,7 +70,8 @@ export function ingestionSource(
               pretrade_date: null,
             });
           }
-          return rows;
+          const offset = Number(params.offset);
+          return rows.slice(offset, offset + Number(params.limit));
         }
         case 'stock_basic':
           return params.list_status === 'L'

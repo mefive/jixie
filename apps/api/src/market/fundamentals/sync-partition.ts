@@ -13,7 +13,6 @@ import {
   FINANCIAL_ANNOUNCEMENT_FIELDS,
   FINANCIAL_REPORT_TYPES,
   FINANCIAL_STATEMENT_APIS,
-  splitStatementAnnouncementWindow,
 } from './statement-requests.js';
 import { preferStockSources } from '../instruments/source-selection.js';
 import { nextVerifiedSession } from '../calendar/coverage.js';
@@ -28,12 +27,6 @@ import {
 import { calendarDay, isObservationDate, localDate } from '../synchronization/date.js';
 import { fingerprint } from '../synchronization/rows.js';
 import {
-  MarketSourceRangeLimitError,
-  MarketSourceStorageError,
-  MarketSyncBudgetError,
-  TushareError,
-} from '../errors.js';
-import {
   finaIndicatorSchema,
   finaIndicatorVersionSchema,
   selectIndicatorSnapshots,
@@ -46,7 +39,6 @@ import type {
 } from '../synchronization/partition.js';
 import {
   completeResponse,
-  fetchSourceFirstPage,
   fetchSourcePages,
   mapSourceRecords,
   sourceString,
@@ -212,79 +204,6 @@ async function prepareStatementPartition(
   if (calendarIncomplete) {
     result.status = result.errors.length ? 'error' : 'partial';
     result.gaps.push('Statement values retained; availability calendar is incomplete');
-  }
-
-  return result;
-}
-
-/**
- * 区间满页时用无重叠子区间重取；偏移分页在来源上实测可能遗漏版本。
- *
- * Replace saturated windows with disjoint child queries because provider offset paging can omit versions.
- */
-async function fetchStatementAnnouncementRange(
-  source: SyncSource,
-  api: string,
-  partition: MarketPartition,
-  fields: string,
-  reportType: string,
-): Promise<SourcePages> {
-  const pageSize = 5000;
-  const result: SourcePages = { rows: [], complete: false, pages: 0, errors: [] };
-  const fetchWindow = async (startDate: string, endDate: string): Promise<void> => {
-    const rows = await fetchSourceFirstPage(
-      source,
-      api,
-      { start_date: startDate, end_date: endDate, report_type: reportType },
-      fields,
-      pageSize,
-    );
-    result.pages++;
-    if (
-      rows.some(
-        ({ ann_date }) =>
-          isObservationDate(ann_date) && (ann_date < startDate || ann_date > endDate),
-      )
-    ) {
-      throw new Error(`${api}: returned a disclosure outside ${startDate}–${endDate}`);
-    }
-    if (rows.length < pageSize) {
-      result.rows.push(...rows);
-      return;
-    }
-    if (partition.adaptiveRange && startDate < endDate) {
-      throw new MarketSourceRangeLimitError(rows.length);
-    }
-    if (startDate === endDate) {
-      throw new Error(`${api}: disclosure date ${startDate} reached the single-page limit`);
-    }
-
-    const { leftEnd, rightStart } = splitStatementAnnouncementWindow(startDate, endDate);
-    await fetchWindow(startDate, leftEnd);
-    await fetchWindow(rightStart, endDate);
-  };
-  try {
-    await fetchWindow(partition.startDate, partition.endDate);
-    result.complete = true;
-  } catch (error) {
-    if (error instanceof MarketSourceStorageError) {
-      throw error;
-    }
-    if (error instanceof MarketSourceRangeLimitError) {
-      throw error;
-    }
-    if (error instanceof MarketSyncBudgetError) {
-      result.deferred = true;
-      return result;
-    }
-
-    const message = error instanceof Error ? error.message : String(error);
-    result.errors.push(message);
-    recordImportIssue({
-      category: 'request',
-      reasonCode: error instanceof TushareError ? 'source_rejected_request' : 'incomplete_response',
-      message,
-    });
   }
 
   return result;
@@ -682,13 +601,7 @@ async function fetchFinancialHistory(
   const codes = stockSourceCodes(code);
   const pages: SourcePages = { rows: [], complete: true, pages: 0, errors: [] };
   for (const tsCode of codes) {
-    const response = await fetchSourcePages(
-      source,
-      api,
-      { ts_code: tsCode, ...extra },
-      fields,
-      100,
-    );
+    const response = await fetchSourcePages(source, api, { ts_code: tsCode, ...extra }, fields);
     pages.rows.push(...response.rows);
     pages.errors.push(...response.errors);
     pages.pages += response.pages;
@@ -736,7 +649,30 @@ export async function downloadFinancialPartition(
         return fetchFinancialHistory(source, api, historyCode, fields, { report_type: reportType });
       }
       if (partition.announcementRange) {
-        return fetchStatementAnnouncementRange(source, api, partition, fields, reportType);
+        const response = await fetchSourcePages(
+          source,
+          api,
+          {
+            start_date: partition.startDate,
+            end_date: partition.endDate,
+            report_type: reportType,
+          },
+          fields,
+        );
+        if (
+          response.rows.some(
+            ({ ann_date }) =>
+              isObservationDate(ann_date) &&
+              (ann_date < partition.startDate || ann_date > partition.endDate),
+          )
+        ) {
+          const message = `${api}: returned a disclosure outside ${partition.startDate}–${partition.endDate}`;
+          recordImportIssue({ category: 'request', reasonCode: 'incomplete_response', message });
+          response.complete = false;
+          response.errors.push(message);
+        }
+
+        return response;
       }
 
       return fetchSourcePages(
@@ -744,7 +680,6 @@ export async function downloadFinancialPartition(
         api,
         { [partition.announcementField ?? 'period']: partition.startDate, report_type: reportType },
         fields,
-        5000,
       );
     }
     case 'financial-indicators': {
@@ -752,13 +687,7 @@ export async function downloadFinancialPartition(
 
       return partition.fullHistory
         ? fetchFinancialHistory(source, 'fina_indicator_vip', partition.scope, fields)
-        : fetchSourcePages(
-            source,
-            'fina_indicator_vip',
-            { period: partition.startDate },
-            fields,
-            10000,
-          );
+        : fetchSourcePages(source, 'fina_indicator_vip', { period: partition.startDate }, fields);
     }
     case 'dividends': {
       const dateField = DIVIDEND_DATE_FIELDS.find((field) => field === partition.scope);

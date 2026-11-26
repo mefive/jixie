@@ -5,7 +5,7 @@ import { ingest, jsonValue } from './ingest.js';
 import { runPlanSchema, type IngestionUnit } from './schema.js';
 
 it(
-  'rolls a split receipt and child plan back together, then resumes the same run',
+  'retries a single frozen window from page zero after a terminal-page failure',
   async () =>
     withSyncDatabase(async (database) => {
       await emptySelections(database);
@@ -43,47 +43,54 @@ it(
           }),
         },
       });
-      await database.$executeRawUnsafe(
-        `CREATE TRIGGER refuse_split_plan BEFORE UPDATE ON "IngestionRun" WHEN NEW.scopeSnapshot LIKE '%ann_range/19880101/19880102%' BEGIN SELECT RAISE(ABORT, 'controlled child-plan failure'); END`,
-      );
+      let failPage = true;
+      const offsets: unknown[] = [];
       const input = {
         targetDate: '19910104',
         clock: () => ingestionTime,
         onLog: () => {},
         source: {
-          call: async (_api: string, params: Record<string, unknown> = {}) =>
-            params.start_date === '19880101' && params.end_date === '19880104'
-              ? Array.from({ length: 5000 }, () => ({ ann_date: '19880101' }))
-              : [],
+          call: async (_api: string, params: Record<string, unknown> = {}) => {
+            offsets.push(params.offset);
+            if (params.offset === 0) {
+              return Array.from({ length: 5000 }, () => ({
+                ts_code: '999999.SH',
+                ann_date: '19880101',
+              }));
+            }
+            if (failPage) {
+              throw new Error('Controlled last-page failure');
+            }
+            return [];
+          },
         },
       };
       const failed = await ingest(input);
-      expect(failed).toMatchObject({ runId, status: 'failed' });
+      expect(failed).toMatchObject({ runId, status: 'completed_with_issues' });
       const unchanged = await database.ingestionRun.findUniqueOrThrow({ where: { id: runId } });
       expect(runPlanSchema.parse(unchanged.scopeSnapshot).plan?.units).toEqual([unit]);
       expect(await database.ingestionBatch.findMany({ where: { runId } })).toMatchObject([
-        { status: 'interrupted', responseComplete: false, acceptedCount: 0 },
+        { status: 'failed', responseComplete: false, acceptedCount: 0 },
       ]);
       expect(await database.financialIncomeStatement.count()).toBe(0);
 
-      await database.$executeRawUnsafe('DROP TRIGGER refuse_split_plan');
+      failPage = false;
       const recovered = await ingest(input);
       expect(recovered).toMatchObject({
         runId,
         status: 'completed',
-        succeeded: 2,
+        succeeded: 1,
         failed: 0,
         issues: 0,
       });
       const saved = await database.ingestionRun.findUniqueOrThrow({ where: { id: runId } });
-      expect(runPlanSchema.parse(saved.scopeSnapshot).plan?.units).toMatchObject([
-        { startDate: '19880101', endDate: '19880102' },
-        { startDate: '19880103', endDate: '19880104' },
-      ]);
-      const attempts = await database.ingestionBatch.findMany({ where: { runId } });
-      expect(attempts.filter(({ status }) => status === 'split')).toHaveLength(1);
-      expect(attempts.filter(({ status }) => status === 'interrupted')).toHaveLength(1);
-      expect(attempts.filter(({ status }) => status === 'succeeded')).toHaveLength(2);
+      expect(runPlanSchema.parse(saved.scopeSnapshot).plan?.units).toEqual([unit]);
+      expect(offsets).toEqual([0, 5000, 0, 5000]);
+      const attempts = await database.ingestionBatch.findMany({
+        where: { runId },
+        orderBy: { id: 'asc' },
+      });
+      expect(attempts.map((batch) => batch.status)).toEqual(['failed', 'succeeded']);
     }),
   60_000,
 );

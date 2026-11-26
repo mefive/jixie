@@ -78,9 +78,9 @@ it('uses announcement windows for historical data and exact actual dates only be
       initial.every((unit) => unit.announcementRange && unit.catalogThrough === '19910104'),
     ).toBe(true);
     expect(initial.find((unit) => unit.scope === 'income|1')).toMatchObject({
-      period: 'ann_range/19880101/19910104',
+      period: 'ann_range/19880101/19881231',
     });
-    expect(initial).toHaveLength(9);
+    expect(initial).toHaveLength(36);
     expect(initial.every(({ endDate }) => endDate <= '19910104')).toBe(true);
     await recordPlan(database, initial, '19910104');
 
@@ -132,22 +132,22 @@ it('retains quarterly receipts but requires announcement evidence and rechecks d
       'quarter',
     );
     const initial = await planStatementUnits([code], '19910104', capturedAt);
-    expect(initial.some(({ period }) => period === 'ann_range/19880101/19910104')).toBe(true);
+    expect(initial.some(({ period }) => period === 'ann_range/19880101/19881231')).toBe(true);
     await recordPlan(database, initial, '19910104');
-    await database.ingestionBatch.update({
-      where: { id: 'baseline/income|1/ann_range/19880101/19910104' },
+    await database.ingestionBatch.updateMany({
+      where: { runId: 'baseline', scope: 'income|1' },
       data: { rangeEnd: null },
     });
     const updated = await planStatementUnits([code, '600001.SH'], '19910105', nextCapture);
     expect(
       updated.find(
-        ({ scope, period }) => scope === 'income|1' && period === 'ann_range/19880101/19910105',
+        ({ scope, period }) => scope === 'income|1' && period === 'ann_range/19910101/19910105',
       ),
     ).toBeDefined();
     const histories = updated.filter(({ fullHistory }) => fullHistory);
     expect(histories).toHaveLength(8);
     expect(histories.every((unit) => unit.scope.endsWith('|600001.SH'))).toBe(true);
-    expect(updated).toHaveLength(17);
+    expect(updated).toHaveLength(20);
     expect(updated.every(({ endDate }) => endDate <= '19910105')).toBe(true);
     await recordPlan(database, updated, '19910105', nextCapture, 'bulk-replay', [
       code,
@@ -170,7 +170,7 @@ it('replays a narrow catalog window when it replaces more per-security history b
   withSyncDatabase(async (database) => {
     const initial = await planStatementUnits([code], '19910104', capturedAt);
     const narrow = initial.find(
-      ({ scope, period }) => scope === 'income|1' && period === 'ann_range/19880101/19910104',
+      ({ scope, period }) => scope === 'income|1' && period === 'ann_range/19880101/19881231',
     )!;
     await recordPlan(
       database,
@@ -184,10 +184,10 @@ it('replays a narrow catalog window when it replaces more per-security history b
       nextCapture,
     );
     expect(updated.filter(({ fullHistory }) => fullHistory)).toEqual([]);
-    expect(updated.find(({ scope }) => scope === narrow.scope)).toMatchObject({
+    expect(updated.filter(({ scope }) => scope === narrow.scope).at(-1)).toMatchObject({
       announcementRange: true,
       catalogThrough: '19910105',
-      startDate: '19880101',
+      startDate: '19910101',
       endDate: '19910105',
     });
   }));

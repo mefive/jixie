@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { replaceRangeUnit, splitRangeUnit, uncoveredRangeUnits } from './ranges.js';
+import { replaceRangeUnit, rangeUnit, uncoveredRangeUnits } from './ranges.js';
 import type { IngestionUnit } from './schema.js';
 
 const unit: IngestionUnit = {
@@ -24,15 +24,8 @@ const receipt = (start: string, end: string) => ({
   startedAt: new Date('2026-11-06T10:00:00Z'),
 });
 
-it('keeps a single multi-year request until actual source limits require splitting', () => {
+it('keeps a single multi-year request when there is no prior coverage', () => {
   expect(uncoveredRangeUnits(unit, [])).toEqual([unit]);
-  const children = splitRangeUnit(unit);
-
-  expect(children).toHaveLength(2);
-  expect(children[0].startDate).toBe(unit.startDate);
-  expect(children[1].endDate).toBe(unit.endDate);
-  expect(children[0].endDate < children[1].startDate).toBe(true);
-  expect(() => splitRangeUnit({ ...unit, startDate: unit.endDate })).toThrow();
 });
 
 it('unions overlapping legacy year/month receipts and requests only continuous gaps', () => {
@@ -78,7 +71,10 @@ it('refreshes calendar dates from capture day while preserving earlier coverage'
 
 it('replaces only the requested unit in the frozen plan and preserves siblings', () => {
   const sibling = { ...unit, scope: 'other' };
-  const children = splitRangeUnit(unit);
+  const children = [
+    rangeUnit(unit, '20180101', '20190101'),
+    rangeUnit(unit, '20200101', '20221001'),
+  ];
   const replaced = replaceRangeUnit(
     { version: 2, referenceUnits: [], plan: { units: [unit, sibling], blocked: [] } },
     unit,

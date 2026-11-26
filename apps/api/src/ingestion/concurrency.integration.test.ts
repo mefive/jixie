@@ -255,7 +255,7 @@ it(
 );
 
 it(
-  'keeps a split parent and its children atomic while the future window is full and responses spill',
+  'keeps a paginated batch atomic while the future window is full and responses spill',
   async () =>
     withSyncDatabase(async (database) => {
       const root: IngestionUnit = {
@@ -292,8 +292,11 @@ it(
           call: async (api, params = {}) => {
             calls.push(JSON.stringify([api, params]));
             if (api === 'income_vip') {
-              return params.start_date === '19880101' && params.end_date === '19880104'
-                ? Array.from({ length: 5000 }, () => ({ ann_date: '19880101' }))
+              return params.offset === 0
+                ? Array.from({ length: 5000 }, () => ({
+                    ts_code: '999999.SH',
+                    ann_date: '19880101',
+                  }))
                 : [];
             }
 
@@ -301,19 +304,17 @@ it(
           },
         },
       });
-      expect(result).toMatchObject({ status: 'completed', succeeded: 9, issues: 0 });
+      expect(result).toMatchObject({ status: 'completed', succeeded: 8, issues: 0 });
       expect(await database.daily.count()).toBe(7);
-      expect(calls).toHaveLength(10);
+      expect(calls).toHaveLength(9);
       const saved = await database.ingestionRun.findUniqueOrThrow({ where: { id: runId } });
       const units = runPlanSchema.parse(saved.scopeSnapshot).plan!.units;
-      expect(units.filter(({ dataset }) => dataset === root.dataset)).toMatchObject([
-        { endDate: '19880102' },
-        { startDate: '19880103' },
-      ]);
-      const split = await database.ingestionBatch.findFirstOrThrow({
-        where: { runId, status: 'split' },
+      expect(units.filter(({ dataset }) => dataset === root.dataset)).toEqual([root]);
+      const receipt = await database.ingestionBatch.findFirstOrThrow({
+        where: { runId, dataset: root.dataset },
       });
-      expect(sourceRequests(split.request)).toHaveLength(1);
+      expect(receipt.status).toBe('succeeded');
+      expect(sourceRequests(receipt.request)).toHaveLength(1);
     }),
   60_000,
 );
